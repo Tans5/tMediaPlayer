@@ -1,0 +1,6 @@
+./audioconvert.h
+./swresample_internal.h
+./swresample.h
+./resample.h
+./version.h
+../android/armv8-a/header/

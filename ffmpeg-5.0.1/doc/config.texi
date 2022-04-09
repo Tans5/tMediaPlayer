@@ -583,7 +583,7 @@
 @set config-avutil yes
 @c @set config-ffplay no
 @c @set config-ffprobe no
-@c @set config-ffmpeg no
+@set config-ffmpeg yes
 @set config-dct yes
 @set config-dwt yes
 @set config-error-resilience yes
