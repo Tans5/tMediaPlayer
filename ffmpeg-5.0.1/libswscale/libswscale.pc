@@ -1,0 +1,14 @@
+prefix=/home/tans/AndroidStudioProjects/tMediaPlayer/ffmpeg-5.0.1/android/armv8-a
+exec_prefix=${prefix}
+libdir=/home/tans/AndroidStudioProjects/tMediaPlayer/ffmpeg-5.0.1/android/armv8-a/lib
+includedir=/home/tans/AndroidStudioProjects/tMediaPlayer/ffmpeg-5.0.1/android/armv8-a/include
+
+Name: libswscale
+Description: FFmpeg image rescaling library
+Version: 6.4.100
+Requires: 
+Requires.private: libavutil >= 57.17.100
+Conflicts:
+Libs: -L${libdir}  -lswscale 
+Libs.private: -lm -latomic
+Cflags: -I${includedir}

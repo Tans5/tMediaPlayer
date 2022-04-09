@@ -8,5 +8,5 @@ Description: FFmpeg utility library
 Version: 57.17.100
 Requires: 
 Conflicts:
-Libs: -L${libdir} -Wl,-rpath,${libdir} -lavutil -pthread -lm -latomic
+Libs: -L${libdir} -Wl,-rpath,${libdir} -lavutil 
 Cflags: -I${includedir}

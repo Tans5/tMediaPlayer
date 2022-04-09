@@ -8,5 +8,5 @@ Description: FFmpeg image rescaling library
 Version: 6.4.100
 Requires:  libavutil >= 57.17.100
 Conflicts:
-Libs: -L${libdir} -Wl,-rpath,${libdir} -lswscale -lm -latomic
+Libs: -L${libdir} -Wl,-rpath,${libdir} -lswscale 
 Cflags: -I${includedir}

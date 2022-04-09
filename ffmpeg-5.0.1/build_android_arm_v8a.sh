@@ -1,54 +1,49 @@
-#./configure --disable-x86asm
-# 清空上次的编译
-make clean
-# 这里先配置你的 NDK 路径
-export NDK=/home/tans/Android/Sdk/ndk/23.0.7599858
-TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
-
-
-function build_android
-{
-
-./configure \
---prefix=$PREFIX \
---disable-postproc \
---disable-debug \
---disable-doc \
---enable-FFmpeg \
---disable-doc \
---disable-symver \
---disable-static \
---enable-shared \
---cross-prefix=$CROSS_PREFIX \
---target-os=android \
---arch=$ARCH \
---cpu=$CPU \
---cc=$CC \
---cxx=$CXX \
---enable-cross-compile \
---sysroot=$SYSROOT \
---extra-cflags="-Os -fpic $OPTIMIZE_CFLAGS" \
---extra-ldflags="$ADDI_LDFLAGS"
-
-make clean
-make -j16
-make install
-
-echo "============================ build android arm64-v8a success =========================="
-
-}
-
-# arm64-v8a
+#!/bin/bash
+set -x
+# 目标Android版本
+API=29
 ARCH=arm64
 CPU=armv8-a
-API=21
-CC=$TOOLCHAIN/bin/aarch64-linux-android$API-clang
-CXX=$TOOLCHAIN/bin/aarch64-linux-android$API-clang++
-SYSROOT=$NDK/toolchains/llvm/prebuilt/darwin-x86_64/sysroot
-CROSS_PREFIX=$TOOLCHAIN/bin/aarch64-linux-android-
-PREFIX=$(pwd)/android/$CPU
+TOOL_CPU_NAME=aarch64
+#so库输出目录
+OUTPUT=$(pwd)/android/$CPU
+# NDK的路径，根据自己的NDK位置进行设置
+NDK=/home/tans/Android/Sdk/ndk/23.0.7599858
+# 编译工具链路径
+TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+# 编译环境
+SYSROOT=$TOOLCHAIN/sysroot
+
+TOOL_PREFIX="$TOOLCHAIN/bin/$TOOL_CPU_NAME-linux-android"
+
+CC="$TOOL_PREFIX$API-clang"
+CXX="$TOOL_PREFIX$API-clang++"
 OPTIMIZE_CFLAGS="-march=$CPU"
+function build
+{
+  ./configure \
+  --prefix=$OUTPUT \
+  --target-os=android \
+  --arch=$ARCH  \
+  --cpu=$CPU \
+  --disable-asm \
+  --enable-neon \
+  --enable-cross-compile \
+  --enable-shared \
+  --disable-static \
+  --disable-doc \
+  --disable-ffplay \
+  --disable-ffprobe \
+  --disable-symver \
+  --disable-ffmpeg \
+  --cc=$CC \
+  --cxx=$CXX \
+  --sysroot=$SYSROOT \
+  --extra-cflags="-Os -fpic $OPTIMIZE_CFLAGS" \
 
-echo $CC
-
-build_android
+  make clean all
+  # 这里是定义用几个CPU编译
+  make -j16
+  make install
+}
+build

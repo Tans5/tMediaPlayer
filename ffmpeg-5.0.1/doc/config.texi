@@ -24,9 +24,9 @@
 @c @set arch-tilegx no
 @c @set arch-tilepro no
 @c @set arch-tomi no
-@set arch-x86 yes
+@c @set arch-x86 no
 @c @set arch-x86-32 no
-@set arch-x86-64 yes
+@c @set arch-x86-64 no
 @c @set have-armv5te no
 @c @set have-armv6 no
 @c @set have-armv6t2 no
@@ -41,25 +41,25 @@
 @c @set have-power8 no
 @c @set have-ppc4xx no
 @c @set have-vsx no
-@set have-aesni yes
-@set have-amd3dnow yes
-@set have-amd3dnowext yes
-@set have-avx yes
-@set have-avx2 yes
-@set have-avx512 yes
-@set have-fma3 yes
-@set have-fma4 yes
-@set have-mmx yes
-@set have-mmxext yes
-@set have-sse yes
-@set have-sse2 yes
-@set have-sse3 yes
-@set have-sse4 yes
-@set have-sse42 yes
-@set have-ssse3 yes
-@set have-xop yes
-@set have-cpunop yes
-@set have-i686 yes
+@c @set have-aesni no
+@c @set have-amd3dnow no
+@c @set have-amd3dnowext no
+@c @set have-avx no
+@c @set have-avx2 no
+@c @set have-avx512 no
+@c @set have-fma3 no
+@c @set have-fma4 no
+@c @set have-mmx no
+@c @set have-mmxext no
+@c @set have-sse no
+@c @set have-sse2 no
+@c @set have-sse3 no
+@c @set have-sse4 no
+@c @set have-sse42 no
+@c @set have-ssse3 no
+@c @set have-xop no
+@c @set have-cpunop no
+@c @set have-i686 no
 @c @set have-mipsfpu no
 @c @set have-mips32r2 no
 @c @set have-mips32r5 no
@@ -77,9 +77,9 @@
 @c @set have-armv5te-external no
 @c @set have-armv6-external no
 @c @set have-armv6t2-external no
-@c @set have-armv8-external no
-@c @set have-neon-external no
-@c @set have-vfp-external no
+@set have-armv8-external yes
+@set have-neon-external yes
+@set have-vfp-external yes
 @c @set have-vfpv3-external no
 @c @set have-setend-external no
 @c @set have-altivec-external no
@@ -124,9 +124,9 @@
 @c @set have-armv5te-inline no
 @c @set have-armv6-inline no
 @c @set have-armv6t2-inline no
-@c @set have-armv8-inline no
-@c @set have-neon-inline no
-@c @set have-vfp-inline no
+@set have-armv8-inline yes
+@set have-neon-inline yes
+@set have-vfp-inline yes
 @c @set have-vfpv3-inline no
 @c @set have-setend-inline no
 @c @set have-altivec-inline no
@@ -135,23 +135,23 @@
 @c @set have-power8-inline no
 @c @set have-ppc4xx-inline no
 @c @set have-vsx-inline no
-@set have-aesni-inline yes
-@set have-amd3dnow-inline yes
-@set have-amd3dnowext-inline yes
-@set have-avx-inline yes
-@set have-avx2-inline yes
-@set have-avx512-inline yes
-@set have-fma3-inline yes
-@set have-fma4-inline yes
-@set have-mmx-inline yes
-@set have-mmxext-inline yes
-@set have-sse-inline yes
-@set have-sse2-inline yes
-@set have-sse3-inline yes
-@set have-sse4-inline yes
-@set have-sse42-inline yes
-@set have-ssse3-inline yes
-@set have-xop-inline yes
+@c @set have-aesni-inline no
+@c @set have-amd3dnow-inline no
+@c @set have-amd3dnowext-inline no
+@c @set have-avx-inline no
+@c @set have-avx2-inline no
+@c @set have-avx512-inline no
+@c @set have-fma3-inline no
+@c @set have-fma4-inline no
+@c @set have-mmx-inline no
+@c @set have-mmxext-inline no
+@c @set have-sse-inline no
+@c @set have-sse2-inline no
+@c @set have-sse3-inline no
+@c @set have-sse4-inline no
+@c @set have-sse42-inline no
+@c @set have-ssse3-inline no
+@c @set have-xop-inline no
 @c @set have-cpunop-inline no
 @c @set have-i686-inline no
 @c @set have-mipsfpu-inline no
@@ -168,28 +168,28 @@
 @c @set have-mmi-inline no
 @c @set have-lsx-inline no
 @c @set have-lasx-inline no
-@set have-aligned-stack yes
-@set have-fast-64bit yes
-@set have-fast-clz yes
-@set have-fast-cmov yes
-@set have-local-aligned yes
-@set have-simd-align-16 yes
-@set have-simd-align-32 yes
-@set have-simd-align-64 yes
+@c @set have-aligned-stack no
+@c @set have-fast-64bit no
+@c @set have-fast-clz no
+@c @set have-fast-cmov no
+@c @set have-local-aligned no
+@c @set have-simd-align-16 no
+@c @set have-simd-align-32 no
+@c @set have-simd-align-64 no
 @c @set have-atomic-cas-ptr no
 @c @set have-machine-rw-barrier no
 @c @set have-memorybarrier no
-@set have-mm-empty yes
+@c @set have-mm-empty no
 @c @set have-rdtsc no
 @set have-sem-timedwait yes
 @set have-sync-val-compare-and-swap yes
 @c @set have-cabs no
 @c @set have-cexp no
 @set have-inline-asm yes
-@set have-symver yes
+@c @set have-symver no
 @c @set have-x86asm no
 @c @set have-bigendian no
-@set have-fast-unaligned yes
+@c @set have-fast-unaligned no
 @set have-arpa-inet-h yes
 @set have-asm-types-h yes
 @c @set have-cdio-paranoia-h no
@@ -219,7 +219,7 @@
 @set have-sys-param-h yes
 @set have-sys-resource-h yes
 @set have-sys-select-h yes
-@set have-sys-soundcard-h yes
+@c @set have-sys-soundcard-h no
 @set have-sys-time-h yes
 @set have-sys-un-h yes
 @c @set have-sys-videoio-h no
@@ -268,7 +268,7 @@
 @c @set have-winrt no
 @set have-access yes
 @c @set have-aligned-malloc no
-@c @set have-arc4random no
+@set have-arc4random yes
 @set have-clock-gettime yes
 @c @set have-closesocket no
 @c @set have-commandlinetoargvw no
@@ -302,7 +302,7 @@
 @set have-nanosleep yes
 @c @set have-peeknamedpipe no
 @set have-posix-memalign yes
-@set have-pthread-cancel yes
+@c @set have-pthread-cancel no
 @set have-sched-getaffinity yes
 @c @set have-secitemimport no
 @c @set have-setconsoletextattribute no
@@ -313,7 +313,7 @@
 @c @set have-sleep no
 @set have-strerror-r yes
 @set have-sysconf yes
-@set have-sysctl yes
+@c @set have-sysctl no
 @set have-usleep yes
 @c @set have-utgetostypefromstring no
 @c @set have-virtualalloc no
@@ -332,21 +332,21 @@
 @c @set have-as-object-arch no
 @c @set have-asm-mod-q no
 @c @set have-blocks-extension no
-@set have-ebp-available yes
-@set have-ebx-available yes
+@c @set have-ebp-available no
+@c @set have-ebx-available no
 @c @set have-gnu-as no
 @c @set have-gnu-windres no
 @c @set have-ibm-asm no
-@set have-inline-asm-direct-symbol-refs yes
+@c @set have-inline-asm-direct-symbol-refs no
 @set have-inline-asm-labels yes
 @set have-inline-asm-nonlocal-labels yes
 @set have-pragma-deprecated yes
 @set have-rsync-contimeout yes
-@c @set have-symver-asm-label no
+@set have-symver-asm-label yes
 @set have-symver-gnu-asm yes
 @c @set have-vfp-args no
 @c @set have-xform-asm no
-@set have-xmm-clobbers yes
+@c @set have-xmm-clobbers no
 @c @set have-kcmvideocodectype-hevc no
 @c @set have-kcmvideocodectype-hevcwithalpha no
 @c @set have-kcmvideocodectype-vp9 no
@@ -393,7 +393,7 @@
 @c @set have-texi2html no
 @c @set have-xmllint no
 @set have-zlib-gzip yes
-@set config-doc yes
+@c @set config-doc no
 @c @set config-htmlpages no
 @set config-manpages yes
 @set config-podpages yes
@@ -566,9 +566,9 @@
 @c @set config-omx-rpi no
 @set config-runtime-cpudetect yes
 @set config-safe-bitstream-reader yes
-@c @set config-shared no
+@set config-shared yes
 @c @set config-small no
-@set config-static yes
+@c @set config-static no
 @set config-swscale-alpha yes
 @c @set config-gpl no
 @c @set config-nonfree no
@@ -582,13 +582,13 @@
 @set config-swresample yes
 @set config-avutil yes
 @c @set config-ffplay no
-@set config-ffprobe yes
-@set config-ffmpeg yes
+@c @set config-ffprobe no
+@c @set config-ffmpeg no
 @set config-dct yes
 @set config-dwt yes
 @set config-error-resilience yes
 @set config-faan yes
-@set config-fast-unaligned yes
+@c @set config-fast-unaligned no
 @set config-fft yes
 @set config-lsp yes
 @set config-lzo yes
@@ -1655,7 +1655,7 @@
 @set config-xbm-parser yes
 @set config-xma-parser yes
 @c @set config-alsa-indev no
-@c @set config-android-camera-indev no
+@set config-android-camera-indev yes
 @c @set config-avfoundation-indev no
 @c @set config-bktr-indev no
 @c @set config-decklink-indev no
@@ -1667,7 +1667,7 @@
 @c @set config-kmsgrab-indev no
 @set config-lavfi-indev yes
 @c @set config-openal-indev no
-@set config-oss-indev yes
+@c @set config-oss-indev no
 @c @set config-pulse-indev no
 @c @set config-sndio-indev no
 @set config-v4l2-indev yes
@@ -1681,7 +1681,7 @@
 @c @set config-decklink-outdev no
 @set config-fbdev-outdev yes
 @c @set config-opengl-outdev no
-@set config-oss-outdev yes
+@c @set config-oss-outdev no
 @c @set config-pulse-outdev no
 @c @set config-sdl2-outdev no
 @c @set config-sndio-outdev no

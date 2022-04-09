@@ -1,0 +1,3 @@
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/x86/CMakeFiles/rebuild_cache.dir
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/x86/CMakeFiles/edit_cache.dir
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/x86/CMakeFiles/tmediaplayer.dir

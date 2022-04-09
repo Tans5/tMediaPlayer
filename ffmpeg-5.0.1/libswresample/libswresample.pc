@@ -1,0 +1,14 @@
+prefix=/home/tans/AndroidStudioProjects/tMediaPlayer/ffmpeg-5.0.1/android/armv8-a
+exec_prefix=${prefix}
+libdir=/home/tans/AndroidStudioProjects/tMediaPlayer/ffmpeg-5.0.1/android/armv8-a/lib
+includedir=/home/tans/AndroidStudioProjects/tMediaPlayer/ffmpeg-5.0.1/android/armv8-a/include
+
+Name: libswresample
+Description: FFmpeg audio resampling library
+Version: 4.3.100
+Requires: 
+Requires.private: libavutil >= 57.17.100
+Conflicts:
+Libs: -L${libdir}  -lswresample 
+Libs.private: -lm -latomic
+Cflags: -I${includedir}

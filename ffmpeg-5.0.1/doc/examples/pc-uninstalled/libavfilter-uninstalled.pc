@@ -8,5 +8,5 @@ Description: FFmpeg audio/video filtering library
 Version: 8.24.100
 Requires:  libswscale >= 6.4.100,  libavformat >= 59.16.100,  libavcodec >= 59.18.100,  libswresample >= 4.3.100,  libavutil >= 57.17.100
 Conflicts:
-Libs: -L${libdir} -Wl,-rpath,${libdir} -lavfilter -pthread -lm -latomic
+Libs: -L${libdir} -Wl,-rpath,${libdir} -lavfilter 
 Cflags: -I${includedir}
