@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/x86",
-  "command": "/home/tans/Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=i686-none-linux-android21 --gcc-toolchain=/home/tans/Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64 --sysroot=/home/tans/Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dtmediaplayer_EXPORTS -I/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/src/main/cpp/ffmpeg/header -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O0 -fno-limit-debug-info  -fPIC -o CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o -c /home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/src/main/cpp/tmediaplayer.cpp",
-  "file": "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/src/main/cpp/tmediaplayer.cpp"
-}
-]

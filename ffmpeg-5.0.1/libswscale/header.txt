@@ -2,4 +2,4 @@
 ./rgb2rgb.h
 ./swscale.h
 ./version.h
-../android/armv8-a/header/
+../android/armv8-a/header/libswscale

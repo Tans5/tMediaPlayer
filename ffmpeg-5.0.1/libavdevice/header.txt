@@ -14,4 +14,4 @@
 ./sndio.h
 ./fbdev_common.h
 ./version.h
-../android/armv8-a/header/
+../android/armv8-a/header/libavdevice

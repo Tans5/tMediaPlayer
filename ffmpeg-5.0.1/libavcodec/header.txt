@@ -506,4 +506,4 @@
 ./twinvq_data.h
 ./jni.h
 ./rv10.h
-../android/armv8-a/header/
+../android/armv8-a/header/libavcodec

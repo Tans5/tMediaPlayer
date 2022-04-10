@@ -3,4 +3,4 @@
 ./swresample.h
 ./resample.h
 ./version.h
-../android/armv8-a/header/
+../android/armv8-a/header/libswresample

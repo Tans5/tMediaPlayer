@@ -80,4 +80,4 @@
 ./version.h
 ./dnn_filter_common.h
 ./vf_nlmeans.h
-../android/armv8-a/header/
+../android/armv8-a/header/libavfilter
