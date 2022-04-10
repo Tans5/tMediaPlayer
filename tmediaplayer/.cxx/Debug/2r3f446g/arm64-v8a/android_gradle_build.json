@@ -22,15 +22,7 @@
       "abi": "arm64-v8a",
       "artifactName": "tmediaplayer",
       "output": "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so",
-      "runtimeFiles": [
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libavutil.so",
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libavcodec.so",
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libavdevice.so",
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libavfilter.so",
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libavformat.so",
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libswresample.so",
-        "/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/2r3f446g/jniLibs/arm64-v8a/libswscale.so"
-      ]
+      "runtimeFiles": []
     }
   },
   "toolchains": {

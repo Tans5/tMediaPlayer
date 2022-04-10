@@ -1,1 +1,0 @@
-ninja: error: '../jniLibs/arm64-v8a/libavutil.so', needed by '/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/RelWithDebInfo/475u3v3u/obj/arm64-v8a/libtmediaplayer.so', missing and no known rule to make it

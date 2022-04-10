@@ -23,7 +23,7 @@
 #ifndef AVCODEC_FFJNI_H
 #define AVCODEC_FFJNI_H
 
-#include <jni.h>
+#include <jni2.h>
 
 /*
  * Attach permanently a JNI environment to the current thread and retrieve it.

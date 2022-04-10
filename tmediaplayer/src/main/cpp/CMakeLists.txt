@@ -14,21 +14,21 @@ add_library( avutil
         IMPORTED )
 set_target_properties( avutil
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libavutil.so)
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libavutil.so )
 
 add_library( avcodec
         SHARED
         IMPORTED )
 set_target_properties( avcodec
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libavcodec.so)
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libavcodec.so)
 
 add_library( avdevice
         SHARED
         IMPORTED )
 set_target_properties( avdevice
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libavdevice.so)
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libavdevice.so)
 
 
 add_library( avfilter
@@ -36,7 +36,7 @@ add_library( avfilter
         IMPORTED )
 set_target_properties( avfilter
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libavfilter.so )
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libavfilter.so )
 
 
 add_library( avformat
@@ -44,7 +44,7 @@ add_library( avformat
         IMPORTED )
 set_target_properties( avformat
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libavformat.so )
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libavformat.so )
 
 
 add_library( swresample
@@ -52,7 +52,7 @@ add_library( swresample
         IMPORTED )
 set_target_properties( swresample
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libswresample.so )
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libswresample.so )
 
 
 add_library( swscale
@@ -60,7 +60,7 @@ add_library( swscale
         IMPORTED )
 set_target_properties( swscale
         PROPERTIES IMPORTED_LOCATION
-        ../jniLibs/arm64-v8a/libswscale.so )
+        ${PROJECT_SOURCE_DIR}/tmediaplayer/src/jniLibs/${ANDROID_ABI}/libswscale.so )
 
 
 #################################ffmepg#########################################
@@ -91,13 +91,13 @@ find_library( # Sets the name of the path variable.
 
 target_link_libraries( # Specifies the target library.
         tmediaplayer
-        avutil
-        avcodec
-        avdevice
-        avfilter
-        avformat
-        swresample
-        swscale
+        ${avutil}
+        ${avcodec}
+        ${avdevice}
+        ${avfilter}
+        ${avformat}
+        ${swresample}
+        ${swscale}
         ${log-lib}
         )
 

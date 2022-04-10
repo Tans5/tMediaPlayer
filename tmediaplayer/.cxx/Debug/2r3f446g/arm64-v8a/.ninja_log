@@ -1,2 +1,3 @@
 # ninja log v5
-0	2	0	clean	7c85078e3d8376b4
+0	307	1649566529	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+308	353	1649566529	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	96246203cfc68130
