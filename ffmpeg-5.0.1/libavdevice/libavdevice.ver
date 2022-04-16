@@ -1,4 +1,4 @@
-LIBAVDEVICE_ {
+LIBAVDEVICE_59 {
     global:
         avdevice_*;
         av_*;

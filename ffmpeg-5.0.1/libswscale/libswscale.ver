@@ -1,4 +1,4 @@
-LIBSWSCALE_ {
+LIBSWSCALE_6 {
     global:
         swscale_*;
         sws_*;

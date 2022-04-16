@@ -1,4 +1,4 @@
-LIBAVCODEC_ {
+LIBAVCODEC_59 {
     global:
         av_*;
         avcodec_*;

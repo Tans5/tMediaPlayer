@@ -1,4 +1,4 @@
-LIBSWRESAMPLE_ {
+LIBSWRESAMPLE_4 {
     global:
         swr_*;
         swresample_*;
