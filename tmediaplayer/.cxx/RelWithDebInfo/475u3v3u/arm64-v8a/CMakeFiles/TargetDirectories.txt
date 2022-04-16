@@ -1,0 +1,3 @@
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/RelWithDebInfo/475u3v3u/arm64-v8a/CMakeFiles/rebuild_cache.dir
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/RelWithDebInfo/475u3v3u/arm64-v8a/CMakeFiles/edit_cache.dir
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/RelWithDebInfo/475u3v3u/arm64-v8a/CMakeFiles/tmediaplayer.dir

@@ -1,0 +1,22 @@
+# ninja log v5
+0	337	1650112535	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+337	384	1650112535	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+0	1	0	clean	7c85078e3d8376b4
+0	2	0	clean	7c85078e3d8376b4
+0	2	0	clean	7c85078e3d8376b4
+1	324	1650113354	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+324	363	1650113354	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+0	289	1650113736	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+289	302	1650113736	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+0	301	1650113772	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+301	314	1650113772	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+0	305	1650113989	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+305	319	1650113989	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+4	110	1650117608	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+0	2	0	clean	7c85078e3d8376b4
+1	379	1650117668	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+379	394	1650117668	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+1	17	1650117884	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d
+0	2	0	clean	7c85078e3d8376b4
+1	390	1650117895	CMakeFiles/tmediaplayer.dir/tmediaplayer.cpp.o	d6f33c9e1269fdce
+390	407	1650117895	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	23d75030fdff3e8d

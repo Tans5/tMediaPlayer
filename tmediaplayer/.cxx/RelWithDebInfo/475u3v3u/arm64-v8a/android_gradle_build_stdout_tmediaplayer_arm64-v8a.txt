@@ -1,0 +1,2 @@
+ninja: Entering directory `/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/RelWithDebInfo/475u3v3u/arm64-v8a'
+ninja: no work to do.

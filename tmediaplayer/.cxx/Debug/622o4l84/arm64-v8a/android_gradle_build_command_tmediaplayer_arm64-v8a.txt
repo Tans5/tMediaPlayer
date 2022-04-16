@@ -1,0 +1,7 @@
+Executable : /home/tans/Android/Sdk/cmake/3.18.1/bin/ninja
+arguments : 
+-C
+/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/Debug/622o4l84/arm64-v8a
+tmediaplayer
+jvmArgs : 
+
