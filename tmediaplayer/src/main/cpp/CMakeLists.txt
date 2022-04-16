@@ -9,59 +9,12 @@ project("tmediaplayer")
 
 
 #################################ffmepg#########################################
-add_library( avutil
+add_library( ffmpeg
         SHARED
         IMPORTED )
-set_target_properties( avutil
+set_target_properties( ffmpeg
         PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavutil.so )
-
-add_library( avcodec
-        SHARED
-        IMPORTED )
-set_target_properties( avcodec
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavcodec.so)
-
-add_library( avdevice
-        SHARED
-        IMPORTED )
-set_target_properties( avdevice
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavdevice.so)
-
-
-add_library( avfilter
-        SHARED
-        IMPORTED )
-set_target_properties( avfilter
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavfilter.so )
-
-
-add_library( avformat
-        SHARED
-        IMPORTED )
-set_target_properties( avformat
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavformat.so )
-
-
-add_library( swresample
-        SHARED
-        IMPORTED )
-set_target_properties( swresample
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswresample.so )
-
-
-add_library( swscale
-        SHARED
-        IMPORTED )
-set_target_properties( swscale
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswscale.so )
-
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/librxffmpeg-core.so )
 
 #################################ffmepg#########################################
 
@@ -91,13 +44,7 @@ find_library( # Sets the name of the path variable.
 
 target_link_libraries( # Specifies the target library.
         tmediaplayer
-        avutil
-        avcodec
-        avdevice
-        avfilter
-        avformat
-        swresample
-        swscale
+        ffmpeg
         ${log-lib}
         )
 

@@ -1,5 +1,0 @@
-./swscale_internal.h
-./rgb2rgb.h
-./swscale.h
-./version.h
-../android/armv8-a/header/libswscale

@@ -26,10 +26,10 @@
  * Libswresample version macros
  */
 
-#include "libavutil/version.h"
+#include "libavutil/avutil.h"
 
-#define LIBSWRESAMPLE_VERSION_MAJOR   4
-#define LIBSWRESAMPLE_VERSION_MINOR   3
+#define LIBSWRESAMPLE_VERSION_MAJOR   3
+#define LIBSWRESAMPLE_VERSION_MINOR   1
 #define LIBSWRESAMPLE_VERSION_MICRO 100
 
 #define LIBSWRESAMPLE_VERSION_INT  AV_VERSION_INT(LIBSWRESAMPLE_VERSION_MAJOR, \
