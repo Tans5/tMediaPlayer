@@ -2551,7 +2551,6 @@ CMDLINE_SET="
     objcc
     cpu
     cross_prefix
-    cross_prefix_clang
     custom_allocator
     cxx
     dep_cc
@@ -3918,12 +3917,11 @@ SLIBPREF="lib"
 SLIBSUF=".so"
 SLIBNAME='$(SLIBPREF)$(FULLNAME)$(SLIBSUF)'
 SLIBNAME_WITH_VERSION='$(SLIBNAME).$(LIBVERSION)'
-SLIBNAME_WITH_MAJOR='$(SLIBNAME)$(FULLNAME)-$(LIBMAJOR)$(SLIBSUF)'
-LIB_INSTALL_EXTRA_CMD='$$(RANLIB)"$(LIBDIR)/$(LIBNAME)"'
-SLIB_INSTALL_NAME='$(SLIBNAME_WITH_MAJOR)'
-SLIB_INSTALL_LINKS='$(SLIBNAME)'
+SLIBNAME_WITH_MAJOR='$(SLIBNAME).$(LIBMAJOR)'
+LIB_INSTALL_EXTRA_CMD='$$(RANLIB) "$(LIBDIR)/$(LIBNAME)"'
+SLIB_INSTALL_NAME='$(SLIBNAME_WITH_VERSION)'
+SLIB_INSTALL_LINKS='$(SLIBNAME_WITH_MAJOR) $(SLIBNAME)'
 VERSION_SCRIPT_POSTPROCESS_CMD="cat"
-
 
 asflags_filter=echo
 cflags_filter=echo
@@ -4418,8 +4416,8 @@ if test "$target_os" = android; then
 fi
 
 ar_default="${cross_prefix}${ar_default}"
-cc_default="${cross_prefix_clang}${cc_default}"
-cxx_default="${cross_prefix_clang}${cxx_default}"
+cc_default="${cross_prefix}${cc_default}"
+cxx_default="${cross_prefix}${cxx_default}"
 nm_default="${cross_prefix}${nm_default}"
 pkg_config_default="${cross_prefix}${pkg_config_default}"
 if ${cross_prefix}${ranlib_default} 2>&1 | grep -q "\-D "; then

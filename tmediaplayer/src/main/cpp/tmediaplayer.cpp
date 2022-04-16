@@ -9,6 +9,11 @@ Java_com_tans_tmediaplayer_NativeLib_stringFromJNI(
         JNIEnv* env,
         jobject /* this */) {
     AVFormatContext* context = avformat_alloc_context();
-    std::string hello = context->codec_whitelist;
-    return env->NewStringUTF(hello.c_str());
+    char * result;
+    if (context == nullptr) {
+        result = "Result is Nullptr";
+    } else {
+        result = "Result is not null";
+    }
+    return env->NewStringUTF(result);
 }
