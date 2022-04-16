@@ -98,7 +98,7 @@ target_link_libraries( # Specifies the target library.
         avformat
         swresample
         swscale
-        log-lib
+        ${log-lib}
         )
 
 #################################tmediaplayer#########################################
