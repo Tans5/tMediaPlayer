@@ -44,7 +44,7 @@ PREFIX=$LIBS_DIR/$AOSP_ABI
 --extra-ldflags="  "
 
 make clean
-make -j8
+make -j16
 make install
 
 mv ./libavdevice/libavdevice.soavdevice-59.so ./android/$ARCH/libavdevice.so

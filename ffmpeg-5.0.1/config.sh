@@ -1,9 +1,9 @@
 #NDK路径
-export ANDROID_NDK_ROOT=/home/tans/Android/Sdk/ndk/23.0.7599858
+export ANDROID_NDK_ROOT=/home/tans/Android/android-ndk-r23b
 
 export AOSP_TOOLCHAIN_SUFFIX=4.9
 
-export AOSP_API="android-21"
+export AOSP_API="android-19"
 
 #架构
 if [ "$#" -lt 1 ]; then
