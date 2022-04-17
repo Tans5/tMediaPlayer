@@ -23,16 +23,18 @@ set_target_properties( ffmpeg
 
 
 add_library( # Sets the name of the library.
-             tmediaplayer
+        tmediaplayer
 
-             # Sets the library as a shared library.
-             SHARED
+        # Sets the library as a shared library.
+        SHARED
 
-             # Provides a relative path to your source file(s).
-             tmediaplayer.cpp )
+        # Provides a relative path to your source file(s).
+        t_media_bridge.cpp
+        mediaplayer/media_player.cpp)
 
 target_include_directories(tmediaplayer PUBLIC
-        ffmpeg/header)
+        ffmpeg/header
+        header)
 
 
 find_library( # Sets the name of the path variable.

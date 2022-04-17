@@ -6,3 +6,8 @@
 0	2	0	clean	7c85078e3d8376b4
 0	1	0	clean	7c85078e3d8376b4
 0	2	0	clean	7c85078e3d8376b4
+0	15	1650180593	CMakeFiles/tmediaplayer.dir/mediaplayer/media_player.cpp.o	6939e69fdb04acff
+0	299	1650180593	CMakeFiles/tmediaplayer.dir/t_media_bridge.cpp.o	39ef6579e8b58ec
+299	315	1650180593	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/RelWithDebInfo/475u3v3u/obj/arm64-v8a/libtmediaplayer.so	ffc8377971466bed
+0	15	1650182167	build.ninja	29fc89cec72aa4bd
+0	1	0	clean	7c85078e3d8376b4
