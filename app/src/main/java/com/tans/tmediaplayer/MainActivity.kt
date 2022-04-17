@@ -13,6 +13,11 @@ val ioExecutor: Executor by lazy {
 }
 
 class MainActivity : AppCompatActivity() {
+
+    private val mediaPlayer: MediaPlayer by lazy {
+        MediaPlayer()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -36,8 +41,12 @@ class MainActivity : AppCompatActivity() {
                     output.flush()
                 }
             }
-            val mediaPlayer = MediaPlayer()
-            mediaPlayer.setFilePath(testVideoFile.absolutePath)
+            mediaPlayer.setupPlayer(testVideoFile.absolutePath)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaPlayer.releasePlayer()
     }
 }

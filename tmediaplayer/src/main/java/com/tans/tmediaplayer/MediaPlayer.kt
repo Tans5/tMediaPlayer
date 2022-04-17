@@ -2,11 +2,17 @@ package com.tans.tmediaplayer
 
 class MediaPlayer {
 
-    fun setFilePath(filePath: String) {
-        setFilePathNative(filePath)
+    fun setupPlayer(filePath: String) {
+        setupPlayerNative(filePath)
     }
 
-    private external fun setFilePathNative(filePath: String)
+    fun releasePlayer() {
+        releasePlayerNative()
+    }
+
+    private external fun setupPlayerNative(filePath: String)
+
+    private external fun releasePlayerNative()
 
     companion object {
         init {
