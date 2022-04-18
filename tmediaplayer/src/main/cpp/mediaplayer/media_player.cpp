@@ -92,16 +92,16 @@ void setup_media_player(const char *file_path) {
     }
 
     // Audio decode
-    if (audio_stream != nullptr) {
-        auto audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
-        if (audio_decoder == nullptr) {
-            LOGE("%s", "Do not find audio decoder");
-        } else {
-            media_player_data->audio_decoder = audio_decoder;
-            auto audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
-            media_player_data->audio_decoder_ctx = audio_decoder_ctx;
-        }
-    }
+//    if (audio_stream != nullptr) {
+//        auto audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
+//        if (audio_decoder == nullptr) {
+//            LOGE("%s", "Do not find audio decoder");
+//        } else {
+//            media_player_data->audio_decoder = audio_decoder;
+//            auto audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
+//            media_player_data->audio_decoder_ctx = audio_decoder_ctx;
+//        }
+//    }
     decode_video();
 }
 
@@ -124,14 +124,16 @@ void decode_video() {
                 auto c_result = avcodec_open2(decoder_ctx, decoder, nullptr);
                 if (c_result >= 0) {
                     do {
+                        av_packet_unref(pkg);
                         int read_frame_result = av_read_frame(fmt_ctx, pkg);
                         if (read_frame_result < 0) {
                             LOGD("%s", "Decode video read frame result.");
+                            break;
                         }
                         int send_pkg_result = avcodec_send_packet(decoder_ctx, pkg);
                         if (send_pkg_result < 0) {
                             LOGE("Decode video send pkg fail: %d", send_pkg_result);
-                            return;
+                            break;
                         }
                         int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
                         if (receive_frame_result >= 0) {
