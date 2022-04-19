@@ -4,23 +4,42 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
 }
+#include "ctime"
 
 typedef struct MediaPlayerData {
     const char *media_file;
     AVFormatContext *format_ctx;
+    AVPacket *pkt;
+    AVFrame *frame;
+    /**
+     * Video
+     */
     AVStream *video_stream;
-    AVStream *audio_stream;
     AVCodec *video_decoder;
-    AVPacket *video_pkg;
-    AVFrame *video_frame;
+    int video_width;
+    int video_height;
+    double video_fps;
+    double video_base_time;
+    int video_time_den;
     AVCodecContext *video_decoder_ctx;
+
+    /**
+     * Audio
+     */
+    AVStream *audio_stream;
     AVCodec *audio_decoder;
     AVCodecContext *audio_decoder_ctx;
 } MediaPlayerData;
 
 MediaPlayerData *media_player_data = nullptr;
 
-void decode_video();
+long get_time_millis() {
+    struct timeval tv{};
+    gettimeofday(&tv, nullptr);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+void decode();
 
 void setup_media_player(const char *file_path) {
     release_media_player();
@@ -74,6 +93,12 @@ void setup_media_player(const char *file_path) {
     media_player_data->audio_stream = audio_stream;
     media_player_data->video_stream = video_stream;
 
+
+    auto pkt = av_packet_alloc();
+    media_player_data->pkt = pkt;
+    auto frame = av_frame_alloc();
+    media_player_data->frame = frame;
+
     // Video decode
     if (video_stream != nullptr) {
         auto video_codec = video_stream->codecpar->codec_id;
@@ -84,10 +109,22 @@ void setup_media_player(const char *file_path) {
             media_player_data->video_decoder = video_decoder;
             auto video_decoder_ctx = avcodec_alloc_context3(video_decoder);
             media_player_data->video_decoder_ctx = video_decoder_ctx;
-            auto video_pkg = av_packet_alloc();
-            media_player_data->video_pkg = video_pkg;
-            auto video_frame = av_frame_alloc();
-            media_player_data->video_frame = video_frame;
+
+            if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
+                LOGE("%s", "Set video stream params fail");
+                return;
+            }
+            if (avcodec_open2(video_decoder_ctx, video_decoder, nullptr) < 0) {
+                LOGE("%s", "Open video decoder fail");
+                return;
+            }
+            media_player_data->video_width = video_decoder_ctx->width;
+            media_player_data->video_height = video_decoder_ctx->height;
+            media_player_data->video_fps = av_q2d(video_stream->r_frame_rate);
+            media_player_data->video_base_time = av_q2d(video_stream->time_base);
+            media_player_data->video_time_den = video_stream->time_base.den;
+            LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f", media_player_data->video_width,
+                 media_player_data->video_height, media_player_data->video_fps, media_player_data->video_base_time);
         }
     }
 
@@ -102,55 +139,52 @@ void setup_media_player(const char *file_path) {
 //            media_player_data->audio_decoder_ctx = audio_decoder_ctx;
 //        }
 //    }
-    decode_video();
+    decode();
 }
 
-void decode_video() {
+void decode() {
     if (media_player_data != nullptr) {
         auto fmt_ctx = media_player_data->format_ctx;
+        auto pkt = media_player_data->pkt;
+
         auto decoder_ctx = media_player_data->video_decoder_ctx;
         auto decoder = media_player_data->video_decoder;
         auto stream = media_player_data->video_stream;
-        auto pkg = media_player_data->video_pkg;
-        auto frame = media_player_data->video_frame;
+        auto frame = media_player_data->frame;
         if (decoder_ctx != nullptr &&
             decoder != nullptr &&
             stream != nullptr &&
-            pkg != nullptr &&
+            pkt != nullptr &&
             frame != nullptr &&
             fmt_ctx != nullptr) {
-            auto p_result = avcodec_parameters_to_context(decoder_ctx, stream->codecpar);
-            if (p_result >= 0) {
-                auto c_result = avcodec_open2(decoder_ctx, decoder, nullptr);
-                if (c_result >= 0) {
-                    do {
-                        av_packet_unref(pkg);
-                        int read_frame_result = av_read_frame(fmt_ctx, pkg);
-                        if (read_frame_result < 0) {
-                            LOGD("%s", "Decode video read frame result.");
-                            break;
-                        }
-                        int send_pkg_result = avcodec_send_packet(decoder_ctx, pkg);
-                        if (send_pkg_result < 0) {
-                            LOGE("Decode video send pkg fail: %d", send_pkg_result);
-                            break;
-                        }
-                        int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
-                        if (receive_frame_result >= 0) {
-                            // TODO: handle decoded frame.
-                            LOGD("Decode video frame success: %lld", frame->pts);
-                        } else {
-                            LOGE("%s", "Decode video frame fail");
-                            break;
-                        }
-                    } while (true);
-                    LOGD("%s", "Decode video finish!!!");
-                } else {
-                    LOGE("Decode video fail, open codec fail: %d", c_result);
+
+            do {
+                long decode_start = get_time_millis();
+                av_packet_unref(pkt);
+                int read_frame_result = av_read_frame(fmt_ctx, pkt);
+                if (pkt->stream_index == stream->index) {
+                    if (read_frame_result < 0) {
+                        LOGD("%s", "Decode video read frame result.");
+                        break;
+                    }
+                    int send_pkg_result = avcodec_send_packet(decoder_ctx, pkt);
+                    if (send_pkg_result < 0) {
+                        LOGE("Decode video send pkt fail: %d", send_pkg_result);
+                        break;
+                    }
+                    av_frame_unref(frame);
+                    int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
+                    if (receive_frame_result >= 0) {
+                        int64_t pts_millis = frame->pts * 1000 / media_player_data->video_time_den;
+                        // TODO: handle decoded frame.
+                        LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_start);
+                    } else {
+                        LOGE("%s", "Decode video frame fail");
+                        break;
+                    }
                 }
-            } else {
-                LOGE("Decode video fail, p result: %d", p_result);
-            }
+            } while (true);
+            LOGD("%s", "Decode video finish!!!");
         } else {
             LOGE("%s", "Decode video fail, stream, decoder and context is null.");
         }
@@ -162,18 +196,18 @@ void decode_video() {
 void release_media_player() {
     if (media_player_data != nullptr) {
         LOGD("%s", "Release media player");
-        auto audio_decoder_ctx = media_player_data->audio_decoder_ctx;
-        if (audio_decoder_ctx != nullptr) {
-            avcodec_close(audio_decoder_ctx);
-            avcodec_free_context(&audio_decoder_ctx);
-        }
-
-        auto video_pkg = media_player_data->video_pkg;
+//        auto audio_decoder_ctx = media_player_data->audio_decoder_ctx;
+//        if (audio_decoder_ctx != nullptr) {
+//            avcodec_close(audio_decoder_ctx);
+//            avcodec_free_context(&audio_decoder_ctx);
+//        }
+//
+        auto video_pkg = media_player_data->pkt;
         if (video_pkg != nullptr) {
             av_packet_free(&video_pkg);
         }
 
-        auto video_frame = media_player_data->video_frame;
+        auto video_frame = media_player_data->frame;
         if (video_frame != nullptr) {
             av_frame_free(&video_frame);
         }
@@ -191,6 +225,5 @@ void release_media_player() {
         }
 
         free(media_player_data);
-        media_player_data = nullptr;
     }
 }
