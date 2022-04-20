@@ -44,10 +44,16 @@ find_library( # Sets the name of the path variable.
               # you want CMake to locate.
               log )
 
+find_library(
+        android-lib
+        android
+)
+
 target_link_libraries( # Specifies the target library.
         tmediaplayer
         ffmpeg
         ${log-lib}
+        ${android-lib}
         )
 
 #################################tmediaplayer#########################################

@@ -2,6 +2,7 @@ package com.tans.tmediaplayer
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.TextureView
 import android.widget.TextView
 import java.io.File
 import java.io.FileOutputStream
@@ -17,11 +18,13 @@ class MainActivity : AppCompatActivity() {
     private val mediaPlayer: MediaPlayer by lazy {
         MediaPlayer()
     }
+    private val textureView by lazy {
+        findViewById<TextureView>(R.id.texture_view)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        findViewById<TextView>(R.id.hello_tv).text = "Hello, World."
         ioExecutor.execute {
             val parentDir = filesDir
             val testVideoFile = File(parentDir, "sekiro.mp4")
@@ -41,7 +44,7 @@ class MainActivity : AppCompatActivity() {
                     output.flush()
                 }
             }
-            mediaPlayer.setupPlayer(testVideoFile.absolutePath)
+            mediaPlayer.setupPlayer(testVideoFile.absolutePath, textureView)
         }
     }
 

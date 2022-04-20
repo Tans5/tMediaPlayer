@@ -3,8 +3,12 @@
 extern "C" {
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
+#include "libswscale/swscale.h"
+#include "libavutil/imgutils.h"
 }
 #include "ctime"
+#include "android/native_window.h"
+#include "android/native_window_jni.h"
 
 typedef struct MediaPlayerData {
     const char *media_file;
@@ -14,8 +18,10 @@ typedef struct MediaPlayerData {
     /**
      * Video
      */
+    ANativeWindow *native_window;
     AVStream *video_stream;
     AVCodec *video_decoder;
+
     int video_width;
     int video_height;
     double video_fps;
@@ -125,6 +131,17 @@ void setup_media_player(const char *file_path) {
             media_player_data->video_time_den = video_stream->time_base.den;
             LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f", media_player_data->video_width,
                  media_player_data->video_height, media_player_data->video_fps, media_player_data->video_base_time);
+
+//            auto sws_ctx = sws_getContext(
+//                    frame->width, frame->height, video_decoder_ctx->pix_fmt,
+//                    frame->width, frame->height, AV_PIX_FMT_RGBA,
+//                    SWS_BICUBIC, nullptr, nullptr, nullptr
+//            );
+//            auto rgba_frame = av_frame_alloc();
+//            int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
+//            auto *rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(buffer_size * sizeof(uint8_t)));
+//            av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer, AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
+//            auto *native_window_buffer = new ANativeWindow_Buffer;
         }
     }
 
@@ -140,6 +157,12 @@ void setup_media_player(const char *file_path) {
 //        }
 //    }
     decode();
+}
+
+void set_window(ANativeWindow *native_window) {
+    if (media_player_data != nullptr) {
+        media_player_data->native_window = native_window;
+    }
 }
 
 void decode() {
@@ -176,7 +199,33 @@ void decode() {
                     int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
                     if (receive_frame_result >= 0) {
                         int64_t pts_millis = frame->pts * 1000 / media_player_data->video_time_den;
-                        // TODO: handle decoded frame.
+
+                        auto window = media_player_data->native_window;
+                        if (window != nullptr) {
+                            auto sws_ctx = sws_getContext(
+                                    frame->width, frame->height, decoder_ctx->pix_fmt,
+                                    frame->width, frame->height, AV_PIX_FMT_RGBA,
+                                    SWS_BICUBIC, nullptr, nullptr, nullptr
+                            );
+                            auto rgba_frame = av_frame_alloc();
+                            int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
+                            auto *rgba_buffer = static_cast<uint8_t *>(av_malloc(buffer_size * sizeof(uint8_t)));
+                            av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_buffer, AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
+                            int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
+                            LOGD("Scale Size: %d", result);
+                            ANativeWindow_setBuffersGeometry(window, frame->width,frame->height, WINDOW_FORMAT_RGBA_8888);
+                            ANativeWindow_Buffer window_buffer {};
+                            ANativeWindow_lock(window, &window_buffer, nullptr);
+                            auto bits = (uint8_t*) window_buffer.bits;
+                            for (int h = 0; h < frame->height; h++) {
+                                memcpy(bits + h * window_buffer.stride * 4,
+                                       rgba_buffer + h * rgba_frame->linesize[0],
+                                       rgba_frame->linesize[0]);
+                            }
+                            ANativeWindow_unlockAndPost(window);
+                            av_frame_free(&rgba_frame);
+                            sws_freeContext(sws_ctx);
+                        }
                         LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_start);
                     } else {
                         LOGE("%s", "Decode video frame fail");
@@ -222,6 +271,11 @@ void release_media_player() {
         if (format_ctx != nullptr) {
             avformat_close_input(&format_ctx);
             avformat_free_context(format_ctx);
+        }
+
+        auto native_window = media_player_data->native_window;
+        if (native_window != nullptr) {
+            ANativeWindow_release(native_window);
         }
 
         free(media_player_data);
