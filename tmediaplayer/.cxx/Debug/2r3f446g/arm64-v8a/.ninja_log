@@ -14,3 +14,6 @@
 1	103	1650380890	CMakeFiles/tmediaplayer.dir/mediaplayer/media_player.cpp.o	f916d546e30de80a
 0	295	1650380890	CMakeFiles/tmediaplayer.dir/t_media_bridge.cpp.o	c5686dcb2e3c4ba4
 295	356	1650380890	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	2567c56fb8156e55
+1	138	1650549535	CMakeFiles/tmediaplayer.dir/mediaplayer/media_player.cpp.o	f916d546e30de80a
+0	306	1650549535	CMakeFiles/tmediaplayer.dir/t_media_bridge.cpp.o	c5686dcb2e3c4ba4
+306	363	1650549535	/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/Debug/2r3f446g/obj/arm64-v8a/libtmediaplayer.so	a74258e7c54c12cb

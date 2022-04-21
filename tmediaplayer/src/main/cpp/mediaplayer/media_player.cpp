@@ -15,12 +15,17 @@ typedef struct MediaPlayerData {
     AVFormatContext *format_ctx;
     AVPacket *pkt;
     AVFrame *frame;
+
     /**
      * Video
      */
     ANativeWindow *native_window;
+    ANativeWindow_Buffer *native_window_buffer;
     AVStream *video_stream;
     AVCodec *video_decoder;
+    SwsContext * sws_ctx;
+    AVFrame *rgba_frame;
+    uint8_t *rgba_frame_buffer;
 
     int video_width;
     int video_height;
@@ -132,16 +137,22 @@ void setup_media_player(const char *file_path) {
             LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f", media_player_data->video_width,
                  media_player_data->video_height, media_player_data->video_fps, media_player_data->video_base_time);
 
-//            auto sws_ctx = sws_getContext(
-//                    frame->width, frame->height, video_decoder_ctx->pix_fmt,
-//                    frame->width, frame->height, AV_PIX_FMT_RGBA,
-//                    SWS_BICUBIC, nullptr, nullptr, nullptr
-//            );
-//            auto rgba_frame = av_frame_alloc();
-//            int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
-//            auto *rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(buffer_size * sizeof(uint8_t)));
-//            av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer, AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
-//            auto *native_window_buffer = new ANativeWindow_Buffer;
+            int video_width = video_decoder_ctx->width, video_height = video_decoder_ctx->height;
+
+            auto sws_ctx = sws_getContext(
+                    video_width, video_height, video_decoder_ctx->pix_fmt,
+                    video_width, video_height, AV_PIX_FMT_RGBA,
+                    SWS_BICUBIC, nullptr, nullptr, nullptr
+            );
+            media_player_data->sws_ctx = sws_ctx;
+            auto rgba_frame = av_frame_alloc();
+            int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_width, video_height, 1);
+            auto *rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(buffer_size * sizeof(uint8_t)));
+            av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer, AV_PIX_FMT_RGBA, video_width, video_height, 1);
+            media_player_data->rgba_frame = rgba_frame;
+            media_player_data->rgba_frame_buffer = rgba_frame_buffer;
+            auto *native_window_buffer = new ANativeWindow_Buffer;
+            media_player_data->native_window_buffer = native_window_buffer;
         }
     }
 
@@ -202,29 +213,24 @@ void decode() {
 
                         auto window = media_player_data->native_window;
                         if (window != nullptr) {
-                            auto sws_ctx = sws_getContext(
-                                    frame->width, frame->height, decoder_ctx->pix_fmt,
-                                    frame->width, frame->height, AV_PIX_FMT_RGBA,
-                                    SWS_BICUBIC, nullptr, nullptr, nullptr
-                            );
-                            auto rgba_frame = av_frame_alloc();
-                            int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
-                            auto *rgba_buffer = static_cast<uint8_t *>(av_malloc(buffer_size * sizeof(uint8_t)));
-                            av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_buffer, AV_PIX_FMT_RGBA, frame->width, frame->height, 1);
+                            auto sws_ctx = media_player_data->sws_ctx;
+                            auto rgba_frame = media_player_data->rgba_frame;
                             int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
                             LOGD("Scale Size: %d", result);
+                            if (result <= 0) {
+                                continue;
+                            }
                             ANativeWindow_setBuffersGeometry(window, frame->width,frame->height, WINDOW_FORMAT_RGBA_8888);
-                            ANativeWindow_Buffer window_buffer {};
-                            ANativeWindow_lock(window, &window_buffer, nullptr);
-                            auto bits = (uint8_t*) window_buffer.bits;
+                            auto window_buffer = media_player_data->native_window_buffer;
+                            auto rgba_buffer = media_player_data->rgba_frame_buffer;
+                            ANativeWindow_lock(window, window_buffer, nullptr);
+                            auto bits = (uint8_t*) window_buffer->bits;
                             for (int h = 0; h < frame->height; h++) {
-                                memcpy(bits + h * window_buffer.stride * 4,
+                                memcpy(bits + h * window_buffer->stride * 4,
                                        rgba_buffer + h * rgba_frame->linesize[0],
                                        rgba_frame->linesize[0]);
                             }
                             ANativeWindow_unlockAndPost(window);
-                            av_frame_free(&rgba_frame);
-                            sws_freeContext(sws_ctx);
                         }
                         LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_start);
                     } else {
@@ -276,6 +282,26 @@ void release_media_player() {
         auto native_window = media_player_data->native_window;
         if (native_window != nullptr) {
             ANativeWindow_release(native_window);
+        }
+
+        auto native_window_buffer = media_player_data->native_window_buffer;
+        if (native_window_buffer != nullptr) {
+            free(native_window_buffer);
+        }
+
+        auto rgba_buffer = media_player_data->rgba_frame_buffer;
+        if (rgba_buffer != nullptr) {
+            av_free(rgba_buffer);
+        }
+
+        auto rgba_frame = media_player_data->rgba_frame;
+        if (rgba_frame != nullptr) {
+            av_frame_free(&rgba_frame);
+        }
+
+        auto sws_ctx = media_player_data->sws_ctx;
+        if (sws_ctx != nullptr) {
+            sws_freeContext(sws_ctx);
         }
 
         free(media_player_data);
