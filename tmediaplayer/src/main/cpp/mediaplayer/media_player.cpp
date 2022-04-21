@@ -50,6 +50,27 @@ long get_time_millis() {
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+int msleep(long msec)
+{
+    struct timespec ts{};
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
 void decode();
 
 void setup_media_player(const char *file_path) {
@@ -192,8 +213,9 @@ void decode() {
             frame != nullptr &&
             fmt_ctx != nullptr) {
 
+            long decode_start_millis = get_time_millis();
             do {
-                long decode_start = get_time_millis();
+                long decode_frame_start = get_time_millis();
                 av_packet_unref(pkt);
                 int read_frame_result = av_read_frame(fmt_ctx, pkt);
                 if (pkt->stream_index == stream->index) {
@@ -211,15 +233,12 @@ void decode() {
                     if (receive_frame_result >= 0) {
                         int64_t pts_millis = frame->pts * 1000 / media_player_data->video_time_den;
 
+                        // render
                         auto window = media_player_data->native_window;
                         if (window != nullptr) {
                             auto sws_ctx = media_player_data->sws_ctx;
                             auto rgba_frame = media_player_data->rgba_frame;
-                            int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
-                            LOGD("Scale Size: %d", result);
-                            if (result <= 0) {
-                                continue;
-                            }
+                            sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
                             ANativeWindow_setBuffersGeometry(window, frame->width,frame->height, WINDOW_FORMAT_RGBA_8888);
                             auto window_buffer = media_player_data->native_window_buffer;
                             auto rgba_buffer = media_player_data->rgba_frame_buffer;
@@ -232,7 +251,14 @@ void decode() {
                             }
                             ANativeWindow_unlockAndPost(window);
                         }
-                        LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_start);
+
+                        // delay
+                        long cts_millis = get_time_millis() - decode_start_millis;
+                        long d = pts_millis - cts_millis;
+                        if (d > 0) {
+                            msleep(d);
+                        }
+                        LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_frame_start);
                     } else {
                         LOGE("%s", "Decode video frame fail");
                         break;
