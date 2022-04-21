@@ -25,14 +25,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val file = "sekiro.mp4"
         ioExecutor.execute {
             val parentDir = filesDir
-            val testVideoFile = File(parentDir, "sekiro.mp4")
+            val testVideoFile = File(parentDir, file)
             if (!testVideoFile.exists()) {
                 testVideoFile.createNewFile()
                 FileOutputStream(testVideoFile).buffered(1024).use { output ->
                     val buffer = ByteArray(1024)
-                    assets.open("sekiro.mp4").buffered(1024).use { input ->
+                    assets.open(file).buffered(1024).use { input ->
                         var thisTimeRead: Int = 0
                         do {
                             thisTimeRead = input.read(buffer)
