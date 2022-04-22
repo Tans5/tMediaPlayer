@@ -1,7 +1,0 @@
-Executable : /home/tans/Android/Sdk/cmake/3.18.1/bin/ninja
-arguments : 
--C
-/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/RelWithDebInfo/u4r164p3/arm64-v8a
-tmediaplayer
-jvmArgs : 
-

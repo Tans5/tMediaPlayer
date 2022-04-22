@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val file = "sekiro.mp4"
+        val file = "gokuraku.mp4"
         ioExecutor.execute {
             val parentDir = filesDir
             val testVideoFile = File(parentDir, file)

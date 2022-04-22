@@ -224,12 +224,15 @@ void decode() {
                         break;
                     }
                     int send_pkg_result = avcodec_send_packet(decoder_ctx, pkt);
-                    if (send_pkg_result < 0) {
+                    if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
                         LOGE("Decode video send pkt fail: %d", send_pkg_result);
                         break;
                     }
                     av_frame_unref(frame);
                     int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
+                    if (receive_frame_result == AVERROR(EAGAIN)) {
+                        continue;
+                    }
                     if (receive_frame_result >= 0) {
                         int64_t pts_millis = frame->pts * 1000 / media_player_data->video_time_den;
 

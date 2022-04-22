@@ -1,4 +1,0 @@
-ninja: Entering directory `/home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/.cxx/RelWithDebInfo/475u3v3u/arm64-v8a'
-[1/3] Building CXX object CMakeFiles/tmediaplayer.dir/mediaplayer/media_player.cpp.o
-[2/3] Building CXX object CMakeFiles/tmediaplayer.dir/t_media_bridge.cpp.o
-[3/3] Linking CXX shared library /home/tans/AndroidStudioProjects/tMediaPlayer/tmediaplayer/build/intermediates/cxx/RelWithDebInfo/475u3v3u/obj/arm64-v8a/libtmediaplayer.so
