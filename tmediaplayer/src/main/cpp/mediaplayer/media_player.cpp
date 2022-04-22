@@ -74,7 +74,7 @@ int msleep(long msec)
 void decode();
 
 void setup_media_player(const char *file_path) {
-    release_media_player();
+    //release_media_player();
     LOGD("Setup media player file path: %s", file_path);
     media_player_data = new MediaPlayerData;
     media_player_data->media_file = file_path;
