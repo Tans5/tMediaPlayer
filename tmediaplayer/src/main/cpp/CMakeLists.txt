@@ -30,7 +30,8 @@ add_library( # Sets the name of the library.
 
         # Provides a relative path to your source file(s).
         t_media_bridge.cpp
-        mediaplayer/media_player.cpp)
+        mediaplayer/media_player.cpp
+        mediaplayer/media_time.cpp)
 
 target_include_directories(tmediaplayer PUBLIC
         ffmpeg/header
