@@ -69,13 +69,12 @@ typedef struct MediaPlayerContext {
     long id;
     pthread_mutex_t *player_mutex;
     pthread_cond_t *player_pause_cond;
-    pthread_rwlock_t *player_opt_lock;
 } MediaPlayerContext;
 
 PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const char * file_path);
 
 PLAYER_OPT_RESULT set_window(MediaPlayerContext *media_player_data, ANativeWindow* native_window);
 
-PLAYER_DECODE_RESULT decode(MediaPlayerContext *media_player_ctx);
+void decode(MediaPlayerContext *media_player_ctx);
 
 void release_media_player(MediaPlayerContext *media_player_ctx);

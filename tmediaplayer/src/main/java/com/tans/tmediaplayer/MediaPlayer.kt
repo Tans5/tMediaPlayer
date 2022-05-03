@@ -11,9 +11,7 @@ class MediaPlayer {
 
     fun setupPlayer(filePath: String) {
         setupPlayerNative(filePath)
-        playerExecutor.execute {
-            startDecode()
-        }
+        startDecode()
     }
 
     fun setSurface(surface: Surface?) {
@@ -21,9 +19,7 @@ class MediaPlayer {
     }
 
     fun releasePlayer() {
-        playerExecutor.execute {
-            releasePlayerNative()
-        }
+        releasePlayerNative()
     }
 
     private fun startDecode() {
