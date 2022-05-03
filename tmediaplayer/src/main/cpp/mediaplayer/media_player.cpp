@@ -11,12 +11,17 @@ extern "C" {
 #include "media_time.h"
 #include "pthread.h"
 
+enum DECODE_FRAME_RESULT {
+    DECODE_FRAME_SUCCESS,
+    DECODE_FRAME_CONTINUE,
+    DECODE_FRAME_FAIL
+};
 
-PLAYER_OPT_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis);
+DECODE_FRAME_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx);
 
 PLAYER_OPT_RESULT render_video_frame(MediaPlayerContext *media_player_ctx);
 
-PLAYER_OPT_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis);
+DECODE_FRAME_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis);
 
 PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const char *file_path) {
     LOGD("Setup media player file path: %s", file_path);
@@ -192,6 +197,7 @@ void *decode_new_thread(void *arg) {
                 auto is_stopped = media_player_ctx->is_stopped;
                 auto is_released = media_player_ctx->is_released;
                 if (is_stopped || is_released) {
+                    LOGD("%s", "Player stopped or released.");
                     pthread_mutex_unlock(media_player_ctx->player_mutex);
                     return nullptr;
                 }
@@ -208,15 +214,16 @@ void *decode_new_thread(void *arg) {
                     pthread_mutex_unlock(media_player_ctx->player_mutex);
                     return nullptr;
                 }
-                PLAYER_OPT_RESULT decode_result = SUCCESS;
+                DECODE_FRAME_RESULT decode_result = DECODE_FRAME_CONTINUE;
 
-
+                int64_t pts_millis;
                 // decode video
                 if (video_decoder_ctx != nullptr &&
                     video_decoder != nullptr &&
                     video_stream != nullptr &&
                     pkt->stream_index == video_stream->index) {
-                    decode_result = decode_single_video_frame(media_player_ctx, decode_start_millis);
+                    decode_result = decode_single_video_frame(media_player_ctx);
+                    pts_millis = frame->pts * 1000 / media_player_ctx->video_time_den;
                 }
 
                 // decode audio
@@ -226,11 +233,18 @@ void *decode_new_thread(void *arg) {
                     pkt->stream_index == audio_stream->index) {
                     decode_result = decode_single_audio_frame(media_player_ctx, decode_start_millis);
                 }
-
                 pthread_mutex_unlock(media_player_ctx->player_mutex);
-
-                if (decode_result == FAIL) {
+                if (decode_result == DECODE_FRAME_FAIL) {
                     break;
+                }
+                if (decode_result == DECODE_FRAME_CONTINUE) {
+                    continue;
+                }
+                // 5. delay
+                long cts_millis = get_time_millis() - decode_start_millis;
+                long d = pts_millis - cts_millis;
+                if (d > 0) {
+                    msleep(d);
                 }
 
             } while (true);
@@ -251,7 +265,7 @@ void decode(MediaPlayerContext *media_player_ctx) {
     pthread_create(&decode_thread, nullptr, decode_new_thread, media_player_ctx);
 }
 
-PLAYER_OPT_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis) {
+DECODE_FRAME_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx) {
     long decode_frame_start = get_time_millis();
     auto decoder_ctx = media_player_ctx->video_decoder_ctx;
     auto pkt = media_player_ctx->pkt;
@@ -260,18 +274,18 @@ PLAYER_OPT_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx
     int send_pkg_result = avcodec_send_packet(decoder_ctx, pkt);
     if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
         LOGE("Decode video send pkt fail: %d", send_pkg_result);
-        return FAIL;
+        return DECODE_FRAME_FAIL;
     }
     av_frame_unref(frame);
 
     // 3. receive frame
     int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
     if (receive_frame_result == AVERROR(EAGAIN)) {
-        return SUCCESS;
+        return DECODE_FRAME_CONTINUE;
     }
     if (receive_frame_result < 0) {
         LOGE("%s", "Decode video frame fail");
-        return FAIL;
+        return DECODE_FRAME_FAIL;
     }
 
     int64_t pts_millis = frame->pts * 1000 / media_player_ctx->video_time_den;
@@ -279,54 +293,52 @@ PLAYER_OPT_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx
 
     // 4. render_video_frame
     render_video_frame(media_player_ctx);
-
-    // 5. delay
-    long cts_millis = get_time_millis() - decode_start_millis;
-    long d = pts_millis - cts_millis;
-    if (d > 0) {
-        msleep(d);
-    }
-    return SUCCESS;
+    return DECODE_FRAME_SUCCESS;
 }
 
 PLAYER_OPT_RESULT render_video_frame(MediaPlayerContext *media_player_ctx) {
     auto window = media_player_ctx -> native_window;
     if (window != nullptr) {
-        auto frame = media_player_ctx -> frame;
-        auto sws_ctx = media_player_ctx->sws_ctx;
-        auto rgba_frame = media_player_ctx->rgba_frame;
-        unsigned long scale_start = get_time_millis();
-        sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
-        LOGD("Scale time cost: %ld", get_time_millis() - scale_start);
-        unsigned long render_start = get_time_millis();
-        if (ANativeWindow_setBuffersGeometry(window, frame->width,frame->height, WINDOW_FORMAT_RGBA_8888) != 0) {
+        try {
+            auto frame = media_player_ctx -> frame;
+            auto sws_ctx = media_player_ctx->sws_ctx;
+            auto rgba_frame = media_player_ctx->rgba_frame;
+            unsigned long scale_start = get_time_millis();
+            sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
+            LOGD("Scale time cost: %ld", get_time_millis() - scale_start);
+            unsigned long render_start = get_time_millis();
+            if (ANativeWindow_setBuffersGeometry(window, frame->width,frame->height, WINDOW_FORMAT_RGBA_8888) != 0) {
+                return FAIL;
+            }
+            auto window_buffer = media_player_ctx->native_window_buffer;
+            auto rgba_buffer = media_player_ctx->rgba_frame_buffer;
+            if (ANativeWindow_lock(window, window_buffer, nullptr) != 0) {
+                return FAIL;
+            }
+            auto bits = (uint8_t*) window_buffer->bits;
+            for (int h = 0; h < frame->height; h++) {
+                memcpy(bits + h * window_buffer->stride * 4,
+                       rgba_buffer + h * rgba_frame->linesize[0],
+                       rgba_frame->linesize[0]);
+            }
+            if (ANativeWindow_unlockAndPost(window) < 0) {
+                return FAIL;
+            }
+            LOGD("Render time cost: %ld", get_time_millis() - render_start);
+            return SUCCESS;
+        } catch (...) {
+            LOGE("%s", "Render frame error.");
             return FAIL;
         }
-        auto window_buffer = media_player_ctx->native_window_buffer;
-        auto rgba_buffer = media_player_ctx->rgba_frame_buffer;
-        if (ANativeWindow_lock(window, window_buffer, nullptr) != 0) {
-            return FAIL;
-        }
-        auto bits = (uint8_t*) window_buffer->bits;
-        for (int h = 0; h < frame->height; h++) {
-            memcpy(bits + h * window_buffer->stride * 4,
-                   rgba_buffer + h * rgba_frame->linesize[0],
-                   rgba_frame->linesize[0]);
-        }
-        if (ANativeWindow_unlockAndPost(window) < 0) {
-            return FAIL;
-        }
-        LOGD("Render time cost: %ld", get_time_millis() - render_start);
-        return SUCCESS;
     } else {
         LOGD("%s", "Native window is null, skip render.");
         return FAIL;
     }
 }
 
-PLAYER_OPT_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis) {
+DECODE_FRAME_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis) {
     // TODO: decode audio frame.
-    return SUCCESS;
+    return DECODE_FRAME_CONTINUE;
 }
 
 void * release_media_player_new_thread(void *arg) {

@@ -18,12 +18,6 @@ enum PLAYER_OPT_RESULT {
     FAIL
 };
 
-enum PLAYER_DECODE_RESULT {
-    FINISHED,
-    STOPPED,
-    ERROR
-};
-
 typedef struct MediaPlayerContext {
     const char *media_file;
     AVFormatContext *format_ctx;
