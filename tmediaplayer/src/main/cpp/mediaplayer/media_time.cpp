@@ -1,7 +1,7 @@
 #include <__threading_support>
 #include "ctime"
 #include "media_time.h"
-unsigned long get_time_millis() {
+long get_time_millis() {
     struct timeval tv{};
     gettimeofday(&tv, nullptr);
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;

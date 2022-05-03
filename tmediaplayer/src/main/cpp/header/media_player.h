@@ -7,6 +7,7 @@ extern "C" {
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
 }
+#include "pthread.h"
 
 #define LOG_TAG "tMediaPlayerNative"
 #define LOGD(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, fmt, __VA_ARGS__)
@@ -53,6 +54,22 @@ typedef struct MediaPlayerContext {
     AVStream *audio_stream;
     AVCodec *audio_decoder;
     AVCodecContext *audio_decoder_ctx;
+
+
+    /**
+     * Player State
+     */
+    bool is_paused = false;
+    bool is_stopped = false;
+    bool is_released = false;
+
+    /**
+     * sync
+     */
+    long id;
+    pthread_mutex_t *player_mutex;
+    pthread_cond_t *player_pause_cond;
+    pthread_rwlock_t *player_opt_lock;
 } MediaPlayerContext;
 
 PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const char * file_path);

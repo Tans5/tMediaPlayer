@@ -9,11 +9,29 @@ extern "C" {
 #include "android/native_window.h"
 #include "android/native_window_jni.h"
 #include "media_time.h"
+#include "pthread.h"
 
-PLAYER_OPT_RESULT render_frame(MediaPlayerContext *media_player_ctx);
+
+PLAYER_OPT_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis);
+
+PLAYER_OPT_RESULT render_video_frame(MediaPlayerContext *media_player_ctx);
+
+PLAYER_OPT_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis);
 
 PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const char *file_path) {
     LOGD("Setup media player file path: %s", file_path);
+    // mutex data
+    media_player_ctx->id = get_time_millis();
+    pthread_mutex_t mutex;
+    pthread_mutex_init(&mutex, nullptr);
+    media_player_ctx->player_mutex = &mutex;
+    pthread_rwlock_t player_lock;
+    pthread_rwlock_init(&player_lock, nullptr);
+    media_player_ctx->player_opt_lock = &player_lock;
+    pthread_cond_t pause_cond;
+    pthread_cond_init(&pause_cond, nullptr);
+    media_player_ctx->player_pause_cond = &pause_cond;
+
     media_player_ctx->media_file = file_path;
     // Find audio and video streams.
     auto format_ctx = avformat_alloc_context();
@@ -120,16 +138,16 @@ PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const
     }
 
     // Audio decode
-//    if (audio_stream != nullptr) {
-//        auto audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
-//        if (audio_decoder == nullptr) {
-//            LOGE("%s", "Do not find audio decoder");
-//        } else {
-//            media_player_ctx->audio_decoder = audio_decoder;
-//            auto audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
-//            media_player_ctx->audio_decoder_ctx = audio_decoder_ctx;
-//        }
-//    }
+    if (audio_stream != nullptr) {
+        auto audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
+        if (audio_decoder == nullptr) {
+            LOGE("%s", "Do not find audio decoder");
+        } else {
+            media_player_ctx->audio_decoder = audio_decoder;
+            auto audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
+            media_player_ctx->audio_decoder_ctx = audio_decoder_ctx;
+        }
+    }
     if (video_stream == nullptr && audio_stream == nullptr) {
         return FAIL;
     } else {
@@ -144,68 +162,85 @@ PLAYER_OPT_RESULT set_window(MediaPlayerContext *media_player_data, ANativeWindo
 
 PLAYER_DECODE_RESULT decode(MediaPlayerContext *media_player_ctx) {
     if (media_player_ctx != nullptr) {
+
+        // common
         auto fmt_ctx = media_player_ctx->format_ctx;
         auto pkt = media_player_ctx->pkt;
-
-        auto decoder_ctx = media_player_ctx->video_decoder_ctx;
-        auto decoder = media_player_ctx->video_decoder;
-        auto stream = media_player_ctx->video_stream;
         auto frame = media_player_ctx->frame;
-        if (decoder_ctx != nullptr &&
-            decoder != nullptr &&
-            stream != nullptr &&
-            pkt != nullptr &&
+
+        // video
+        auto video_decoder_ctx = media_player_ctx->video_decoder_ctx;
+        auto video_decoder = media_player_ctx->video_decoder;
+        auto video_stream = media_player_ctx->video_stream;
+
+        // audio
+        auto audio_decoder_ctx = media_player_ctx->audio_decoder_ctx;
+        auto audio_decoder = media_player_ctx->audio_decoder;
+        auto audio_stream = media_player_ctx->audio_stream;
+
+        if (pkt != nullptr &&
             frame != nullptr &&
             fmt_ctx != nullptr) {
-
+            if (video_stream != nullptr) {
+                av_seek_frame(fmt_ctx, video_stream->index, 0, AVSEEK_FLAG_BACKWARD);
+            }
+            if (audio_stream != nullptr) {
+                av_seek_frame(fmt_ctx, audio_stream->index, 0, AVSEEK_FLAG_BACKWARD);
+            }
             long decode_start_millis = get_time_millis();
             do {
-                long decode_frame_start = get_time_millis();
+                pthread_mutex_lock(media_player_ctx->player_mutex);
+                pthread_rwlock_rdlock(media_player_ctx->player_opt_lock);
+                auto is_paused = media_player_ctx->is_paused;
+                auto is_stopped = media_player_ctx->is_stopped;
+                auto is_released = media_player_ctx->is_released;
+                pthread_rwlock_unlock(media_player_ctx->player_opt_lock);
+                if (is_stopped || is_released) {
+                    pthread_mutex_unlock(media_player_ctx->player_mutex);
+                    return FINISHED;
+                }
+                if (is_paused) {
+                    LOGD("%s", "Player paused.");
+                    pthread_cond_wait(media_player_ctx->player_pause_cond, media_player_ctx->player_mutex);
+                    LOGD("%s", "Player playing.");
+                }
                 av_packet_unref(pkt);
                 // 1. read pkt.
                 int read_frame_result = av_read_frame(fmt_ctx, pkt);
                 if (read_frame_result < 0) {
                     LOGD("%s", "Decode video read frame result.");
+                    pthread_mutex_unlock(media_player_ctx->player_mutex);
                     return FINISHED;
                 }
+                PLAYER_OPT_RESULT decode_result = SUCCESS;
 
-                if (pkt->stream_index == stream->index) {
 
-                    // 2. send pkt to decoder.
-                    int send_pkg_result = avcodec_send_packet(decoder_ctx, pkt);
-                    if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
-                        LOGE("Decode video send pkt fail: %d", send_pkg_result);
-                        return ERROR;
-                    }
-                    av_frame_unref(frame);
-
-                    // 3. receive frame
-                    int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
-                    if (receive_frame_result == AVERROR(EAGAIN)) {
-                        continue;
-                    }
-                    if (receive_frame_result < 0) {
-                        LOGE("%s", "Decode video frame fail");
-                        return ERROR;
-                    }
-
-                    int64_t pts_millis = frame->pts * 1000 / media_player_ctx->video_time_den;
-                    LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_frame_start);
-
-                    // render_frame
-                    render_frame(media_player_ctx);
-
-                    // delay
-                    long cts_millis = get_time_millis() - decode_start_millis;
-                    long d = pts_millis - cts_millis;
-                    if (d > 0) {
-                        msleep(d);
-                    }
+                // decode video
+                if (video_decoder_ctx != nullptr &&
+                    video_decoder != nullptr &&
+                    video_stream != nullptr &&
+                    pkt->stream_index == video_stream->index) {
+                    decode_result = decode_single_video_frame(media_player_ctx, decode_start_millis);
                 }
+
+                // decode audio
+                if (audio_decoder_ctx != nullptr &&
+                    audio_decoder != nullptr &&
+                    audio_stream != nullptr &&
+                    pkt->stream_index == audio_stream->index) {
+                    decode_result = decode_single_audio_frame(media_player_ctx, decode_start_millis);
+                }
+
+                pthread_mutex_unlock(media_player_ctx->player_mutex);
+
+                if (decode_result == FAIL) {
+                    break;
+                }
+
             } while (true);
             LOGD("%s", "Decode video finish!!!");
         } else {
-            LOGE("%s", "Decode video fail, stream, decoder and context is null.");
+            LOGE("%s", "Decode video fail, video_stream, video_decoder and context is null.");
             return ERROR;
         }
     } else {
@@ -214,7 +249,45 @@ PLAYER_DECODE_RESULT decode(MediaPlayerContext *media_player_ctx) {
     }
 }
 
-PLAYER_OPT_RESULT render_frame(MediaPlayerContext *media_player_ctx) {
+PLAYER_OPT_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis) {
+    long decode_frame_start = get_time_millis();
+    auto decoder_ctx = media_player_ctx->video_decoder_ctx;
+    auto pkt = media_player_ctx->pkt;
+    auto frame = media_player_ctx->frame;
+    // 2. send pkt to decoder.
+    int send_pkg_result = avcodec_send_packet(decoder_ctx, pkt);
+    if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
+        LOGE("Decode video send pkt fail: %d", send_pkg_result);
+        return FAIL;
+    }
+    av_frame_unref(frame);
+
+    // 3. receive frame
+    int receive_frame_result = avcodec_receive_frame(decoder_ctx, frame);
+    if (receive_frame_result == AVERROR(EAGAIN)) {
+        return SUCCESS;
+    }
+    if (receive_frame_result < 0) {
+        LOGE("%s", "Decode video frame fail");
+        return FAIL;
+    }
+
+    int64_t pts_millis = frame->pts * 1000 / media_player_ctx->video_time_den;
+    LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_frame_start);
+
+    // 4. render_video_frame
+    render_video_frame(media_player_ctx);
+
+    // 5. delay
+    long cts_millis = get_time_millis() - decode_start_millis;
+    long d = pts_millis - cts_millis;
+    if (d > 0) {
+        msleep(d);
+    }
+    return SUCCESS;
+}
+
+PLAYER_OPT_RESULT render_video_frame(MediaPlayerContext *media_player_ctx) {
     auto window = media_player_ctx -> native_window;
     if (window != nullptr) {
         auto frame = media_player_ctx -> frame;
@@ -249,10 +322,16 @@ PLAYER_OPT_RESULT render_frame(MediaPlayerContext *media_player_ctx) {
     }
 }
 
+PLAYER_OPT_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis) {
+    // TODO: decode audio frame.
+    return SUCCESS;
+}
+
 void release_media_player(MediaPlayerContext * media_player_ctx) {
     if (media_player_ctx != nullptr) {
-        LOGD("%s", "Release media player");
+        pthread_mutex_lock(media_player_ctx->player_mutex);
 
+        LOGD("%s", "Release media player");
         // Common release.
         auto pkt = media_player_ctx->pkt;
         if (pkt != nullptr) {
@@ -309,7 +388,10 @@ void release_media_player(MediaPlayerContext * media_player_ctx) {
             avcodec_close(audio_decoder_ctx);
             avcodec_free_context(&audio_decoder_ctx);
         }
+        pthread_rwlock_wrlock(media_player_ctx->player_opt_lock);
+        media_player_ctx->is_released = true;
+        pthread_rwlock_unlock(media_player_ctx->player_opt_lock);
 
-        free(media_player_ctx);
+        pthread_mutex_unlock(media_player_ctx->player_mutex);
     }
 }

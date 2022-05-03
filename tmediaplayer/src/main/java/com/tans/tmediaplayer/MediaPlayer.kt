@@ -21,7 +21,9 @@ class MediaPlayer {
     }
 
     fun releasePlayer() {
-        releasePlayerNative()
+        playerExecutor.execute {
+            releasePlayerNative()
+        }
     }
 
     private fun startDecode() {
