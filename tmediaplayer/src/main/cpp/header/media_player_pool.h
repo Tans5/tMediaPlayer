@@ -6,15 +6,7 @@
 
 #include "media_player.h"
 
-typedef struct PlayerNode {
-    long id;
-    MediaPlayerContext* player;
-    PlayerNode* next;
-} PlayerNode;
-
 typedef struct PlayerPool {
-    PlayerNode *header = new PlayerNode;
-    int size;
     long add_player(MediaPlayerContext* p);
     void remove_player(long id);
     MediaPlayerContext* get_player(long id);

@@ -142,6 +142,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::set_window(ANativeWindow *native_window_l)
 
 void *decode_new_thread(void *arg) {
     MediaPlayerContext * media_player_ctx = static_cast<MediaPlayerContext *>(arg);
+    LOGD("Start decode.");
     if (media_player_ctx != nullptr) {
 
         // common
@@ -170,8 +171,7 @@ void *decode_new_thread(void *arg) {
             }
             long decode_start_millis = get_time_millis();
             do {
-                int lock_result = pthread_mutex_lock(media_player_ctx->player_mutex);
-                LOGD("Lock Result: %d", lock_result);
+                while (pthread_mutex_trylock(media_player_ctx->player_mutex) == 0);
                 auto is_paused = media_player_ctx->is_paused;
                 auto is_stopped = media_player_ctx->is_stopped;
                 auto is_released = media_player_ctx->is_released;
@@ -321,7 +321,7 @@ DECODE_FRAME_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_c
 void * release_media_player_new_thread(void *arg) {
     MediaPlayerContext *media_player_ctx = static_cast<MediaPlayerContext *>(arg);
     if (media_player_ctx != nullptr) {
-        pthread_mutex_lock(media_player_ctx->player_mutex);
+        while (pthread_mutex_trylock(media_player_ctx->player_mutex) == 0);
 
         LOGD("%s", "Release media player");
         // Common release.
