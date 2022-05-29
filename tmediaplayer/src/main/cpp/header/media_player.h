@@ -10,12 +10,18 @@ extern "C" {
 #include "pthread.h"
 
 #define LOG_TAG "tMediaPlayerNative"
-#define LOGD(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, fmt, __VA_ARGS__)
-#define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, fmt, __VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 enum PLAYER_OPT_RESULT {
     SUCCESS,
     FAIL
+};
+
+enum DECODE_FRAME_RESULT {
+    DECODE_FRAME_SUCCESS,
+    DECODE_FRAME_CONTINUE,
+    DECODE_FRAME_FAIL
 };
 
 typedef struct MediaPlayerContext {
@@ -63,12 +69,12 @@ typedef struct MediaPlayerContext {
     long id;
     pthread_mutex_t *player_mutex;
     pthread_cond_t *player_pause_cond;
+
+    PLAYER_OPT_RESULT set_window(ANativeWindow *native_window);
+
+    void decode();
+
+    void release_media_player();
+
+    PLAYER_OPT_RESULT setup_media_player(const char *file_path);
 } MediaPlayerContext;
-
-PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const char * file_path);
-
-PLAYER_OPT_RESULT set_window(MediaPlayerContext *media_player_data, ANativeWindow* native_window);
-
-void decode(MediaPlayerContext *media_player_ctx);
-
-void release_media_player(MediaPlayerContext *media_player_ctx);

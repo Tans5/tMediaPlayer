@@ -11,11 +11,6 @@ extern "C" {
 #include "media_time.h"
 #include "pthread.h"
 
-enum DECODE_FRAME_RESULT {
-    DECODE_FRAME_SUCCESS,
-    DECODE_FRAME_CONTINUE,
-    DECODE_FRAME_FAIL
-};
 
 DECODE_FRAME_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx);
 
@@ -23,21 +18,21 @@ PLAYER_OPT_RESULT render_video_frame(MediaPlayerContext *media_player_ctx);
 
 DECODE_FRAME_RESULT decode_single_audio_frame(MediaPlayerContext *media_player_ctx, long decode_start_millis);
 
-PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const char *file_path) {
+PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path) {
     LOGD("Setup media player file path: %s", file_path);
     // mutex data
-    media_player_ctx->id = get_time_millis();
+    this->id = get_time_millis();
     pthread_mutex_t mutex;
-    pthread_mutex_init(&mutex, nullptr);
-    media_player_ctx->player_mutex = &mutex;
+    int mutex_result = pthread_mutex_init(&mutex, nullptr);
+    LOGD("Mutex Result: %d", mutex_result);
+    this->player_mutex = &mutex;
     pthread_cond_t pause_cond;
     pthread_cond_init(&pause_cond, nullptr);
-    media_player_ctx->player_pause_cond = &pause_cond;
+    this->player_pause_cond = &pause_cond;
 
-    media_player_ctx->media_file = file_path;
+    this->media_file = file_path;
     // Find audio and video streams.
-    auto format_ctx = avformat_alloc_context();
-    media_player_ctx->format_ctx = format_ctx;
+    this->format_ctx = avformat_alloc_context();
     int format_open_result = avformat_open_input(&format_ctx, file_path, nullptr, nullptr);
     if (format_open_result != 0) {
         LOGE("Format open file fail: %d", format_open_result);
@@ -48,18 +43,16 @@ PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const
         LOGE("Format find stream error: %d", stream_find_result);
         return FAIL;
     }
-    AVStream *audio_stream = nullptr;
-    AVStream *video_stream = nullptr;
     for (int i = 0; i < format_ctx->nb_streams; i++) {
         auto stream = format_ctx->streams[i];
         auto codec_type = stream->codecpar->codec_type;
         switch (codec_type) {
             case AVMEDIA_TYPE_AUDIO:
-                audio_stream = stream;
+                this->audio_stream = stream;
                 LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
                 break;
             case AVMEDIA_TYPE_VIDEO:
-                video_stream = stream;
+                this->video_stream = stream;
                 LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
                 break;
             case AVMEDIA_TYPE_UNKNOWN:
@@ -79,75 +72,61 @@ PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const
                 break;
         }
     }
-    media_player_ctx->audio_stream = audio_stream;
-    media_player_ctx->video_stream = video_stream;
 
-
-    auto pkt = av_packet_alloc();
-    media_player_ctx->pkt = pkt;
-    auto frame = av_frame_alloc();
-    media_player_ctx->frame = frame;
+    this->pkt = av_packet_alloc();
+    this->frame = av_frame_alloc();
 
     // Video decode
-    if (video_stream != nullptr) {
+    if (this->video_stream != nullptr) {
         auto video_codec = video_stream->codecpar->codec_id;
-        auto video_decoder = avcodec_find_decoder(video_codec);
-        if (video_decoder == nullptr) {
-            LOGE("%s", "Do not find video decoder");
+        this->video_decoder = avcodec_find_decoder(video_codec);
+        if (this->video_decoder == nullptr) {
+            LOGE("Do not find video decoder");
         } else {
-            media_player_ctx->video_decoder = video_decoder;
-            auto video_decoder_ctx = avcodec_alloc_context3(video_decoder);
-            media_player_ctx->video_decoder_ctx = video_decoder_ctx;
+            this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
 
             if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
-                LOGE("%s", "Set video stream params fail");
+                LOGE("Set video stream params fail");
                 return FAIL;
             }
             if (avcodec_open2(video_decoder_ctx, video_decoder, nullptr) < 0) {
-                LOGE("%s", "Open video decoder fail");
+                LOGE("Open video decoder fail");
                 return FAIL;
             }
-            media_player_ctx->video_width = video_decoder_ctx->width;
-            media_player_ctx->video_height = video_decoder_ctx->height;
-            media_player_ctx->video_fps = av_q2d(video_stream->r_frame_rate);
-            media_player_ctx->video_base_time = av_q2d(video_stream->time_base);
-            media_player_ctx->video_time_den = video_stream->time_base.den;
+            this->video_width = video_decoder_ctx->width;
+            this->video_height = video_decoder_ctx->height;
+            this->video_fps = av_q2d(video_stream->r_frame_rate);
+            this->video_base_time = av_q2d(video_stream->time_base);
+            this->video_time_den = video_stream->time_base.den;
             LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f",
-                 media_player_ctx->video_width,
-                 media_player_ctx->video_height, media_player_ctx->video_fps,
-                 media_player_ctx->video_base_time);
+                 video_width,
+                 video_height, video_fps,
+                 video_base_time);
 
-            int video_width = video_decoder_ctx->width, video_height = video_decoder_ctx->height;
-
-            auto sws_ctx = sws_getContext(
+            this->sws_ctx = sws_getContext(
                     video_width, video_height, video_decoder_ctx->pix_fmt,
                     video_width, video_height, AV_PIX_FMT_RGBA,
                     SWS_BICUBIC, nullptr, nullptr, nullptr
             );
-            media_player_ctx->sws_ctx = sws_ctx;
-            auto rgba_frame = av_frame_alloc();
+            this->rgba_frame = av_frame_alloc();
             int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_width, video_height,
                                                        1);
-            auto *rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(
+            this->rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(
                     buffer_size * sizeof(uint8_t)));
             av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer,
                                  AV_PIX_FMT_RGBA, video_width, video_height, 1);
-            media_player_ctx->rgba_frame = rgba_frame;
-            media_player_ctx->rgba_frame_buffer = rgba_frame_buffer;
-            auto *native_window_buffer = new ANativeWindow_Buffer;
-            media_player_ctx->native_window_buffer = native_window_buffer;
+            this->native_window_buffer = new ANativeWindow_Buffer;
         }
     }
 
     // Audio decode
     if (audio_stream != nullptr) {
-        auto audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
+        this->audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
         if (audio_decoder == nullptr) {
             LOGE("%s", "Do not find audio decoder");
         } else {
-            media_player_ctx->audio_decoder = audio_decoder;
-            auto audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
-            media_player_ctx->audio_decoder_ctx = audio_decoder_ctx;
+            this->audio_decoder = audio_decoder;
+            this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
         }
     }
     if (video_stream == nullptr && audio_stream == nullptr) {
@@ -157,8 +136,8 @@ PLAYER_OPT_RESULT setup_media_player(MediaPlayerContext *media_player_ctx, const
     }
 }
 
-PLAYER_OPT_RESULT set_window(MediaPlayerContext *media_player_data, ANativeWindow *native_window) {
-    media_player_data->native_window = native_window;
+PLAYER_OPT_RESULT MediaPlayerContext::set_window(ANativeWindow *native_window_l) {
+    this->native_window = native_window_l;
     return SUCCESS;
 }
 
@@ -192,7 +171,8 @@ void *decode_new_thread(void *arg) {
             }
             long decode_start_millis = get_time_millis();
             do {
-                pthread_mutex_lock(media_player_ctx->player_mutex);
+                int lock_result = pthread_mutex_lock(media_player_ctx->player_mutex);
+                LOGD("Lock Result: %d", lock_result);
                 auto is_paused = media_player_ctx->is_paused;
                 auto is_stopped = media_player_ctx->is_stopped;
                 auto is_released = media_player_ctx->is_released;
@@ -248,21 +228,19 @@ void *decode_new_thread(void *arg) {
                 }
 
             } while (true);
-            LOGD("%s", "Decode video finish!!!");
-            return nullptr;
+            LOGD("Decode video finish!!!");
         } else {
-            LOGE("%s", "Decode video fail, video_stream, video_decoder and context is null.");
-            return nullptr;
+            LOGE("Decode video fail, video_stream, video_decoder and context is null.");
         }
     } else {
-        LOGE("%s", "Decode video fail.");
-        return nullptr;
+        LOGE("Decode video fail.");
     }
+    return nullptr;
 }
 
-void decode(MediaPlayerContext *media_player_ctx) {
+void MediaPlayerContext::decode() {
     pthread_t decode_thread;
-    pthread_create(&decode_thread, nullptr, decode_new_thread, media_player_ctx);
+    pthread_create(&decode_thread, nullptr, decode_new_thread, this);
 }
 
 DECODE_FRAME_RESULT decode_single_video_frame(MediaPlayerContext *media_player_ctx) {
@@ -410,7 +388,7 @@ void * release_media_player_new_thread(void *arg) {
     return nullptr;
 }
 
-void release_media_player(MediaPlayerContext * media_player_ctx) {
+void MediaPlayerContext::release_media_player() {
     pthread_t release_thread;
-    pthread_create(&release_thread, nullptr, release_media_player_new_thread, media_player_ctx);
+    pthread_create(&release_thread, nullptr, release_media_player_new_thread, this);
 }
