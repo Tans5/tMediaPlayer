@@ -1,3 +1,7 @@
+
+#ifndef MEDIA_HEADER_H
+#define MEDIA_HEADER_H
+
 #include <android/log.h>
 #include "android/native_window.h"
 
@@ -78,3 +82,4 @@ typedef struct MediaPlayerContext {
 
     PLAYER_OPT_RESULT setup_media_player(const char *file_path);
 } MediaPlayerContext;
+#endif

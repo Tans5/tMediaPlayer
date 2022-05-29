@@ -2,6 +2,8 @@ package com.tans.tmediaplayer
 
 import android.view.Surface
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 private val playerExecutor = Executors.newCachedThreadPool {
     Thread(it, "tMediaPlayer-Thread")
@@ -9,30 +11,43 @@ private val playerExecutor = Executors.newCachedThreadPool {
 
 class MediaPlayer {
 
+    private val playerId: AtomicReference<Long?> by lazy {
+        AtomicReference(null)
+    }
+
     fun setupPlayer(filePath: String) {
-        setupPlayerNative(filePath)
+        playerId.set(setupPlayerNative(filePath))
         startDecode()
     }
 
     fun setSurface(surface: Surface?) {
-        setWindowNative(surface)
+        val id = playerId.get()
+        if (id != null) {
+            setWindowNative(id, surface)
+        }
     }
 
     fun releasePlayer() {
-        releasePlayerNative()
+        val id = playerId.get()
+        if (id != null) {
+            releasePlayerNative(id)
+        }
     }
 
     private fun startDecode() {
-        decodeNative()
+        val id = playerId.get()
+        if (id != null) {
+            decodeNative(id)
+        }
     }
 
-    private external fun setupPlayerNative(filePath: String)
+    private external fun setupPlayerNative(filePath: String): Long
 
-    private external fun setWindowNative(surface: Surface?)
+    private external fun setWindowNative(playerId: Long, surface: Surface?)
 
-    private external fun decodeNative()
+    private external fun decodeNative(playerId: Long)
 
-    private external fun releasePlayerNative()
+    private external fun releasePlayerNative(playerId: Long)
 
     companion object {
         init {

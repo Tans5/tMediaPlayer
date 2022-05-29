@@ -125,7 +125,6 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         if (audio_decoder == nullptr) {
             LOGE("%s", "Do not find audio decoder");
         } else {
-            this->audio_decoder = audio_decoder;
             this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
         }
     }
