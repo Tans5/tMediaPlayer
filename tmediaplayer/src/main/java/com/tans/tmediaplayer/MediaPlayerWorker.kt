@@ -20,12 +20,12 @@ internal class MediaPlayerWorker {
         Handler(mediaPlayerDecodeThread.looper)
     }
 
-    fun postOpt(runnable: Runnable) {
-        mediaPlayerOptHandler.post(runnable)
+    fun postOpt(delay: Long = 0L, runnable: Runnable) {
+        mediaPlayerOptHandler.postDelayed(runnable, delay)
     }
 
-    fun postDecode(runnable: Runnable) {
-        mediaPlayerDecodeHandler.post(runnable)
+    fun postDecode(delay: Long = 0L, runnable: Runnable) {
+        mediaPlayerDecodeHandler.postDelayed(runnable, delay)
     }
 
     fun release() {
