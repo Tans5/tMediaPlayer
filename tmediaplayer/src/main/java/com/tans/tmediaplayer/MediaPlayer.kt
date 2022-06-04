@@ -2,12 +2,7 @@ package com.tans.tmediaplayer
 
 import android.view.Surface
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-
-private val playerExecutor = Executors.newCachedThreadPool {
-    Thread(it, "tMediaPlayer-Thread")
-}
 
 class MediaPlayer {
 
@@ -16,8 +11,13 @@ class MediaPlayer {
     }
 
     fun setupPlayer(filePath: String) {
-        playerId.set(setupPlayerNative(filePath))
-        startDecode()
+        val optResult = setupPlayerNative(filePath)
+        if (optResult.toInt() != OptResult.OptFail.code) {
+            playerId.set(optResult)
+        } else {
+            playerId.set(null)
+        }
+
     }
 
     fun setSurface(surface: Surface?) {
@@ -34,18 +34,21 @@ class MediaPlayer {
         }
     }
 
-    private fun startDecode() {
-        val id = playerId.get()
-        if (id != null) {
-            decodeNative(id)
-        }
-    }
-
     private external fun setupPlayerNative(filePath: String): Long
 
-    private external fun setWindowNative(playerId: Long, surface: Surface?)
+    private external fun getDurationNative(playerId: Long): Long
 
-    private external fun decodeNative(playerId: Long)
+    private external fun setWindowNative(playerId: Long, surface: Surface?): Int
+
+    private external fun resetPlayProgress(playerId: Long): Int
+
+    private external fun decodeNextFrameNative(playerId: Long, dataId: Long): LongArray
+
+    private external fun renderRawDataNative(playerId: Long, dataId: Long): Int
+
+    private external fun newRawDataNative(playerId: Long): Long
+
+    private external fun releaseRawDataNative(playerId: Long, dataId: Long): Int
 
     private external fun releasePlayerNative(playerId: Long)
 

@@ -29,7 +29,7 @@ add_library( # Sets the name of the library.
         SHARED
 
         # Provides a relative path to your source file(s).
-        t_media_bridge.cpp
+        t_media_jni.cpp
         mediaplayer/media_player.cpp
         mediaplayer/media_time.cpp
         mediaplayer/media_player_pool.cpp)

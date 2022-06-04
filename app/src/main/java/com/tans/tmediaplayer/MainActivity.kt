@@ -34,10 +34,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-    }
-
-    override fun onStart() {
-        super.onStart()
         ioExecutor.execute {
             if (!testVideoFile.exists()) {
                 testVideoFile.createNewFile()
@@ -79,8 +75,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
+    override fun onDestroy() {
+        super.onDestroy()
         mediaPlayer.releasePlayer()
     }
 }

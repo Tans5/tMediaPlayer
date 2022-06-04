@@ -18,21 +18,38 @@ extern "C" {
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 enum PLAYER_OPT_RESULT {
-    SUCCESS,
-    FAIL
+    OPT_SUCCESS,
+    OPT_FAIL
 };
 
 enum DECODE_FRAME_RESULT {
     DECODE_FRAME_SUCCESS,
-    DECODE_FRAME_CONTINUE,
+    DECODE_FRAME_FINISHED,
     DECODE_FRAME_FAIL
 };
+
+typedef struct RenderVideoRawData {
+    long pts;
+    uint8_t *rgba_frame_buffer;
+    AVFrame* rgba_frame;
+} RenderVideoData;
+
+typedef struct RenderAudioRawData {
+
+} RenderAudioRawData;
+
+typedef struct RenderRawData {
+    bool is_video = true;
+    RenderVideoData* video_data;
+    RenderAudioRawData* audio_data;
+} RenderRawData;
 
 typedef struct MediaPlayerContext {
     const char *media_file;
     AVFormatContext *format_ctx;
     AVPacket *pkt;
     AVFrame *frame;
+    long duration;
 
     /**
      * Video
@@ -42,8 +59,6 @@ typedef struct MediaPlayerContext {
     AVStream *video_stream;
     AVCodec *video_decoder;
     SwsContext * sws_ctx;
-    AVFrame *rgba_frame;
-    uint8_t *rgba_frame_buffer;
 
     int video_width;
     int video_height;
@@ -59,27 +74,21 @@ typedef struct MediaPlayerContext {
     AVCodec *audio_decoder;
     AVCodecContext *audio_decoder_ctx;
 
-
-    /**
-     * Player State
-     */
-    bool is_paused = false;
-    bool is_stopped = false;
-    bool is_released = false;
-
-    /**
-     * sync
-     */
-    long id;
-    pthread_mutex_t *player_mutex;
-    pthread_cond_t *player_pause_cond;
-
     PLAYER_OPT_RESULT set_window(ANativeWindow *native_window);
 
-    void decode();
+    DECODE_FRAME_RESULT decode_next_frame(RenderRawData* render_data);
+
+    PLAYER_OPT_RESULT render_raw_data(RenderRawData* raw_data);
+
+    PLAYER_OPT_RESULT reset_play_progress();
+
+    void release_render_raw_data(RenderRawData* render_data);
+
+    RenderRawData* new_render_raw_data();
 
     void release_media_player();
 
     PLAYER_OPT_RESULT setup_media_player(const char *file_path);
 } MediaPlayerContext;
+
 #endif
