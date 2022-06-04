@@ -40,7 +40,7 @@ class MediaPlayer {
             } else {
                 setupPlayerInternal(filePath)
             }
-
+            playInternal()
         }
     }
 
@@ -188,7 +188,27 @@ class MediaPlayer {
 
     private fun renderInternal(delay: Long = 0L) {
         mediaWorker.postOpt(delay = delay) {
-
+            val playerId = playerId.get()
+            val pool = pool.get()
+            if (playerId != null && pool != null) {
+                val state = getCurrentState()
+                if (state == MediaPlayerState.Playing) {
+                    val renderData = pool.waitProducer()
+                    if (renderData != MediaRawDataPool.PRODUCE_END && renderData != MediaRawDataPool.PRODUCE_RELEASED) {
+                        val renderResult = renderRawDataNative(playerId = playerId, dataId = renderData)
+                        if (renderResult == OptResult.OptSuccess.code) {
+                            pool.consume(renderData)
+                            renderInternal()
+                        } else {
+                            newState(MediaPlayerState.Error)
+                        }
+                    } else {
+                        newState(MediaPlayerState.PlayEnd)
+                    }
+                }
+            } else {
+                newState(MediaPlayerState.Error)
+            }
         }
     }
 
