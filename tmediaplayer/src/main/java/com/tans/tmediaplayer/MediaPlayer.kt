@@ -1,7 +1,6 @@
 package com.tans.tmediaplayer
 
 import android.view.Surface
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
 class MediaPlayer {
@@ -10,27 +9,37 @@ class MediaPlayer {
         AtomicReference(null)
     }
 
-    fun setupPlayer(filePath: String) {
-        val optResult = setupPlayerNative(filePath)
-        if (optResult.toInt() != OptResult.OptFail.code) {
-            playerId.set(optResult)
-        } else {
-            playerId.set(null)
-        }
+    private val mediaWorker: MediaPlayerWorker by lazy {
+        MediaPlayerWorker()
+    }
 
+    fun setupPlayer(filePath: String) {
+        mediaWorker.postOpt {
+            val optResult = setupPlayerNative(filePath)
+            if (optResult.toInt() != OptResult.OptFail.code) {
+                playerId.set(optResult)
+            } else {
+                playerId.set(null)
+            }
+        }
     }
 
     fun setSurface(surface: Surface?) {
-        val id = playerId.get()
-        if (id != null) {
-            setWindowNative(id, surface)
+        mediaWorker.postOpt {
+            val id = playerId.get()
+            if (id != null) {
+                setWindowNative(id, surface)
+            }
         }
     }
 
     fun releasePlayer() {
-        val id = playerId.get()
-        if (id != null) {
-            releasePlayerNative(id)
+        mediaWorker.postOpt {
+            val id = playerId.get()
+            if (id != null) {
+                releasePlayerNative(id)
+            }
+            mediaWorker.release()
         }
     }
 
