@@ -22,6 +22,10 @@ class MediaPlayer {
         AtomicReference(MediaPlayerState.NotInit)
     }
 
+    private val pool: AtomicReference<MediaRawDataPool?> by lazy {
+        AtomicReference(null)
+    }
+
     fun setupPlayer(filePath: String) {
         mediaWorker.postOpt {
             val currentState = getCurrentState()
@@ -44,7 +48,20 @@ class MediaPlayer {
         val optResult = setupPlayerNative(filePath)
         if (optResult.toInt() != OptResult.OptFail.code) {
             playerId.set(optResult)
+            val poolLocal = pool.get()
+            if (poolLocal == null) {
+                val values = List(RAW_DATA_POOL_SIZE) {
+                    newRawDataNative(optResult)
+                }
+                MediaRawDataPool(values = values).let {
+                    it.reset()
+                    pool.set(it)
+                }
+            } else {
+                poolLocal.reset()
+            }
             decodeInternal()
+            newState(MediaPlayerState.Prepared)
         } else {
             playerId.set(null)
         }
@@ -113,24 +130,42 @@ class MediaPlayer {
         val playerId = playerId.get()
         if (playerId != null) {
             resetPlayProgress(playerId)
+            pool.get()?.reset()
         }
     }
 
     fun getCurrentState(): MediaPlayerState = playerState.get()
 
     fun releasePlayer() {
+        pool.get()?.consume(MediaRawDataPool.PRODUCE_RELEASED)
         if (getCurrentState() == MediaPlayerState.Playing) {
             mediaWorker.postOpt {
                 stopInternal()
                 mediaWorker.postDecode {
+                    val playerId = playerId.get()
                     releasePlayerInternal()
+                    val values = pool.get()?.values
+                    if (playerId != null && values != null) {
+                        for (v in values) {
+                            releaseRawDataNative(playerId = playerId, dataId = v)
+                        }
+                    }
+                    pool.set(null)
                     mediaWorker.release()
                     newState(MediaPlayerState.Released)
                 }
             }
         } else {
             mediaWorker.postDecode {
+                val playerId = playerId.get()
                 releasePlayerInternal()
+                val values = pool.get()?.values
+                if (playerId != null && values != null) {
+                    for (v in values) {
+                        releaseRawDataNative(playerId = playerId, dataId = v)
+                    }
+                }
+                pool.set(null)
                 mediaWorker.release()
                 newState(MediaPlayerState.Released)
             }
@@ -159,7 +194,28 @@ class MediaPlayer {
 
     private fun decodeInternal() {
         mediaWorker.postDecode {
-
+            val playerId = playerId.get()
+            val pool = pool.get()
+            if (playerId != null && pool != null) {
+                val renderData = pool.waitConsumer()
+                if (renderData != MediaRawDataPool.PRODUCE_END && renderData != MediaRawDataPool.PRODUCE_RELEASED) {
+                    val decodeResult = decodeNextFrameNative(playerId = playerId, dataId = renderData)
+                    when (decodeResult.getOrNull(0)?.toInt()) {
+                        DecodeResult.DecodeSuccess.code -> {
+                            pool.produce(renderData)
+                            decodeInternal()
+                        }
+                        DecodeResult.DecodeEnd.code -> {
+                            pool.produce(MediaRawDataPool.PRODUCE_END)
+                        }
+                        else -> {
+                            newState(MediaPlayerState.Error)
+                        }
+                    }
+                }
+            } else {
+                newState(MediaPlayerState.Error)
+            }
         }
     }
 
@@ -185,5 +241,6 @@ class MediaPlayer {
         init {
             System.loadLibrary("tmediaplayer")
         }
+        const val RAW_DATA_POOL_SIZE = 50
     }
 }

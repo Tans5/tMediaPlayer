@@ -295,6 +295,7 @@ RenderRawData* MediaPlayerContext::new_render_raw_data() {
 
     // Audio
     raw_data->audio_data = new RenderAudioRawData;
+    LOGD("Create RAW Data: %ld", raw_data);
     return raw_data;
 }
 
@@ -309,5 +310,6 @@ void MediaPlayerContext::release_render_raw_data(RenderRawData* render_data) {
     if (audio != nullptr) {
         free(audio);
     }
+    LOGD("Release RAW Data: %ld", render_data);
     free(render_data);
 }

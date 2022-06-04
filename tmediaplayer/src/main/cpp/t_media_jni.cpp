@@ -75,16 +75,15 @@ Java_com_tans_tmediaplayer_MediaPlayer_decodeNextFrameNative(
     RenderRawData* raw_data = reinterpret_cast<RenderRawData *>(j_data_id);
     if (media_player_data != nullptr && raw_data != nullptr) {
         auto decode_result = media_player_data->decode_next_frame(raw_data);
-        if (decode_result == DECODE_FRAME_SUCCESS) {
-            jlong j_buff[2] = {decode_result, raw_data->video_data->pts};
-            auto result = env->NewLongArray(2);
-            env->SetLongArrayRegion(result, 0, 2, j_buff);
-            return result;
-        } else {
-            return env->NewLongArray(2);
-        }
+        jlong j_buff[2] = {decode_result, raw_data->video_data->pts};
+        auto result = env->NewLongArray(2);
+        env->SetLongArrayRegion(result, 0, 2, j_buff);
+        return result;
     } else {
-        return env->NewLongArray(2);
+        jlong j_buff[2] = {DECODE_FRAME_FAIL, 0};
+        auto result = env->NewLongArray(2);
+        env->SetLongArrayRegion(result, 0, 2, j_buff);
+        return result;
     }
 }
 
