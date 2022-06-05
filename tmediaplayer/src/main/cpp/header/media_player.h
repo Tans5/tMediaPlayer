@@ -75,6 +75,7 @@ typedef struct MediaPlayerContext {
     AVCodecContext *audio_decoder_ctx = nullptr;
     int audio_channels;
     int audio_pre_sample_bytes;
+    int audio_simple_rate;
 
     PLAYER_OPT_RESULT set_window(ANativeWindow *native_window);
 

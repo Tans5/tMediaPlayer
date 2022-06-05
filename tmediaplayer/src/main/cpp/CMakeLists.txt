@@ -51,11 +51,17 @@ find_library(
         android
 )
 
+find_library(
+        OpenSLES-lib
+        OpenSLES
+)
+
 target_link_libraries( # Specifies the target library.
         tmediaplayer
         ffmpeg
         ${log-lib}
         ${android-lib}
+        ${OpenSLES-lib}
         )
 
 #################################tmediaplayer#########################################

@@ -5,10 +5,13 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+#include "libswresample/swresample.h"
 }
 #include "android/native_window.h"
 #include "android/native_window_jni.h"
 #include "media_time.h"
+#include "SLES/OpenSLES.h"
+#include "SLES/OpenSLES_Android.h"
 
 PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path) {
     LOGD("Setup media player file path: %s", file_path);
@@ -124,7 +127,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
 
         audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
         audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
-        LOGD("Audio channel size: %d, simple size: %d", audio_channels, audio_pre_sample_bytes);
+        audio_simple_rate = audio_decoder_ctx->sample_rate;
+        LOGD("Audio channel size: %d, simple size: %d, simple rate: %d", audio_channels, audio_pre_sample_bytes, audio_simple_rate);
     }
     if (video_stream == nullptr && audio_stream == nullptr) {
         return OPT_FAIL;
