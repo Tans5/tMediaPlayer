@@ -204,7 +204,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
         auto window = native_window;
         if (window != nullptr) {
             try {
-                if (ANativeWindow_setBuffersGeometry(window, frame->width, frame->height, WINDOW_FORMAT_RGBA_8888) != 0) {
+                if (ANativeWindow_setBuffersGeometry(window, video_width, video_height, WINDOW_FORMAT_RGBA_8888) != 0) {
                     return OPT_FAIL;
                 }
                 auto window_buffer = native_window_buffer;
@@ -214,7 +214,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
                     return OPT_FAIL;
                 }
                 auto bits = (uint8_t*) window_buffer->bits;
-                for (int h = 0; h < frame->height; h++) {
+                for (int h = 0; h < video_height; h++) {
                     memcpy(bits + h * window_buffer->stride * 4,
                            rgba_buffer + h * rgba_frame->linesize[0],
                            rgba_frame->linesize[0]);

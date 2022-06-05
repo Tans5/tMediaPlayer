@@ -1,6 +1,7 @@
 package com.tans.tmediaplayer
 
 import android.view.Surface
+import java.lang.ref.SoftReference
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -26,6 +27,8 @@ class MediaPlayer {
         AtomicReference(null)
     }
 
+    private var surface: SoftReference<Surface?>? = null
+
     fun setupPlayer(filePath: String) {
         mediaWorker.postOpt {
             val currentState = getCurrentState()
@@ -40,7 +43,6 @@ class MediaPlayer {
             } else {
                 setupPlayerInternal(filePath)
             }
-            playInternal()
         }
     }
 
@@ -62,16 +64,22 @@ class MediaPlayer {
             }
             decodeInternal()
             newState(MediaPlayerState.Prepared)
+            val s = this.surface?.get()
+            if (s != null) {
+                setSurface(s)
+            }
         } else {
             playerId.set(null)
         }
     }
 
     fun setSurface(surface: Surface?) {
+        this.surface = SoftReference(surface)
         mediaWorker.postOpt {
             val id = playerId.get()
             if (id != null) {
                 setWindowNative(id, surface)
+                playInternal()
             }
         }
     }
@@ -261,6 +269,6 @@ class MediaPlayer {
         init {
             System.loadLibrary("tmediaplayer")
         }
-        const val RAW_DATA_POOL_SIZE = 50
+        const val RAW_DATA_POOL_SIZE = 100
     }
 }
