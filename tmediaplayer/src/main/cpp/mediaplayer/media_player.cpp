@@ -103,13 +103,28 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         this->audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
         if (audio_decoder == nullptr) {
             LOGE("%s", "Do not find audio decoder");
+            return OPT_FAIL;
         } else {
             this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
         }
-        long a_duration = video_stream->duration * 1000 / video_time_den;
+
+        if (avcodec_parameters_to_context(audio_decoder_ctx, audio_stream->codecpar) < 0) {
+            LOGE("Set audio stream params fail");
+            return OPT_FAIL;
+        }
+        if (avcodec_open2(audio_decoder_ctx, audio_decoder, nullptr) < 0) {
+            LOGE("Open audio decoder fail");
+            return OPT_FAIL;
+        }
+
+        long a_duration = audio_stream->duration * 1000 / av_q2d(audio_stream->time_base);
         if (a_duration > duration) {
             this->duration = a_duration;
         }
+
+        audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
+        audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
+        LOGD("Audio channel size: %d, simple size: %d", audio_channels, audio_pre_sample_bytes);
     }
     if (video_stream == nullptr && audio_stream == nullptr) {
         return OPT_FAIL;
@@ -186,9 +201,30 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
             audio_decoder != nullptr &&
             audio_stream != nullptr &&
             pkt->stream_index == audio_stream->index) {
-
             render_data->is_video = false;
-            return DECODE_FRAME_SUCCESS;
+
+            long decode_frame_start = get_time_millis();
+
+            int send_pkg_result = avcodec_send_packet(audio_decoder_ctx, pkt);
+            if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
+                LOGE("Decode video send pkt fail: %d", send_pkg_result);
+                return DECODE_FRAME_FAIL;
+            }
+
+            int frame_count = 0;
+            while (true) {
+                int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
+                if (receive_frame_result < 0) {
+                    break;
+                }
+                frame_count ++;
+            }
+            LOGD("Decode audio frame success: %d, time cost: %ld", frame_count, get_time_millis() - decode_frame_start);
+            if (frame_count <= 0) {
+                return DECODE_FRAME_FAIL;
+            } else {
+                return DECODE_FRAME_SUCCESS;
+            }
         }
         LOGD("Unknown pkt.");
         return DECODE_FRAME_FAIL;

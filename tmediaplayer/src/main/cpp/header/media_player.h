@@ -40,8 +40,8 @@ typedef struct RenderAudioRawData {
 
 typedef struct RenderRawData {
     bool is_video = true;
-    RenderVideoData* video_data;
-    RenderAudioRawData* audio_data;
+    RenderVideoData* video_data = nullptr;
+    RenderAudioRawData* audio_data = nullptr;
 } RenderRawData;
 
 typedef struct MediaPlayerContext {
@@ -70,9 +70,11 @@ typedef struct MediaPlayerContext {
     /**
      * Audio
      */
-    AVStream *audio_stream;
-    AVCodec *audio_decoder;
-    AVCodecContext *audio_decoder_ctx;
+    AVStream *audio_stream = nullptr;
+    AVCodec *audio_decoder = nullptr;
+    AVCodecContext *audio_decoder_ctx = nullptr;
+    int audio_channels;
+    int audio_pre_sample_bytes;
 
     PLAYER_OPT_RESULT set_window(ANativeWindow *native_window);
 
