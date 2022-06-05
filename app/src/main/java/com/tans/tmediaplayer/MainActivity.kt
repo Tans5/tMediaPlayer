@@ -1,11 +1,8 @@
 package com.tans.tmediaplayer
 
-import android.graphics.SurfaceTexture
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.Surface
 import android.view.TextureView
-import android.widget.TextView
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executor
@@ -52,27 +49,26 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             mediaPlayer.setupPlayer(testVideoFile.absolutePath)
-
-            textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                override fun onSurfaceTextureAvailable(p0: SurfaceTexture, p1: Int, p2: Int) {
-                    mediaPlayer.setSurface(Surface(p0))
-                }
-
-                override fun onSurfaceTextureSizeChanged(p0: SurfaceTexture, p1: Int, p2: Int) {
-
-                }
-
-                override fun onSurfaceTextureDestroyed(p0: SurfaceTexture): Boolean {
-                    mediaPlayer.setSurface(null)
-                    return false
-                }
-
-                override fun onSurfaceTextureUpdated(p0: SurfaceTexture) {
-
-                }
-
+        }
+        mediaPlayer.setTextureView(textureView)
+        mediaPlayer.setStateObserver { state ->
+            println("PlayerState: $state")
+            if (state == MediaPlayerState.Prepared) {
+                mediaPlayer.playStart()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (mediaPlayer.getCurrentState() == MediaPlayerState.Paused) {
+            mediaPlayer.play()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mediaPlayer.pause()
     }
 
     override fun onDestroy() {

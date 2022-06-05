@@ -1,11 +1,15 @@
 package com.tans.tmediaplayer
 
+import android.graphics.SurfaceTexture
 import android.view.Surface
+import android.view.TextureView
 import java.lang.ref.SoftReference
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
-class MediaPlayer {
+typealias StateObserver = (state: MediaPlayerState) -> Unit
+
+class MediaPlayer(private val rowBufferSize: Int = 50) {
 
     private val playerId: AtomicReference<Long?> by lazy {
         AtomicReference(null)
@@ -24,6 +28,25 @@ class MediaPlayer {
     }
 
     private val pool: AtomicReference<MediaRawDataPool?> by lazy {
+        AtomicReference(null)
+    }
+
+    private val internalSurfaceTextureListener: TextureView.SurfaceTextureListener by lazy {
+        object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(st: SurfaceTexture, p1: Int, p2: Int) { setSurface(
+                Surface(st)
+            ) }
+
+            override fun onSurfaceTextureDestroyed(p0: SurfaceTexture): Boolean {
+                setSurface(null)
+                return true
+            }
+            override fun onSurfaceTextureSizeChanged(p0: SurfaceTexture, p1: Int, p2: Int) {}
+            override fun onSurfaceTextureUpdated(p0: SurfaceTexture) {}
+        }
+    }
+
+    private val stateObserver: AtomicReference<StateObserver?> by lazy {
         AtomicReference(null)
     }
 
@@ -52,7 +75,7 @@ class MediaPlayer {
             playerId.set(optResult)
             val poolLocal = pool.get()
             if (poolLocal == null) {
-                val values = List(RAW_DATA_POOL_SIZE) {
+                val values = List(rowBufferSize) {
                     newRawDataNative(optResult)
                 }
                 MediaRawDataPool(values = values).let {
@@ -73,13 +96,20 @@ class MediaPlayer {
         }
     }
 
-    fun setSurface(surface: Surface?) {
+    fun setTextureView(textureView: TextureView?) {
+        if (textureView == null) {
+            setSurface(null)
+        } else {
+            textureView.surfaceTextureListener = internalSurfaceTextureListener
+        }
+    }
+
+    private fun setSurface(surface: Surface?) {
         this.surface = SoftReference(surface)
         mediaWorker.postOpt {
             val id = playerId.get()
             if (id != null) {
                 setWindowNative(id, surface)
-                playInternal()
             }
         }
     }
@@ -144,6 +174,10 @@ class MediaPlayer {
 
     fun getCurrentState(): MediaPlayerState = playerState.get()
 
+    fun setStateObserver(o: StateObserver?) {
+        stateObserver.set(o)
+    }
+
     fun releasePlayer() {
         pool.get()?.consume(MediaRawDataPool.PRODUCE_RELEASED)
         if (getCurrentState() == MediaPlayerState.Playing) {
@@ -162,6 +196,7 @@ class MediaPlayer {
                     mediaWorker.release()
                     newState(MediaPlayerState.Released)
                 }
+                setStateObserver(null)
             }
         } else {
             mediaWorker.postDecode {
@@ -176,6 +211,7 @@ class MediaPlayer {
                 pool.set(null)
                 mediaWorker.release()
                 newState(MediaPlayerState.Released)
+                setStateObserver(null)
             }
         }
     }
@@ -192,6 +228,7 @@ class MediaPlayer {
 
     private fun newState(state: MediaPlayerState) {
         playerState.set(state)
+        stateObserver.get()?.invoke(state)
     }
 
     private fun renderInternal(delay: Long = 0L) {
@@ -201,7 +238,7 @@ class MediaPlayer {
             if (playerId != null && pool != null) {
                 val state = getCurrentState()
                 if (state == MediaPlayerState.Playing) {
-                    val renderData = pool.waitProducer()
+                    val (renderData, pts) = pool.waitProducer()
                     if (renderData != MediaRawDataPool.PRODUCE_END && renderData != MediaRawDataPool.PRODUCE_RELEASED) {
                         val renderResult = renderRawDataNative(playerId = playerId, dataId = renderData)
                         if (renderResult == OptResult.OptSuccess.code) {
@@ -230,11 +267,11 @@ class MediaPlayer {
                     val decodeResult = decodeNextFrameNative(playerId = playerId, dataId = renderData)
                     when (decodeResult.getOrNull(0)?.toInt()) {
                         DecodeResult.DecodeSuccess.code -> {
-                            pool.produce(renderData)
+                            pool.produce(renderData to decodeResult[1])
                             decodeInternal()
                         }
                         DecodeResult.DecodeEnd.code -> {
-                            pool.produce(MediaRawDataPool.PRODUCE_END)
+                            pool.produce(MediaRawDataPool.PRODUCE_END to MediaRawDataPool.PRODUCE_END)
                         }
                         else -> {
                             newState(MediaPlayerState.Error)
@@ -269,6 +306,5 @@ class MediaPlayer {
         init {
             System.loadLibrary("tmediaplayer")
         }
-        const val RAW_DATA_POOL_SIZE = 100
     }
 }

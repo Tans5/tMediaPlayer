@@ -3,9 +3,14 @@ package com.tans.tmediaplayer
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 
+// first is data address, second is pts.
+typealias ConsumerData = Pair<Long, Long>
+
+typealias ProducerData = Long
+
 internal class MediaRawDataPool(val values: List<Long>) {
 
-    private val consumer: LinkedBlockingDeque<Long> by lazy {
+    private val consumer: LinkedBlockingDeque<ConsumerData> by lazy {
         LinkedBlockingDeque()
     }
 
@@ -19,19 +24,19 @@ internal class MediaRawDataPool(val values: List<Long>) {
         producer.addAll(values)
     }
 
-    fun waitConsumer(): Long {
+    fun waitConsumer(): ProducerData {
         return producer.pollFirst(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
     }
 
-    fun produce(value: Long) {
+    fun produce(value: ConsumerData) {
         consumer.addLast(value)
     }
 
-    fun waitProducer(): Long {
+    fun waitProducer(): ConsumerData {
         return consumer.pollFirst(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
     }
 
-    fun consume(value: Long) {
+    fun consume(value: ProducerData) {
         producer.addLast(value)
     }
 

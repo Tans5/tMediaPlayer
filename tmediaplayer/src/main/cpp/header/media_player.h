@@ -30,8 +30,8 @@ enum DECODE_FRAME_RESULT {
 
 typedef struct RenderVideoRawData {
     long pts;
-    uint8_t *rgba_frame_buffer;
-    AVFrame* rgba_frame;
+    uint8_t *rgba_frame_buffer = nullptr;
+    AVFrame* rgba_frame = nullptr;
 } RenderVideoData;
 
 typedef struct RenderAudioRawData {
@@ -45,27 +45,27 @@ typedef struct RenderRawData {
 } RenderRawData;
 
 typedef struct MediaPlayerContext {
-    const char *media_file;
-    AVFormatContext *format_ctx;
-    AVPacket *pkt;
-    AVFrame *frame;
+    const char *media_file = nullptr;
+    AVFormatContext *format_ctx = nullptr;
+    AVPacket *pkt = nullptr;
+    AVFrame *frame = nullptr;
     long duration;
 
     /**
      * Video
      */
-    ANativeWindow *native_window;
-    ANativeWindow_Buffer *native_window_buffer;
-    AVStream *video_stream;
-    AVCodec *video_decoder;
-    SwsContext * sws_ctx;
+    ANativeWindow *native_window = nullptr;
+    ANativeWindow_Buffer *native_window_buffer = nullptr;
+    AVStream *video_stream = nullptr;
+    AVCodec *video_decoder = nullptr;
+    SwsContext * sws_ctx = nullptr;
 
     int video_width;
     int video_height;
     double video_fps;
     double video_base_time;
     int video_time_den;
-    AVCodecContext *video_decoder_ctx;
+    AVCodecContext *video_decoder_ctx = nullptr;
 
     /**
      * Audio

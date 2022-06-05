@@ -229,7 +229,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
             }
         } else {
             LOGD("%s", "Native window is null, skip render.");
-            return OPT_FAIL;
+            return OPT_SUCCESS;
         }
     } else {
         // TODO: AUDIO
