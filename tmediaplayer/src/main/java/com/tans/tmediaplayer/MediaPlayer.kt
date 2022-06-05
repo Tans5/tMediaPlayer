@@ -1,13 +1,18 @@
 package com.tans.tmediaplayer
 
 import android.graphics.SurfaceTexture
+import android.os.SystemClock
+import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import java.lang.ref.SoftReference
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
 
 typealias StateObserver = (state: MediaPlayerState) -> Unit
+
+typealias ProgressObserver = (position: Long, duration: Long) -> Unit
 
 class MediaPlayer(private val rowBufferSize: Int = 50) {
 
@@ -31,6 +36,14 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
         AtomicReference(null)
     }
 
+    private val startAnchorTime: AtomicReference<Long?> by lazy {
+        AtomicReference(null)
+    }
+
+    private val pauseTime: AtomicReference<Long?> by lazy {
+        AtomicReference(null)
+    }
+
     private val internalSurfaceTextureListener: TextureView.SurfaceTextureListener by lazy {
         object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(st: SurfaceTexture, p1: Int, p2: Int) { setSurface(
@@ -50,9 +63,15 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
         AtomicReference(null)
     }
 
+    private val progressObserver: AtomicReference<ProgressObserver?> by lazy {
+        AtomicReference(null)
+    }
+
     private var surface: SoftReference<Surface?>? = null
 
     fun setupPlayer(filePath: String) {
+        startAnchorTime.set(null)
+        pauseTime.set(null)
         mediaWorker.postOpt {
             val currentState = getCurrentState()
             if (currentState == MediaPlayerState.Playing) {
@@ -73,6 +92,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
         val optResult = setupPlayerNative(filePath)
         if (optResult.toInt() != OptResult.OptFail.code) {
             playerId.set(optResult)
+            duration.set(getDurationNative(optResult))
             val poolLocal = pool.get()
             if (poolLocal == null) {
                 val values = List(rowBufferSize) {
@@ -93,6 +113,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             }
         } else {
             playerId.set(null)
+            newState(MediaPlayerState.Error)
         }
     }
 
@@ -129,6 +150,8 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             if (needInvokeRender) {
                 renderInternal()
             }
+            startAnchorTime.set(SystemClock.uptimeMillis())
+            pauseTime.set(null)
             newState(MediaPlayerState.Playing)
         }
     }
@@ -142,6 +165,19 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     private fun playInternal() {
         val state = getCurrentState()
         if (state != MediaPlayerState.Playing) {
+            val anchorTime = startAnchorTime.get()
+            if (anchorTime == null) {
+                startAnchorTime.set(SystemClock.uptimeMillis())
+                pauseTime.set(null)
+            } else {
+                val pauseTime = this.pauseTime.get()
+                if (pauseTime != null) {
+                    val newAnchorTime = anchorTime + max(SystemClock.uptimeMillis() - pauseTime, 0)
+                    startAnchorTime.set(newAnchorTime)
+                    this.pauseTime.set(null)
+                }
+            }
+
             renderInternal()
             newState(MediaPlayerState.Playing)
         }
@@ -154,7 +190,10 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     }
 
     private fun pauseInternal() {
-        newState(MediaPlayerState.Paused)
+        if (getCurrentState() == MediaPlayerState.Playing) {
+            pauseTime.set(SystemClock.uptimeMillis())
+            newState(MediaPlayerState.Paused)
+        }
     }
 
     fun stop() {
@@ -164,11 +203,16 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     }
 
     private fun stopInternal() {
-        newState(MediaPlayerState.PlayStopped)
-        val playerId = playerId.get()
-        if (playerId != null) {
-            resetPlayProgress(playerId)
-            pool.get()?.reset()
+        val currentState = getCurrentState()
+        if (currentState == MediaPlayerState.Playing || currentState == MediaPlayerState.Paused) {
+            startAnchorTime.set(null)
+            pauseTime.set(null)
+            newState(MediaPlayerState.PlayStopped)
+            val playerId = playerId.get()
+            if (playerId != null) {
+                resetPlayProgress(playerId)
+                pool.get()?.reset()
+            }
         }
     }
 
@@ -176,6 +220,10 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
 
     fun setStateObserver(o: StateObserver?) {
         stateObserver.set(o)
+    }
+
+    fun setProgressObserver(o: ProgressObserver?) {
+        progressObserver.set(o)
     }
 
     fun releasePlayer() {
@@ -197,6 +245,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
                     newState(MediaPlayerState.Released)
                 }
                 setStateObserver(null)
+                setProgressObserver(null)
             }
         } else {
             mediaWorker.postDecode {
@@ -212,6 +261,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
                 mediaWorker.release()
                 newState(MediaPlayerState.Released)
                 setStateObserver(null)
+                setProgressObserver(null)
             }
         }
     }
@@ -243,7 +293,25 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
                         val renderResult = renderRawDataNative(playerId = playerId, dataId = renderData)
                         if (renderResult == OptResult.OptSuccess.code) {
                             pool.consume(renderData)
-                            renderInternal()
+                            if (pts > 0) {
+                                progressObserver.get()?.invoke(pts, duration.get())
+                                val d = startAnchorTime.get().let { anchor ->
+                                    if (anchor == null) {
+                                        Log.e(TAG, "Anchor time is null.")
+                                        0L
+                                    } else {
+                                        val playTime = SystemClock.uptimeMillis() - anchor
+                                        val d = pts - playTime
+                                        if (d < 0) {
+                                            Log.w(TAG, "Render behind: $d ms")
+                                        }
+                                        max(0, d)
+                                    }
+                                }
+                                renderInternal(d)
+                            } else {
+                                renderInternal()
+                            }
                         } else {
                             newState(MediaPlayerState.Error)
                         }
@@ -306,5 +374,6 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
         init {
             System.loadLibrary("tmediaplayer")
         }
+        const val TAG = "tMediaPlayer"
     }
 }

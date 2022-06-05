@@ -75,7 +75,11 @@ Java_com_tans_tmediaplayer_MediaPlayer_decodeNextFrameNative(
     RenderRawData* raw_data = reinterpret_cast<RenderRawData *>(j_data_id);
     if (media_player_data != nullptr && raw_data != nullptr) {
         auto decode_result = media_player_data->decode_next_frame(raw_data);
-        jlong j_buff[2] = {decode_result, raw_data->video_data->pts};
+        long pts = 0;
+        if (raw_data->is_video) {
+            pts = raw_data->video_data->pts;
+        }
+        jlong j_buff[2] = {decode_result, pts};
         auto result = env->NewLongArray(2);
         env->SetLongArrayRegion(result, 0, 2, j_buff);
         return result;

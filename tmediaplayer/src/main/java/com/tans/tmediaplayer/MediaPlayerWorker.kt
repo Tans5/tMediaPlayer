@@ -35,6 +35,7 @@ internal class MediaPlayerWorker {
 
     private fun newHandlerThread(threadName: String): HandlerThread {
         val result = HandlerThread(threadName)
+        result.priority = Thread.MAX_PRIORITY
         result.start()
         return result
     }

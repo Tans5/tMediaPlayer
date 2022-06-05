@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextureView>(R.id.texture_view)
     }
 
-    private val fileName = "gokuraku2.mp4"
+    private val fileName = "gokuraku.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir
@@ -57,6 +57,9 @@ class MainActivity : AppCompatActivity() {
                 mediaPlayer.playStart()
             }
         }
+        mediaPlayer.setProgressObserver { position, duration ->
+            println("Progress: $position, Duration: $duration")
+        }
     }
 
     override fun onResume() {
@@ -68,7 +71,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        mediaPlayer.pause()
+        if (mediaPlayer.getCurrentState() == MediaPlayerState.Playing) {
+            mediaPlayer.pause()
+        }
     }
 
     override fun onDestroy() {
