@@ -12,6 +12,8 @@ extern "C" {
 #include "libavutil/imgutils.h"
 }
 #include "pthread.h"
+#include "SLES/OpenSLES.h"
+#include "SLES/OpenSLES_Android.h"
 
 #define LOG_TAG "tMediaPlayerNative"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
@@ -76,6 +78,15 @@ typedef struct MediaPlayerContext {
     int audio_channels;
     int audio_pre_sample_bytes;
     int audio_simple_rate;
+    // OpenSL ES
+    SLObjectItf sl_engine_object;
+    SLEngineItf sl_engine_engine;
+    SLObjectItf sl_output_mix_object;
+    SLEnvironmentalReverbItf sl_output_mix_rev;
+    SLObjectItf sl_player_object;
+    SLPlayItf sl_player_play;
+    SLAndroidSimpleBufferQueueItf sl_player_buffer_queue;
+
 
     PLAYER_OPT_RESULT set_window(ANativeWindow *native_window);
 

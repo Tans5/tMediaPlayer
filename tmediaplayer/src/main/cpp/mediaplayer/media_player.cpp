@@ -129,6 +129,72 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
         audio_simple_rate = audio_decoder_ctx->sample_rate;
         LOGD("Audio channel size: %d, simple size: %d, simple rate: %d", audio_channels, audio_pre_sample_bytes, audio_simple_rate);
+
+        // OpenSL ES
+        SLresult sl_result;
+        sl_result = slCreateEngine(&sl_engine_object, 0, NULL, 0, NULL, NULL);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_engine_object)->Realize(sl_engine_object, SL_BOOLEAN_FALSE);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_engine_object)->GetInterface(sl_engine_object, SL_IID_ENGINE, &sl_engine_engine);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        const SLInterfaceID ids[1] = {SL_IID_ENVIRONMENTALREVERB};
+        const SLboolean req[1] = {SL_BOOLEAN_FALSE};
+        sl_result = (*sl_engine_engine)->CreateOutputMix(sl_engine_engine, &sl_output_mix_object, 1, ids, req);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_output_mix_object)->Realize(sl_output_mix_object, SL_BOOLEAN_FALSE);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_output_mix_object)->GetInterface(sl_output_mix_object, SL_IID_ENVIRONMENTALREVERB,
+                                                  &sl_output_mix_rev);
+        if (SL_RESULT_SUCCESS == sl_result) {
+            SLEnvironmentalReverbSettings reverbSettings =
+                    SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
+            (*sl_output_mix_rev)->SetEnvironmentalReverbProperties(
+                    sl_output_mix_rev, &reverbSettings);
+        }
+
+        SLDataLocator_AndroidSimpleBufferQueue sl_buffer_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
+        SLDataFormat_PCM format_pcm = {SL_DATAFORMAT_PCM, 1, SL_SAMPLINGRATE_44_1,
+                                       SL_PCMSAMPLEFORMAT_FIXED_16, SL_PCMSAMPLEFORMAT_FIXED_16,
+                                       SL_SPEAKER_FRONT_CENTER, SL_BYTEORDER_LITTLEENDIAN};
+
+        SLDataSource audioSrc = {&sl_buffer_queue, &format_pcm};
+        SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, sl_output_mix_object};
+        SLDataSink audioSnk = {&loc_outmix, NULL};
+
+        const SLInterfaceID sl_ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME, SL_IID_EFFECTSEND,
+                /*SL_IID_MUTESOLO,*/};
+        const SLboolean sl_req[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE,
+                /*SL_BOOLEAN_TRUE,*/ };
+
+        sl_result = (*sl_engine_engine)->CreateAudioPlayer(sl_engine_engine, &sl_player_object, &audioSrc, &audioSnk, 2, sl_ids, sl_req);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_player_object)->Realize(sl_player_object, SL_BOOLEAN_FALSE);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_PLAY, &sl_player_play);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+        sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_BUFFERQUEUE,
+                                                 &sl_player_buffer_queue);
+        if (sl_result != SL_RESULT_SUCCESS) {
+            return OPT_FAIL;
+        }
+
     }
     if (video_stream == nullptr && audio_stream == nullptr) {
         return OPT_FAIL;
@@ -315,6 +381,9 @@ void MediaPlayerContext::release_media_player() {
         avcodec_close(audio_decoder_ctx);
         avcodec_free_context(&audio_decoder_ctx);
     }
+    (*sl_player_object)->Destroy(sl_player_object);
+    (*sl_output_mix_object)->Destroy(sl_output_mix_object);
+    (*sl_engine_object)->Destroy(sl_engine_object);
     free(this);
     LOGD("%s", "Release media player");
 }
