@@ -131,7 +131,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
 
         LOGD("Audio channel size: %d, simple size: %d, simple rate: %d", audio_channels, audio_pre_sample_bytes, audio_simple_rate);
         swr_ctx = swr_alloc();
-        swr_alloc_set_opts(swr_ctx, AUDIO_OUTPUT_CH_LAYOUT, AV_SAMPLE_FMT_S16, AUDIO_OUTPUT_SAMPLE_RATE,
+        swr_alloc_set_opts(swr_ctx, AUDIO_OUTPUT_CH_LAYOUT, AUDIO_OUTPUT_SAMPLE_FMT, AUDIO_OUTPUT_SAMPLE_RATE,
                            audio_decoder_ctx->channel_layout, audio_decoder_ctx->sample_fmt,
                            audio_decoder_ctx->sample_rate, 0,nullptr);
         if (0 > swr_init(swr_ctx)) {
@@ -296,15 +296,15 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
                 if (receive_frame_result < 0) {
                     break;
                 }
+                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
+                LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
                 frame_count ++;
             }
             LOGD("Decode audio frame success: %d, time cost: %ld", frame_count, get_time_millis() - decode_frame_start);
             if (frame_count <= 0) {
                 return DECODE_FRAME_FAIL;
             } else {
-                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
-                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AV_SAMPLE_FMT_S16, 1);
-                LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
                 return DECODE_FRAME_SUCCESS;
             }
         }
