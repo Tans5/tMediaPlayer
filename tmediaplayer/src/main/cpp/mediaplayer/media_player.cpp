@@ -128,7 +128,15 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
         audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
         audio_simple_rate = audio_decoder_ctx->sample_rate;
+
         LOGD("Audio channel size: %d, simple size: %d, simple rate: %d", audio_channels, audio_pre_sample_bytes, audio_simple_rate);
+        swr_ctx = swr_alloc();
+        swr_alloc_set_opts(swr_ctx, AUDIO_OUTPUT_CH_LAYOUT, AV_SAMPLE_FMT_S16, AUDIO_OUTPUT_SAMPLE_RATE,
+                           audio_decoder_ctx->channel_layout, audio_decoder_ctx->sample_fmt,
+                           audio_decoder_ctx->sample_rate, 0,nullptr);
+        if (0 > swr_init(swr_ctx)) {
+            return OPT_FAIL;
+        }
 
         // OpenSL ES
         SLresult sl_result;
@@ -191,6 +199,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         }
         sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_BUFFERQUEUE,
                                                  &sl_player_buffer_queue);
+        LOGD("Create SL success.");
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
         }
@@ -293,6 +302,9 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
             if (frame_count <= 0) {
                 return DECODE_FRAME_FAIL;
             } else {
+                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AV_SAMPLE_FMT_S16, 1);
+                LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
                 return DECODE_FRAME_SUCCESS;
             }
         }
@@ -381,6 +393,11 @@ void MediaPlayerContext::release_media_player() {
         avcodec_close(audio_decoder_ctx);
         avcodec_free_context(&audio_decoder_ctx);
     }
+
+    if (swr_ctx != nullptr) {
+        swr_free(&swr_ctx);
+    }
+
     (*sl_player_object)->Destroy(sl_player_object);
     (*sl_output_mix_object)->Destroy(sl_output_mix_object);
     (*sl_engine_object)->Destroy(sl_engine_object);

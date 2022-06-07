@@ -3,6 +3,7 @@
 #define MEDIA_HEADER_H
 
 #include <android/log.h>
+#include <libswresample/swresample.h>
 #include "android/native_window.h"
 
 extern "C" {
@@ -10,6 +11,7 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+#include "libavutil//samplefmt.h"
 }
 #include "pthread.h"
 #include "SLES/OpenSLES.h"
@@ -75,6 +77,7 @@ typedef struct MediaPlayerContext {
     AVStream *audio_stream = nullptr;
     AVCodec *audio_decoder = nullptr;
     AVCodecContext *audio_decoder_ctx = nullptr;
+    SwrContext *swr_ctx = nullptr;
     int audio_channels;
     int audio_pre_sample_bytes;
     int audio_simple_rate;
@@ -104,5 +107,8 @@ typedef struct MediaPlayerContext {
 
     PLAYER_OPT_RESULT setup_media_player(const char *file_path);
 } MediaPlayerContext;
+
+#define AUDIO_OUTPUT_SAMPLE_RATE 44100000
+#define AUDIO_OUTPUT_CH_LAYOUT (AV_CH_LAYOUT_MONO)
 
 #endif
