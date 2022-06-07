@@ -290,23 +290,32 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
                 return DECODE_FRAME_FAIL;
             }
 
-            int frame_count = 0;
-            while (true) {
-                int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
-                if (receive_frame_result < 0) {
-                    break;
-                }
-                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
-                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
-                LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
-                frame_count ++;
-            }
-            LOGD("Decode audio frame success: %d, time cost: %ld", frame_count, get_time_millis() - decode_frame_start);
-            if (frame_count <= 0) {
+            int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
+            if (receive_frame_result < 0) {
                 return DECODE_FRAME_FAIL;
-            } else {
-                return DECODE_FRAME_SUCCESS;
             }
+            int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+            int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
+            LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
+            return DECODE_FRAME_SUCCESS;
+
+//            int frame_count = 0;
+//            while (true) {
+//                int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
+//                if (receive_frame_result < 0) {
+//                    break;
+//                }
+//                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+//                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
+//                LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
+//                frame_count ++;
+//            }
+//            LOGD("Decode audio frame success: %d, time cost: %ld", frame_count, get_time_millis() - decode_frame_start);
+//            if (frame_count <= 0) {
+//                return DECODE_FRAME_FAIL;
+//            } else {
+//                return DECODE_FRAME_SUCCESS;
+//            }
         }
         LOGD("Unknown pkt.");
         return DECODE_FRAME_FAIL;

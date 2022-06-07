@@ -106,7 +106,7 @@ typedef struct MediaPlayerContext {
     PLAYER_OPT_RESULT setup_media_player(const char *file_path);
 } MediaPlayerContext;
 
-#define AUDIO_OUTPUT_SAMPLE_RATE 44100000
+#define AUDIO_OUTPUT_SAMPLE_RATE 44100
 #define AUDIO_OUTPUT_CH_LAYOUT (AV_CH_LAYOUT_MONO)
 #define AUDIO_OUTPUT_SAMPLE_FMT AV_SAMPLE_FMT_S16
 
