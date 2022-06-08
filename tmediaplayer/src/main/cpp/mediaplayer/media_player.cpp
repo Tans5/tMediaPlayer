@@ -197,6 +197,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
         }
+        (*sl_player_play)->SetPlayState(sl_player_play, SL_PLAYSTATE_PLAYING);
         sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_BUFFERQUEUE,
                                                  &sl_player_buffer_queue);
         LOGD("Create SL success.");
@@ -374,7 +375,10 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
             return OPT_SUCCESS;
         }
     } else {
-        // TODO: AUDIO
+        SLresult result = (*sl_player_buffer_queue)->Enqueue(sl_player_buffer_queue, raw_data->audio_data->buffer, raw_data->audio_data->buffer_size);
+        if (result != SL_RESULT_SUCCESS) {
+            LOGE("Render audio error: %d", result);
+        }
         return OPT_SUCCESS;
     }
 }
