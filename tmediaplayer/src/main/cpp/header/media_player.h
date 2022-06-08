@@ -37,7 +37,9 @@ typedef struct RenderVideoRawData {
 } RenderVideoData;
 
 typedef struct RenderAudioRawData {
-
+    long pts = 0L;
+    int buffer_size = 0;
+    unsigned char *buffer = nullptr;
 } RenderAudioRawData;
 
 typedef struct RenderRawData {
