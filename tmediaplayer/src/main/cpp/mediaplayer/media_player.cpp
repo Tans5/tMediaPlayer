@@ -381,9 +381,11 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
             return OPT_SUCCESS;
         }
     } else {
-        SLresult result = (*sl_player_buffer_queue)->Enqueue(sl_player_buffer_queue, raw_data->audio_data->buffer, raw_data->audio_data->buffer_size);
-        if (result != SL_RESULT_SUCCESS) {
-            LOGE("Render audio error: %d", result);
+        if (raw_data->audio_data != nullptr && raw_data->audio_data->buffer != nullptr && raw_data->audio_data->buffer_size > 0) {
+            SLresult result = (*sl_player_buffer_queue)->Enqueue(sl_player_buffer_queue, raw_data->audio_data->buffer, raw_data->audio_data->buffer_size);
+            if (result != SL_RESULT_SUCCESS) {
+                LOGE("Render audio error: %d", result);
+            }
         }
         return OPT_SUCCESS;
     }
