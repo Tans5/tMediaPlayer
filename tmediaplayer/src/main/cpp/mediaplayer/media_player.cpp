@@ -139,6 +139,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         }
 
         // OpenSL ES
+        // Cte engine
         SLresult sl_result;
         sl_result = slCreateEngine(&sl_engine_object, 0, NULL, 0, NULL, NULL);
         if (sl_result != SL_RESULT_SUCCESS) {
@@ -152,6 +153,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
         }
+
+        // Create Mix
         const SLInterfaceID ids[1] = {SL_IID_ENVIRONMENTALREVERB};
         const SLboolean req[1] = {SL_BOOLEAN_FALSE};
         sl_result = (*sl_engine_engine)->CreateOutputMix(sl_engine_engine, &sl_output_mix_object, 1, ids, req);
@@ -171,20 +174,23 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
                     sl_output_mix_rev, &reverbSettings);
         }
 
+        // Create DataSrc/DataSink
         SLDataLocator_AndroidSimpleBufferQueue sl_buffer_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 10};
-        SLDataFormat_PCM format_pcm = {SL_DATAFORMAT_PCM, 1, SL_SAMPLINGRATE_44_1,
-                                       SL_PCMSAMPLEFORMAT_FIXED_16, SL_PCMSAMPLEFORMAT_FIXED_16,
-                                       SL_SPEAKER_FRONT_CENTER, SL_BYTEORDER_LITTLEENDIAN};
+        SLDataFormat_PCM format_pcm = {SL_DATAFORMAT_PCM, 2, SL_SAMPLINGRATE_44_1,
+                                       SL_PCMSAMPLEFORMAT_FIXED_32, SL_PCMSAMPLEFORMAT_FIXED_32,
+                                       SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT, SL_BYTEORDER_LITTLEENDIAN};
 
         SLDataSource audioSrc = {&sl_buffer_queue, &format_pcm};
         SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, sl_output_mix_object};
         SLDataSink audioSnk = {&loc_outmix, NULL};
+
 
         const SLInterfaceID sl_ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME, SL_IID_EFFECTSEND,
                 /*SL_IID_MUTESOLO,*/};
         const SLboolean sl_req[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE,
                 /*SL_BOOLEAN_TRUE,*/ };
 
+        // Create Player
         sl_result = (*sl_engine_engine)->CreateAudioPlayer(sl_engine_engine, &sl_player_object, &audioSrc, &audioSnk, 2, sl_ids, sl_req);
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
@@ -296,7 +302,7 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
                 return DECODE_FRAME_FAIL;
             }
             int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
-            int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
+            int audio_buffer_size = av_samples_get_buffer_size(nullptr, 2, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
             auto audio_data = render_data->audio_data;
             if (audio_data->buffer_size != audio_buffer_size || audio_data->buffer == nullptr) {
                 if (audio_data->buffer != nullptr) {
