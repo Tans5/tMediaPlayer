@@ -36,10 +36,15 @@ typedef struct RenderVideoRawData {
     AVFrame* rgba_frame = nullptr;
 } RenderVideoData;
 
-typedef struct RenderAudioRawData {
-    long pts = 0L;
+typedef struct AudioBuffer {
     int buffer_size = 0;
     unsigned char *buffer = nullptr;
+} AudioBuffer;
+
+typedef struct RenderAudioRawData {
+    long pts = 0L;
+    int buffer_count = 0;
+    AudioBuffer **buffers = nullptr;
 } RenderAudioRawData;
 
 typedef struct RenderRawData {

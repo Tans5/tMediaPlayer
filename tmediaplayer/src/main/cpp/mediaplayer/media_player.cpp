@@ -297,47 +297,45 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
                 return DECODE_FRAME_FAIL;
             }
 
-            int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
-            if (receive_frame_result < 0) {
-                return DECODE_FRAME_FAIL;
-            }
-            int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
-            int audio_buffer_size = av_samples_get_buffer_size(nullptr, 2, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
-            auto audio_data = render_data->audio_data;
-            if (audio_data->buffer_size != audio_buffer_size || audio_data->buffer == nullptr) {
-                if (audio_data->buffer != nullptr) {
-                    free(audio_data->buffer);
+            int buffer_count = 0;
+            AudioBuffer **audio_buffers = nullptr;
+            int64_t pts_millis = 0;
+            while (true) {
+                int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
+                if (receive_frame_result < 0) {
+                    break;
                 }
-                audio_data->buffer = static_cast<unsigned char *>(malloc(audio_buffer_size));
-                audio_data->buffer_size = audio_buffer_size;
+                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 2, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
+                unsigned char *buffer = static_cast<unsigned char *>(malloc(audio_buffer_size));
+                int convert_result = swr_convert(swr_ctx, &buffer, output_nb_samples,(const uint8_t **) frame->data, frame->nb_samples);
+                if (convert_result < 0) {
+                    free(buffer);
+                    break;
+                }
+                AudioBuffer *audio_buffer = new AudioBuffer;
+                audio_buffer->buffer_size = audio_buffer_size;
+                audio_buffer->buffer = buffer;
+                if (audio_buffers == nullptr) {
+                    audio_buffers = static_cast<AudioBuffer **>(malloc(sizeof(audio_buffer)));
+                    pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
+                } else {
+                    audio_buffers = static_cast<AudioBuffer **>(realloc(audio_buffers,
+                                                                        (buffer_count + 1) *
+                                                                        sizeof(audio_buffer)));
+                }
+                audio_buffers[buffer_count] = audio_buffer;
+                buffer_count ++;
             }
-            int convert_result = swr_convert(swr_ctx, &audio_data->buffer, output_nb_samples,
-                                             (const uint8_t **) frame->data, frame->nb_samples);
-            if (convert_result < 0) {
+            if (buffer_count <= 0) {
                 return DECODE_FRAME_FAIL;
             }
-            int64_t pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
+            auto audio_data = render_data->audio_data;
             audio_data->pts = pts_millis;
-            LOGD("Decode audio -> pts: %lld nb_sample: %d, output_sample: %d, buffer_size: %d, time cost: %ld ms", pts_millis,  frame->nb_samples, output_nb_samples, audio_buffer_size, get_time_millis() - decode_frame_start);
+            audio_data->buffer_count = buffer_count;
+            audio_data->buffers = audio_buffers;
+            LOGD("Decode audio -> pts: %lld , time cost: %ld ms, buffer count: %d", pts_millis, get_time_millis() - decode_frame_start, buffer_count);
             return DECODE_FRAME_SUCCESS;
-
-//            int frame_count = 0;
-//            while (true) {
-//                int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
-//                if (receive_frame_result < 0) {
-//                    break;
-//                }
-//                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
-//                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 1, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
-//                LOGD("nb_sample: %d, output_sample: %d, buffer_size: %d", frame->nb_samples, output_nb_samples, audio_buffer_size);
-//                frame_count ++;
-//            }
-//            LOGD("Decode audio frame success: %d, time cost: %ld", frame_count, get_time_millis() - decode_frame_start);
-//            if (frame_count <= 0) {
-//                return DECODE_FRAME_FAIL;
-//            } else {
-//                return DECODE_FRAME_SUCCESS;
-//            }
         }
         LOGD("Unknown pkt.");
         return DECODE_FRAME_FAIL;
@@ -381,11 +379,19 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
             return OPT_SUCCESS;
         }
     } else {
-        if (raw_data->audio_data != nullptr && raw_data->audio_data->buffer != nullptr && raw_data->audio_data->buffer_size > 0) {
-            SLresult result = (*sl_player_buffer_queue)->Enqueue(sl_player_buffer_queue, raw_data->audio_data->buffer, raw_data->audio_data->buffer_size);
-            if (result != SL_RESULT_SUCCESS) {
-                LOGE("Render audio error: %d", result);
+        if (raw_data->audio_data != nullptr && raw_data->audio_data->buffer_count > 0 && raw_data->audio_data->buffers != nullptr) {
+            for (int i = 0; i < raw_data->audio_data->buffer_count; i ++) {
+                auto buffer = raw_data->audio_data->buffers[i];
+                SLresult result = (*sl_player_buffer_queue)->Enqueue(sl_player_buffer_queue, buffer->buffer, buffer->buffer_size);
+                if (result != SL_RESULT_SUCCESS) {
+                    LOGE("Render audio error: %d", result);
+                }
+                // free(buffer->buffer);
+                free(buffer);
             }
+            free(raw_data->audio_data->buffers);
+            raw_data->audio_data->buffer_count = 0;
+            raw_data->audio_data->buffers = nullptr;
         }
         return OPT_SUCCESS;
     }
@@ -470,10 +476,6 @@ void MediaPlayerContext::release_render_raw_data(RenderRawData* render_data) {
     }
     auto audio = render_data->audio_data;
     if (audio != nullptr) {
-        audio->buffer_size = 0;
-        if (audio->buffer != nullptr) {
-            free(audio->buffer);
-        }
         free(audio);
     }
     LOGD("Release RAW Data: %ld", render_data);
