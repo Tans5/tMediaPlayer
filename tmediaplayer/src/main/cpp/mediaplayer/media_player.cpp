@@ -1,3 +1,4 @@
+#include <__threading_support>
 #include "media_player.h"
 
 extern "C" {
@@ -165,14 +166,14 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
         }
-        sl_result = (*sl_output_mix_object)->GetInterface(sl_output_mix_object, SL_IID_ENVIRONMENTALREVERB,
-                                                  &sl_output_mix_rev);
-        if (SL_RESULT_SUCCESS == sl_result) {
-            SLEnvironmentalReverbSettings reverbSettings =
-                    SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
-            (*sl_output_mix_rev)->SetEnvironmentalReverbProperties(
-                    sl_output_mix_rev, &reverbSettings);
-        }
+//        sl_result = (*sl_output_mix_object)->GetInterface(sl_output_mix_object, SL_IID_ENVIRONMENTALREVERB,
+//                                                  &sl_output_mix_rev);
+//        if (SL_RESULT_SUCCESS == sl_result) {
+//            SLEnvironmentalReverbSettings reverbSettings =
+//                    SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
+//            (*sl_output_mix_rev)->SetEnvironmentalReverbProperties(
+//                    sl_output_mix_rev, &reverbSettings);
+//        }
 
         // Create DataSrc/DataSink
         SLDataLocator_AndroidSimpleBufferQueue sl_buffer_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 10};
@@ -203,9 +204,9 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
         }
-        (*sl_player_play)->SetPlayState(sl_player_play, SL_PLAYSTATE_PLAYING);
         sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_BUFFERQUEUE,
                                                  &sl_player_buffer_queue);
+        (*sl_player_play)->SetPlayState(sl_player_play, SL_PLAYSTATE_PLAYING);
         LOGD("Create SL success.");
         if (sl_result != SL_RESULT_SUCCESS) {
             return OPT_FAIL;
@@ -386,7 +387,6 @@ PLAYER_OPT_RESULT MediaPlayerContext::render_raw_data(RenderRawData* raw_data) {
                 if (result != SL_RESULT_SUCCESS) {
                     LOGE("Render audio error: %d", result);
                 }
-                // free(buffer->buffer);
                 free(buffer);
             }
             free(raw_data->audio_data->buffers);
@@ -439,7 +439,7 @@ void MediaPlayerContext::release_media_player() {
     if (swr_ctx != nullptr) {
         swr_free(&swr_ctx);
     }
-
+    (*sl_player_buffer_queue)->Clear(sl_player_buffer_queue);
     (*sl_player_object)->Destroy(sl_player_object);
     (*sl_output_mix_object)->Destroy(sl_output_mix_object);
     (*sl_engine_object)->Destroy(sl_engine_object);
