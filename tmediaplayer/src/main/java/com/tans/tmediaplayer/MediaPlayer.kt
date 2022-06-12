@@ -109,7 +109,6 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             } else {
                 poolLocal.reset()
             }
-            decodeInternal()
             newState(MediaPlayerState.Prepared)
             val s = this.surface?.get()
             if (s != null) {
@@ -156,14 +155,19 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     private fun playerStartInternal() {
         val playerId = playerId.get()
         if (playerId != null) {
-            stopInternal()
-            val needInvokeRender = getPlayerState() != MediaPlayerState.Playing
-            newState(MediaPlayerState.PlayStared)
-            if (needInvokeRender) {
-                renderInternal()
+            pool.get()?.consume(MediaRawDataPool.PRODUCE_STOPPED)
+            pool.get()?.produce(MediaRawDataPool.PRODUCE_STOPPED to 0)
+            mediaWorker.postDecode {
+                resetPlayProgressNative(playerId)
+                pool.get()?.reset()
+                decodeInternal()
+                mediaWorker.postOpt {
+                    renderInternal()
+                }
             }
             startAnchorTime.set(SystemClock.uptimeMillis())
             pauseTime.set(null)
+            newState(MediaPlayerState.PlayStared)
             newState(MediaPlayerState.Playing)
         }
     }
@@ -220,6 +224,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             newState(MediaPlayerState.PlayStopped)
             mediaWorker.postOpt {
                 pool.get()?.consume(MediaRawDataPool.PRODUCE_STOPPED)
+                pool.get()?.produce(MediaRawDataPool.PRODUCE_STOPPED to 0)
                 mediaWorker.postDecode {
                     val playerId = playerId.get()
                     if (playerId != null) {
@@ -293,30 +298,32 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
                 if (state == MediaPlayerState.Playing) {
                     val (renderData, pts) = pool.waitProducer()
                     if (renderData != MediaRawDataPool.PRODUCE_END) {
-                        val renderResult = renderRawDataNative(playerId = playerId, dataId = renderData)
-                        if (renderResult == OptResult.OptSuccess.code) {
+                        if (renderData != MediaRawDataPool.PRODUCE_STOPPED) {
+                            val renderResult = renderRawDataNative(playerId = playerId, dataId = renderData)
                             pool.consume(renderData)
-                            if (pts > 0) {
-                                progressObserver.get()?.invoke(pts, duration.get())
-                                val d = startAnchorTime.get().let { anchor ->
-                                    if (anchor == null) {
-                                        Log.e(TAG, "Anchor time is null.")
-                                        0L
-                                    } else {
-                                        val playTime = SystemClock.uptimeMillis() - anchor
-                                        val d = pts - playTime
-                                        if (d < 0) {
-                                            Log.w(TAG, "Render behind: $d ms")
+                            if (renderResult == OptResult.OptSuccess.code) {
+                                if (pts > 0) {
+                                    progressObserver.get()?.invoke(pts, duration.get())
+                                    val d = startAnchorTime.get().let { anchor ->
+                                        if (anchor == null) {
+                                            Log.e(TAG, "Anchor time is null.")
+                                            0L
+                                        } else {
+                                            val playTime = SystemClock.uptimeMillis() - anchor
+                                            val d = pts - playTime
+                                            if (d < 0) {
+                                                Log.w(TAG, "Render behind: $d ms")
+                                            }
+                                            max(0, d)
                                         }
-                                        max(0, d)
                                     }
+                                    renderInternal(d)
+                                } else {
+                                    renderInternal()
                                 }
-                                renderInternal(d)
                             } else {
                                 renderInternal()
                             }
-                        } else {
-                            newState(MediaPlayerState.Error)
                         }
                     } else {
                         newState(MediaPlayerState.PlayEnd)
@@ -334,7 +341,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             val pool = pool.get()
             if (playerId != null && pool != null) {
                 val renderData = pool.waitConsumer()
-                if (renderData != MediaRawDataPool.PRODUCE_STOPPED) {
+                if (renderData != MediaRawDataPool.PRODUCE_STOPPED && renderData != MediaRawDataPool.PRODUCE_END) {
                     val decodeResult = decodeNextFrameNative(playerId = playerId, dataId = renderData)
                     when (decodeResult.getOrNull(0)?.toInt()) {
                         DecodeResult.DecodeSuccess.code -> {
