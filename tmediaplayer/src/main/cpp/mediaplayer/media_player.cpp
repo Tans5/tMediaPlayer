@@ -14,6 +14,43 @@ extern "C" {
 #include "SLES/OpenSLES.h"
 #include "SLES/OpenSLES_Android.h"
 
+void* decode_audio_test(void* player_cxt) {
+    MediaPlayerContext* ctx = static_cast<MediaPlayerContext *>(player_cxt);
+    auto fmt_ctx = ctx->format_ctx;
+    auto pkt = ctx->pkt;
+    auto audio_decoder_ctx = ctx->audio_decoder_ctx;
+    auto frame = ctx->frame;
+    auto audio_stream = ctx->audio_stream;
+    while (true) {
+        av_packet_unref(pkt);
+        int result = av_read_frame(fmt_ctx, pkt);
+        if (result < 0) {
+            break;
+        }
+        if (pkt->stream_index == ctx->audio_stream->index) {
+            result = avcodec_send_packet(audio_decoder_ctx, pkt);
+            if (result < 0) {
+                break;
+            }
+            long time_start = get_time_millis();
+            int count = 0;
+            while (true) {
+                av_frame_unref(frame);
+                result = avcodec_receive_frame(audio_decoder_ctx, frame);
+                if (result < 0) {
+                    break;
+                }
+                long pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
+                LOGD("Audio Pts: %ld ms, nb sample: %d", pts_millis, frame->nb_samples);
+                count ++;
+            }
+            long time_end = get_time_millis();
+            LOGD("Audio decode count: %d, cost: %ld ms", count, time_end - time_start);
+        }
+    }
+    return nullptr;
+}
+
 PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path) {
     LOGD("Setup media player file path: %s", file_path);
 
@@ -216,6 +253,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
     if (video_stream == nullptr && audio_stream == nullptr) {
         return OPT_FAIL;
     } else {
+//        pthread_t t;
+//        pthread_create(&t, nullptr, decode_audio_test, this);
         return OPT_SUCCESS;
     }
 }
