@@ -53,8 +53,8 @@ Java_com_tans_tmediaplayer_MediaPlayer_setWindowNative(
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_MediaPlayer_resetPlayProgress(JNIEnv *env, jobject thiz,
-                                                         jlong j_player_id) {
+Java_com_tans_tmediaplayer_MediaPlayer_resetPlayProgressNative(JNIEnv *env, jobject thiz,
+                                                               jlong j_player_id) {
 
     MediaPlayerContext* media_player_data= reinterpret_cast<MediaPlayerContext *>(j_player_id);
     if (media_player_data != nullptr) {

@@ -42,6 +42,6 @@ internal class MediaRawDataPool(val values: List<Long>) {
 
     companion object {
         const val PRODUCE_END = -1L
-        const val PRODUCE_RELEASED = -2L
+        const val PRODUCE_STOPPED = -2L
     }
 }

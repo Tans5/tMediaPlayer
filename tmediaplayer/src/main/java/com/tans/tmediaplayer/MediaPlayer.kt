@@ -14,6 +14,8 @@ typealias StateObserver = (state: MediaPlayerState) -> Unit
 
 typealias ProgressObserver = (position: Long, duration: Long) -> Unit
 
+typealias RenderStateObserver = (isRenderActive: Boolean) -> Unit
+
 class MediaPlayer(private val rowBufferSize: Int = 50) {
 
     private val playerId: AtomicReference<Long?> by lazy {
@@ -67,20 +69,22 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
         AtomicReference(null)
     }
 
+    private val renderStateObserver: AtomicReference<RenderStateObserver?> by lazy {
+        AtomicReference(null)
+    }
+
     private var surface: SoftReference<Surface?>? = null
 
     fun setupPlayer(filePath: String) {
         startAnchorTime.set(null)
         pauseTime.set(null)
         mediaWorker.postOpt {
-            val currentState = getCurrentState()
+            val currentState = getPlayerState()
             if (currentState == MediaPlayerState.Playing) {
                 stopInternal()
-                mediaWorker.postDecode {
-                    releasePlayerInternal()
-                    mediaWorker.postOpt {
-                        setupPlayerInternal(filePath)
-                    }
+                releasePlayerInternal()
+                mediaWorker.postOpt {
+                    setupPlayerInternal(filePath)
                 }
             } else {
                 setupPlayerInternal(filePath)
@@ -109,7 +113,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             newState(MediaPlayerState.Prepared)
             val s = this.surface?.get()
             if (s != null) {
-                setSurface(s)
+                setWindowNative(optResult, s)
             }
         } else {
             playerId.set(null)
@@ -126,11 +130,19 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     }
 
     private fun setSurface(surface: Surface?) {
-        this.surface = SoftReference(surface)
-        mediaWorker.postOpt {
-            val id = playerId.get()
-            if (id != null) {
-                setWindowNative(id, surface)
+        val lastSurface = this.surface?.get()
+        if (lastSurface != surface) {
+            this.surface = SoftReference(surface)
+            mediaWorker.postOpt {
+                val id = playerId.get()
+                if (id != null) {
+                    setWindowNative(id, surface)
+                }
+                if (surface != null) {
+                    renderStateObserver.get()?.invoke(true)
+                } else {
+                    renderStateObserver.get()?.invoke(false)
+                }
             }
         }
     }
@@ -144,8 +156,8 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     private fun playerStartInternal() {
         val playerId = playerId.get()
         if (playerId != null) {
-            resetPlayProgress(playerId)
-            val needInvokeRender = getCurrentState() != MediaPlayerState.Playing
+            stopInternal()
+            val needInvokeRender = getPlayerState() != MediaPlayerState.Playing
             newState(MediaPlayerState.PlayStared)
             if (needInvokeRender) {
                 renderInternal()
@@ -163,7 +175,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     }
 
     private fun playInternal() {
-        val state = getCurrentState()
+        val state = getPlayerState()
         if (state != MediaPlayerState.Playing) {
             val anchorTime = startAnchorTime.get()
             if (anchorTime == null) {
@@ -190,35 +202,38 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     }
 
     private fun pauseInternal() {
-        if (getCurrentState() == MediaPlayerState.Playing) {
+        if (getPlayerState() == MediaPlayerState.Playing) {
             pauseTime.set(SystemClock.uptimeMillis())
             newState(MediaPlayerState.Paused)
         }
     }
 
     fun stop() {
-        mediaWorker.postOpt {
-            stopInternal()
-        }
+        stopInternal()
     }
 
     private fun stopInternal() {
-        val currentState = getCurrentState()
+        val currentState = getPlayerState()
         if (currentState == MediaPlayerState.Playing || currentState == MediaPlayerState.Paused) {
             startAnchorTime.set(null)
             pauseTime.set(null)
             newState(MediaPlayerState.PlayStopped)
-            val playerId = playerId.get()
-            if (playerId != null) {
-                resetPlayProgress(playerId)
-                pool.get()?.reset()
+            mediaWorker.postOpt {
+                pool.get()?.consume(MediaRawDataPool.PRODUCE_STOPPED)
+                mediaWorker.postDecode {
+                    val playerId = playerId.get()
+                    if (playerId != null) {
+                        resetPlayProgressNative(playerId)
+                        pool.get()?.reset()
+                    }
+                }
             }
         }
     }
 
-    fun getCurrentState(): MediaPlayerState = playerState.get()
+    fun getPlayerState(): MediaPlayerState = playerState.get()
 
-    fun setStateObserver(o: StateObserver?) {
+    fun setPlayerStateObserver(o: StateObserver?) {
         stateObserver.set(o)
     }
 
@@ -226,28 +241,15 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
         progressObserver.set(o)
     }
 
+    fun setRenderStateObserver(o: RenderStateObserver?) {
+        renderStateObserver.set(o)
+    }
+
+    fun isRenderActive(): Boolean = surface?.get() != null
+
     fun releasePlayer() {
-        pool.get()?.consume(MediaRawDataPool.PRODUCE_RELEASED)
-        if (getCurrentState() == MediaPlayerState.Playing) {
-            mediaWorker.postOpt {
-                stopInternal()
-                mediaWorker.postDecode {
-                    val playerId = playerId.get()
-                    releasePlayerInternal()
-                    val values = pool.get()?.values
-                    if (playerId != null && values != null) {
-                        for (v in values) {
-                            releaseRawDataNative(playerId = playerId, dataId = v)
-                        }
-                    }
-                    pool.set(null)
-                    mediaWorker.release()
-                    newState(MediaPlayerState.Released)
-                }
-                setStateObserver(null)
-                setProgressObserver(null)
-            }
-        } else {
+        stopInternal()
+        mediaWorker.postOpt {
             mediaWorker.postDecode {
                 val playerId = playerId.get()
                 releasePlayerInternal()
@@ -260,8 +262,9 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
                 pool.set(null)
                 mediaWorker.release()
                 newState(MediaPlayerState.Released)
-                setStateObserver(null)
+                setPlayerStateObserver(null)
                 setProgressObserver(null)
+                setRenderStateObserver(null)
             }
         }
     }
@@ -286,10 +289,10 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             val playerId = playerId.get()
             val pool = pool.get()
             if (playerId != null && pool != null) {
-                val state = getCurrentState()
+                val state = getPlayerState()
                 if (state == MediaPlayerState.Playing) {
                     val (renderData, pts) = pool.waitProducer()
-                    if (renderData != MediaRawDataPool.PRODUCE_END && renderData != MediaRawDataPool.PRODUCE_RELEASED) {
+                    if (renderData != MediaRawDataPool.PRODUCE_END) {
                         val renderResult = renderRawDataNative(playerId = playerId, dataId = renderData)
                         if (renderResult == OptResult.OptSuccess.code) {
                             pool.consume(renderData)
@@ -331,7 +334,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
             val pool = pool.get()
             if (playerId != null && pool != null) {
                 val renderData = pool.waitConsumer()
-                if (renderData != MediaRawDataPool.PRODUCE_END && renderData != MediaRawDataPool.PRODUCE_RELEASED) {
+                if (renderData != MediaRawDataPool.PRODUCE_STOPPED) {
                     val decodeResult = decodeNextFrameNative(playerId = playerId, dataId = renderData)
                     when (decodeResult.getOrNull(0)?.toInt()) {
                         DecodeResult.DecodeSuccess.code -> {
@@ -342,7 +345,8 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
                             pool.produce(MediaRawDataPool.PRODUCE_END to MediaRawDataPool.PRODUCE_END)
                         }
                         else -> {
-                            newState(MediaPlayerState.Error)
+                            pool.consume(renderData);
+                            decodeInternal()
                         }
                     }
                 }
@@ -358,7 +362,7 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
 
     private external fun setWindowNative(playerId: Long, surface: Surface?): Int
 
-    private external fun resetPlayProgress(playerId: Long): Int
+    private external fun resetPlayProgressNative(playerId: Long): Int
 
     private external fun decodeNextFrameNative(playerId: Long, dataId: Long): LongArray
 

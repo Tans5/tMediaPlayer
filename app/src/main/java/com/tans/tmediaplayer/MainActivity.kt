@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextureView>(R.id.texture_view)
     }
 
-    private val fileName = "test_music2.mp3"
+    private val fileName = "test_music.flac"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir
@@ -50,13 +50,20 @@ class MainActivity : AppCompatActivity() {
             }
             mediaPlayer.setupPlayer(testVideoFile.absolutePath)
         }
-        mediaPlayer.setTextureView(textureView)
-        mediaPlayer.setStateObserver { state ->
+
+        mediaPlayer.setPlayerStateObserver { state ->
             println("PlayerState: $state")
-            if (state == MediaPlayerState.Prepared) {
+            if (state == MediaPlayerState.Prepared && mediaPlayer.isRenderActive()) {
                 mediaPlayer.playStart()
             }
         }
+        mediaPlayer.setRenderStateObserver { isActive ->
+            println("RenderState: $isActive")
+            if (isActive && mediaPlayer.getPlayerState() == MediaPlayerState.Prepared) {
+                mediaPlayer.playStart()
+            }
+        }
+        mediaPlayer.setTextureView(textureView)
         mediaPlayer.setProgressObserver { position, duration ->
             println("Progress: $position, Duration: $duration")
         }
@@ -64,14 +71,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (mediaPlayer.getCurrentState() == MediaPlayerState.Paused) {
+        if (mediaPlayer.getPlayerState() == MediaPlayerState.Paused) {
             mediaPlayer.play()
         }
     }
 
     override fun onPause() {
         super.onPause()
-        if (mediaPlayer.getCurrentState() == MediaPlayerState.Playing) {
+        if (mediaPlayer.getPlayerState() == MediaPlayerState.Playing) {
             mediaPlayer.pause()
         }
     }
