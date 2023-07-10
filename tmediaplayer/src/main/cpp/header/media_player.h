@@ -66,6 +66,7 @@ typedef struct MediaPlayerContext {
     ANativeWindow *native_window = nullptr;
     ANativeWindow_Buffer *native_window_buffer = nullptr;
     AVStream *video_stream = nullptr;
+    AVBufferRef *hw_ctx = nullptr;
     const AVCodec *video_decoder = nullptr;
     SwsContext * sws_ctx = nullptr;
 

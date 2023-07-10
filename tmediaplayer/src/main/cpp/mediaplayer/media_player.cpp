@@ -83,114 +83,125 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         LOGE("Format find stream error: %d", stream_find_result);
         return OPT_FAIL;
     }
-    const AVCodec *videoCodec;
-    int videoStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0);
-    LOGD("Find best video stream id: %d", videoStreamId);
-    const AVCodec *audioCodec;
-    int audioStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0);
-    LOGD("Find best audio stream id: %d", audioStreamId);
-//    for (int i = 0; i < format_ctx->nb_streams; i++) {
-//        auto stream = format_ctx->streams[i];
-//        auto codec_type = stream->codecpar->codec_type;
-//        switch (codec_type) {
-//            case AVMEDIA_TYPE_AUDIO:
-//                this->audio_stream = stream;
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
-//                break;
-//            case AVMEDIA_TYPE_VIDEO:
-//                this->video_stream = stream;
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
-//                break;
-//            case AVMEDIA_TYPE_UNKNOWN:
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_UNKNOWN");
-//                break;
-//            case AVMEDIA_TYPE_DATA:
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_DATA");
-//                break;
-//            case AVMEDIA_TYPE_SUBTITLE:
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_SUBTITLE");
-//                break;
-//            case AVMEDIA_TYPE_ATTACHMENT:
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_ATTACHMENT");
-//                break;
-//            case AVMEDIA_TYPE_NB:
-//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_NB");
-//                break;
-//        }
-//    }
+    // const AVCodec *videoCodec;
+//    int videoStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0);
+//    LOGD("Find best video stream id: %d", videoStreamId);
+//    const AVCodec *audioCodec;
+//    int audioStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0);
+//    LOGD("Find best audio stream id: %d", audioStreamId);
+    for (int i = 0; i < format_ctx->nb_streams; i++) {
+        auto stream = format_ctx->streams[i];
+        auto codec_type = stream->codecpar->codec_type;
+        switch (codec_type) {
+            case AVMEDIA_TYPE_AUDIO:
+                this->audio_stream = stream;
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
+                break;
+            case AVMEDIA_TYPE_VIDEO:
+                this->video_stream = stream;
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
+                break;
+            case AVMEDIA_TYPE_UNKNOWN:
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_UNKNOWN");
+                break;
+            case AVMEDIA_TYPE_DATA:
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_DATA");
+                break;
+            case AVMEDIA_TYPE_SUBTITLE:
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_SUBTITLE");
+                break;
+            case AVMEDIA_TYPE_ATTACHMENT:
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_ATTACHMENT");
+                break;
+            case AVMEDIA_TYPE_NB:
+                LOGD("Find Stream: %s", "AVMEDIA_TYPE_NB");
+                break;
+        }
+    }
 
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
 
     // Video decode
-    if (videoStreamId >= 0 && videoCodec != nullptr) {
-        this->video_stream = format_ctx->streams[videoStreamId];
-        // Hardware device.
-        auto codecHwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
-        if (codecHwDeviceType == AV_HWDEVICE_TYPE_NONE) {
-            while ((codecHwDeviceType = av_hwdevice_iterate_types(codecHwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {
-
-            }
-        }
-        const char * hw_codec_name = nullptr;
+    if (video_stream != nullptr) {
+        bool useHwCodec = false;
+        const char *mediacodecName;
         switch (video_stream->codecpar->codec_id) {
-            case AV_CODEC_ID_H264: {
-                hw_codec_name = "h264_mediacodec";
+            case AV_CODEC_ID_H264:
+                mediacodecName = "h264_mediacodec";
+                useHwCodec = true;
                 break;
-            }
-            case AV_CODEC_ID_HEVC: {
-                hw_codec_name = "hevc_mediacodec";
+            case AV_CODEC_ID_HEVC:
+                mediacodecName = "hevc_mediacodec";
+                useHwCodec = true;
                 break;
-            }
-            default:  {
+            default:
+                useHwCodec = false;
                 break;
-            }
-        }
-        if (hw_codec_name == nullptr) {
-            this->video_decoder = videoCodec;
-        } else {
-            this->video_decoder = avcodec_find_decoder_by_name(hw_codec_name);
-        }
-        hw_pix_fmt = AV_PIX_FMT_NONE;
-        if (codecHwDeviceType != AV_HWDEVICE_TYPE_NONE) {
-            LOGD("Find hw media codec device.");
-            for (int i = 0;; i ++) {
-                auto config = avcodec_get_hw_config(video_decoder, i);
-                if (!config) {
-                    LOGD("Don't find hw config: %d", i);
-                    break;
-                }
-                if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-                    config->device_type == codecHwDeviceType) {
-                    hw_pix_fmt = config->pix_fmt;
-                    LOGD("Find hw config: %d", i);
-                    break;
-                }
-            }
         }
 
-        this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
-        if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
-            LOGE("Set video stream params fail");
-            return OPT_FAIL;
-        }
+        if (useHwCodec) {
+            AVHWDeviceType hwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
+            if (hwDeviceType == AV_HWDEVICE_TYPE_NONE) {
+                while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {
 
-        if (hw_pix_fmt != AV_PIX_FMT_NONE) {
-            AVBufferRef *av_hw_ctx = nullptr;
-            int hw_ctx_result = av_hwdevice_ctx_create(&av_hw_ctx, codecHwDeviceType, nullptr, nullptr, 0);
-            if (hw_ctx_result >= 0) {
-                video_decoder_ctx->get_format = get_hw_format;
-                video_decoder_ctx->hw_device_ctx = av_buffer_ref(av_hw_ctx);
-                LOGD("Set hw device ctx success.");
+                }
+            }
+            const AVCodec *mediacodec = avcodec_find_decoder_by_name(mediacodecName);
+
+            if (mediacodec) {
+                LOGD("find %s", mediacodecName);
+                for (int i = 0; ; ++i) {
+                    const AVCodecHWConfig *config = avcodec_get_hw_config(mediacodec, i);
+                    if (!config) {
+                        LOGE("Decoder: %s does not support device type: %s", mediacodec->name,
+                             av_hwdevice_get_type_name(hwDeviceType));
+                        break;
+                    }
+                    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == hwDeviceType) {
+                        // AV_PIX_FMT_MEDIACODEC(165)
+                        hw_pix_fmt = config->pix_fmt;
+                        LOGD("Decoder: %s support device type: %s, hw_pix_fmt: %d, AV_PIX_FMT_MEDIACODEC: %d", mediacodec->name,
+                             av_hwdevice_get_type_name(hwDeviceType), hw_pix_fmt, AV_PIX_FMT_MEDIACODEC);
+                        break;
+                    }
+                }
+
+                if (hw_pix_fmt == AV_PIX_FMT_NONE) {
+                    LOGE("not use surface decoding");
+                    video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
+                } else {
+                    video_decoder = mediacodec;
+                    int ret = av_hwdevice_ctx_create(&hw_ctx, hwDeviceType, nullptr, nullptr, 0);
+                    if (ret != 0) {
+                        LOGE("av_hwdevice_ctx_create err: %d", ret);
+                    }
+                }
             } else {
-                LOGD("Create hw ctx fail: %d", hw_ctx_result);
+                LOGE("not find %s", mediacodecName);
+                video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
             }
+        } else {
+            video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
         }
 
-        if (avcodec_open2(video_decoder_ctx, video_decoder, nullptr) < 0) {
-            LOGE("Open video decoder fail");
+        // init codec context
+        video_decoder_ctx = avcodec_alloc_context3(video_decoder);
+        if (!video_decoder_ctx) {
+            LOGE("Create video ctx fail.");
             return OPT_FAIL;
         }
+        avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar);
+        if (hw_ctx) {
+            video_decoder_ctx->get_format = get_hw_format;
+            video_decoder_ctx->hw_device_ctx = av_buffer_ref(hw_ctx);
+        }
+        int ret = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
+        if (ret != 0) {
+            LOGE("Open video ctx fail: %d", ret);
+            return OPT_FAIL;
+        }
+
         this->video_width = video_decoder_ctx->width;
         this->video_height = video_decoder_ctx->height;
         this->video_fps = av_q2d(video_stream->r_frame_rate);
@@ -213,9 +224,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
     }
 
     // Audio decode
-    if (audioStreamId >= 0 && audioCodec != nullptr) {
-        this->audio_stream = format_ctx->streams[audioStreamId];
-        this->audio_decoder = audioCodec;
+    if (audio_stream != nullptr) {
+        this->audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
         if (audio_decoder == nullptr) {
             LOGE("%s", "Do not find audio decoder");
             return OPT_FAIL;
