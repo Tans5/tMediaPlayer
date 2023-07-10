@@ -3,12 +3,22 @@
 #include <media_player.h>
 #include <android/native_window_jni.h>
 #include <android/native_window.h>
+extern "C" {
+#include "libavcodec/jni.h"
+}
+
+
+JavaVM *mJvm = nullptr;
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_tans_tmediaplayer_MediaPlayer_setupPlayerNative(
         JNIEnv * env,
         jobject j_player,
         jstring file_path) {
+    if (mJvm == nullptr) {
+        env->GetJavaVM(&mJvm);
+    }
+    av_jni_set_java_vm(mJvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, 0);
     auto player = new MediaPlayerContext;
     auto result = player->setup_media_player(file_path_chars);

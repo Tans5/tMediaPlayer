@@ -7,6 +7,7 @@ extern "C" {
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
 #include "libswresample/swresample.h"
+#include "libavcodec/mediacodec.h"
 }
 #include "android/native_window.h"
 #include "android/native_window_jni.h"
@@ -56,14 +57,18 @@ extern "C" {
 
 AVPixelFormat hw_pix_fmt = AV_PIX_FMT_NONE;
 
-enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
-                                        const enum AVPixelFormat *pix_fmts)
-{
+static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
+                                        const enum AVPixelFormat *pix_fmts) {
     const enum AVPixelFormat *p;
+
     for (p = pix_fmts; *p != -1; p++) {
-        if (*p == hw_pix_fmt)
+        if (*p == hw_pix_fmt) {
+            LOGE("get HW surface format: %d", *p);
             return *p;
+        }
     }
+
+    LOGE("Failed to get HW surface format");
     return AV_PIX_FMT_NONE;
 }
 
@@ -150,19 +155,17 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
             const AVCodec *mediacodec = avcodec_find_decoder_by_name(mediacodecName);
 
             if (mediacodec) {
-                LOGD("find %s", mediacodecName);
-                for (int i = 0; ; ++i) {
+                LOGD("Find %s", mediacodecName);
+                for (int i = 0; ; i++) {
                     const AVCodecHWConfig *config = avcodec_get_hw_config(mediacodec, i);
                     if (!config) {
-                        LOGE("Decoder: %s does not support device type: %s", mediacodec->name,
-                             av_hwdevice_get_type_name(hwDeviceType));
+                        LOGE("Don't find hw config: %d", i);
                         break;
                     }
                     if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == hwDeviceType) {
                         // AV_PIX_FMT_MEDIACODEC(165)
                         hw_pix_fmt = config->pix_fmt;
-                        LOGD("Decoder: %s support device type: %s, hw_pix_fmt: %d, AV_PIX_FMT_MEDIACODEC: %d", mediacodec->name,
-                             av_hwdevice_get_type_name(hwDeviceType), hw_pix_fmt, AV_PIX_FMT_MEDIACODEC);
+                        LOGD("Find hw pix fmt: %d, %d", config->pix_fmt, i);
                         break;
                     }
                 }
@@ -185,6 +188,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
             video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
         }
 
+        LOGD("hw decoder: %s", video_decoder->name);
         // init codec context
         video_decoder_ctx = avcodec_alloc_context3(video_decoder);
         if (!video_decoder_ctx) {
@@ -195,6 +199,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         if (hw_ctx) {
             video_decoder_ctx->get_format = get_hw_format;
             video_decoder_ctx->hw_device_ctx = av_buffer_ref(hw_ctx);
+//            auto mMediaCodecContext = av_mediacodec_alloc_context();
+//            av_mediacodec_default_init(video_decoder_ctx, mMediaCodecContext, native_window);
         }
         int ret = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
         if (ret != 0) {
