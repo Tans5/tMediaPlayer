@@ -54,6 +54,19 @@ extern "C" {
 //    return nullptr;
 //}
 
+AVPixelFormat hw_pix_fmt = AV_PIX_FMT_NONE;
+
+enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
+                                        const enum AVPixelFormat *pix_fmts)
+{
+    const enum AVPixelFormat *p;
+    for (p = pix_fmts; *p != -1; p++) {
+        if (*p == hw_pix_fmt)
+            return *p;
+    }
+    return AV_PIX_FMT_NONE;
+}
+
 PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path) {
     LOGD("Setup media player file path: %s", file_path);
 
@@ -70,81 +83,115 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         LOGE("Format find stream error: %d", stream_find_result);
         return OPT_FAIL;
     }
-    for (int i = 0; i < format_ctx->nb_streams; i++) {
-        auto stream = format_ctx->streams[i];
-        auto codec_type = stream->codecpar->codec_type;
-        switch (codec_type) {
-            case AVMEDIA_TYPE_AUDIO:
-                this->audio_stream = stream;
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
-                break;
-            case AVMEDIA_TYPE_VIDEO:
-                this->video_stream = stream;
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
-                break;
-            case AVMEDIA_TYPE_UNKNOWN:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_UNKNOWN");
-                break;
-            case AVMEDIA_TYPE_DATA:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_DATA");
-                break;
-            case AVMEDIA_TYPE_SUBTITLE:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_SUBTITLE");
-                break;
-            case AVMEDIA_TYPE_ATTACHMENT:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_ATTACHMENT");
-                break;
-            case AVMEDIA_TYPE_NB:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_NB");
-                break;
-        }
-    }
+    AVCodec *videoCodec;
+    int videoStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0);
+    LOGD("Find best video stream id: %d", videoStreamId);
+    AVCodec *audioCodec;
+    int audioStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0);
+    LOGD("Find best audio stream id: %d", audioStreamId);
+//    for (int i = 0; i < format_ctx->nb_streams; i++) {
+//        auto stream = format_ctx->streams[i];
+//        auto codec_type = stream->codecpar->codec_type;
+//        switch (codec_type) {
+//            case AVMEDIA_TYPE_AUDIO:
+//                this->audio_stream = stream;
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
+//                break;
+//            case AVMEDIA_TYPE_VIDEO:
+//                this->video_stream = stream;
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
+//                break;
+//            case AVMEDIA_TYPE_UNKNOWN:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_UNKNOWN");
+//                break;
+//            case AVMEDIA_TYPE_DATA:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_DATA");
+//                break;
+//            case AVMEDIA_TYPE_SUBTITLE:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_SUBTITLE");
+//                break;
+//            case AVMEDIA_TYPE_ATTACHMENT:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_ATTACHMENT");
+//                break;
+//            case AVMEDIA_TYPE_NB:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_NB");
+//                break;
+//        }
+//    }
 
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
 
     // Video decode
-    if (this->video_stream != nullptr) {
-        auto video_codec = video_stream->codecpar->codec_id;
-        this->video_decoder = avcodec_find_decoder(video_codec);
-        if (this->video_decoder == nullptr) {
-            LOGE("Do not find video decoder");
-        } else {
-            this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
-
-            if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
-                LOGE("Set video stream params fail");
-                return OPT_FAIL;
-            }
-            if (avcodec_open2(video_decoder_ctx, video_decoder, nullptr) < 0) {
-                LOGE("Open video decoder fail");
-                return OPT_FAIL;
-            }
-            this->video_width = video_decoder_ctx->width;
-            this->video_height = video_decoder_ctx->height;
-            this->video_fps = av_q2d(video_stream->r_frame_rate);
-            this->video_base_time = av_q2d(video_stream->time_base);
-            this->video_time_den = video_stream->time_base.den;
-            long v_duration = video_stream->duration * 1000 / video_time_den;
-            this->duration = v_duration;
-            LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f, Duration: %ld",
-                 video_width,
-                 video_height, video_fps,
-                 video_base_time,
-                 duration);
-
-            this->sws_ctx = sws_getContext(
-                    video_width, video_height, video_decoder_ctx->pix_fmt,
-                    video_width, video_height, AV_PIX_FMT_RGBA,
-                    SWS_BICUBIC, nullptr, nullptr, nullptr
-            );
-            this->native_window_buffer = new ANativeWindow_Buffer;
+    if (videoStreamId >= 0 && videoCodec != nullptr) {
+        this->video_stream = format_ctx->streams[videoStreamId];
+        this->video_decoder = videoCodec;
+        this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
+        if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
+            LOGE("Set video stream params fail");
+            return OPT_FAIL;
         }
+
+        // Hardware device.
+        auto codecHwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
+        hw_pix_fmt = AV_PIX_FMT_NONE;
+        if (codecHwDeviceType != AV_HWDEVICE_TYPE_NONE) {
+            LOGD("Find hw media codec device.");
+            for (int i = 0;; i ++) {
+                auto config = avcodec_get_hw_config(videoCodec, i);
+                if (!config) {
+                    LOGD("Don't find hw config: %d", i);
+                    break;
+                }
+                if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+                    config->device_type == codecHwDeviceType) {
+                    hw_pix_fmt = config->pix_fmt;
+                    LOGD("Find hw config: %d", i);
+                    break;
+                }
+            }
+        }
+        if (hw_pix_fmt != AV_PIX_FMT_NONE) {
+            AVBufferRef *av_hw_ctx = nullptr;
+            int hw_ctx_result = av_hwdevice_ctx_create(&av_hw_ctx, codecHwDeviceType, nullptr, nullptr, 0);
+            if (hw_ctx_result >= 0) {
+                video_decoder_ctx->get_format = get_hw_format;
+                video_decoder_ctx->hw_device_ctx = av_buffer_ref(av_hw_ctx);
+                LOGD("Set hw device ctx success.");
+            } else {
+                LOGD("Create hw ctx fail: %d", hw_ctx_result);
+            }
+        }
+
+        if (avcodec_open2(video_decoder_ctx, video_decoder, nullptr) < 0) {
+            LOGE("Open video decoder fail");
+            return OPT_FAIL;
+        }
+        this->video_width = video_decoder_ctx->width;
+        this->video_height = video_decoder_ctx->height;
+        this->video_fps = av_q2d(video_stream->r_frame_rate);
+        this->video_base_time = av_q2d(video_stream->time_base);
+        this->video_time_den = video_stream->time_base.den;
+        long v_duration = video_stream->duration * 1000 / video_time_den;
+        this->duration = v_duration;
+        LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f, Duration: %ld",
+             video_width,
+             video_height, video_fps,
+             video_base_time,
+             duration);
+
+        this->sws_ctx = sws_getContext(
+                video_width, video_height, video_decoder_ctx->pix_fmt,
+                video_width, video_height, AV_PIX_FMT_RGBA,
+                SWS_BICUBIC, nullptr, nullptr, nullptr
+        );
+        this->native_window_buffer = new ANativeWindow_Buffer;
     }
 
     // Audio decode
-    if (audio_stream != nullptr) {
-        this->audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
+    if (audioStreamId >= 0 && audioCodec != nullptr) {
+        this->audio_stream = format_ctx->streams[audioStreamId];
+        this->audio_decoder = audioCodec;
         if (audio_decoder == nullptr) {
             LOGE("%s", "Do not find audio decoder");
             return OPT_FAIL;
