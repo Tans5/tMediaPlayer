@@ -125,20 +125,37 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
     // Video decode
     if (videoStreamId >= 0 && videoCodec != nullptr) {
         this->video_stream = format_ctx->streams[videoStreamId];
-        this->video_decoder = videoCodec;
-        this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
-        if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
-            LOGE("Set video stream params fail");
-            return OPT_FAIL;
-        }
-
         // Hardware device.
         auto codecHwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
+        if (codecHwDeviceType == AV_HWDEVICE_TYPE_NONE) {
+            while ((codecHwDeviceType = av_hwdevice_iterate_types(codecHwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {
+
+            }
+        }
+        const char * hw_codec_name = nullptr;
+        switch (video_stream->codecpar->codec_id) {
+            case AV_CODEC_ID_H264: {
+                hw_codec_name = "h264_mediacodec";
+                break;
+            }
+            case AV_CODEC_ID_HEVC: {
+                hw_codec_name = "hevc_mediacodec";
+                break;
+            }
+            default:  {
+                break;
+            }
+        }
+        if (hw_codec_name == nullptr) {
+            this->video_decoder = videoCodec;
+        } else {
+            this->video_decoder = avcodec_find_decoder_by_name(hw_codec_name);
+        }
         hw_pix_fmt = AV_PIX_FMT_NONE;
         if (codecHwDeviceType != AV_HWDEVICE_TYPE_NONE) {
             LOGD("Find hw media codec device.");
             for (int i = 0;; i ++) {
-                auto config = avcodec_get_hw_config(videoCodec, i);
+                auto config = avcodec_get_hw_config(video_decoder, i);
                 if (!config) {
                     LOGD("Don't find hw config: %d", i);
                     break;
@@ -151,6 +168,13 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
                 }
             }
         }
+
+        this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
+        if (avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar) < 0) {
+            LOGE("Set video stream params fail");
+            return OPT_FAIL;
+        }
+
         if (hw_pix_fmt != AV_PIX_FMT_NONE) {
             AVBufferRef *av_hw_ctx = nullptr;
             int hw_ctx_result = av_hwdevice_ctx_create(&av_hw_ctx, codecHwDeviceType, nullptr, nullptr, 0);

@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextureView>(R.id.texture_view)
     }
 
-    private val fileName = "sekiro.mp4"
+    private val fileName = "gokuraku2.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir

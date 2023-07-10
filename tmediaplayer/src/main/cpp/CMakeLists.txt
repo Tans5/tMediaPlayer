@@ -63,8 +63,8 @@ set_target_properties( libswscale
 
 #################################tmediaplayer#########################################
 
-file(GLOB examples_src
-        examples/*.c)
+#file(GLOB examples_src
+#        examples/*.c)
 
 add_library( # Sets the name of the library.
         tmediaplayer
@@ -76,8 +76,7 @@ add_library( # Sets the name of the library.
         t_media_jni.cpp
         mediaplayer/media_player.cpp
         mediaplayer/media_time.cpp
-        mediaplayer/media_player_pool.cpp
-        ${examples_src})
+        mediaplayer/media_player_pool.cpp)
 
 target_include_directories(tmediaplayer PUBLIC
         ffmpeg/header
