@@ -66,7 +66,7 @@ typedef struct MediaPlayerContext {
     ANativeWindow *native_window = nullptr;
     ANativeWindow_Buffer *native_window_buffer = nullptr;
     AVStream *video_stream = nullptr;
-    AVCodec *video_decoder = nullptr;
+    const AVCodec *video_decoder = nullptr;
     SwsContext * sws_ctx = nullptr;
 
     int video_width;
@@ -80,7 +80,7 @@ typedef struct MediaPlayerContext {
      * Audio
      */
     AVStream *audio_stream = nullptr;
-    AVCodec *audio_decoder = nullptr;
+    const AVCodec *audio_decoder = nullptr;
     AVCodecContext *audio_decoder_ctx = nullptr;
     SwrContext *swr_ctx = nullptr;
     int audio_channels;

@@ -83,10 +83,10 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         LOGE("Format find stream error: %d", stream_find_result);
         return OPT_FAIL;
     }
-    AVCodec *videoCodec;
+    const AVCodec *videoCodec;
     int videoStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0);
     LOGD("Find best video stream id: %d", videoStreamId);
-    AVCodec *audioCodec;
+    const AVCodec *audioCodec;
     int audioStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0);
     LOGD("Find best audio stream id: %d", audioStreamId);
 //    for (int i = 0; i < format_ctx->nb_streams; i++) {

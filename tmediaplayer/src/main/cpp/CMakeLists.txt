@@ -16,12 +16,12 @@ set_target_properties( libavcodec
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavcodec.so )
 
-add_library( libavdevice
-        SHARED
-        IMPORTED )
-set_target_properties( libavdevice
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavdevice.so )
+#add_library( libavdevice
+#        SHARED
+#        IMPORTED )
+#set_target_properties( libavdevice
+#        PROPERTIES IMPORTED_LOCATION
+#        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavdevice.so )
 
 add_library( libavfilter
         SHARED
@@ -106,7 +106,7 @@ target_link_libraries( # Specifies the target library.
 
         # ffmpeg
         libavcodec
-        libavdevice
+        #libavdevice
         libavfilter
         libavformat
         libavutil
