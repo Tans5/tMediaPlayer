@@ -15,80 +15,80 @@ extern "C" {
 #include "SLES/OpenSLES.h"
 #include "SLES/OpenSLES_Android.h"
 
-//void* decode_test(void* player_cxt) {
-//    MediaPlayerContext* ctx = static_cast<MediaPlayerContext *>(player_cxt);
-//    ctx->reset_play_progress();
-//    auto fmt_ctx = ctx->format_ctx;
-//    auto pkt = ctx->pkt;
-//    auto video_decoder_ctx = ctx->video_decoder_ctx;
-//    auto audio_decoder_ctx = ctx->audio_decoder_ctx;
-//    auto frame = ctx->frame;
-//    auto audio_stream = ctx->audio_stream;
-//    auto video_stream = ctx->video_stream;
-//    auto rgba_frame = av_frame_alloc();
-//    int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, ctx->video_width, ctx->video_height,1);
-//    auto rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(
-//            buffer_size * sizeof(uint8_t)));
-//    av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer,
-//                         AV_PIX_FMT_RGBA, ctx->video_width, ctx->video_height, 1);
-//    LOGD("Test decode start");
-//    while (true) {
-//        long time_start = get_time_millis();
-//        av_packet_unref(pkt);
-//
-//        int result = av_read_frame(fmt_ctx, pkt);
-//        if (result < 0) {
-//            LOGD("Decode read frame fail: %d", result);
-//            break;
-//        }
-//        if (pkt->stream_index == video_stream->index) {
-//            result = avcodec_send_packet(video_decoder_ctx, pkt);
-//            if (result == -11) {
-//                continue;
-//            }
+void* decode_test(void* player_cxt) {
+    MediaPlayerContext* ctx = static_cast<MediaPlayerContext *>(player_cxt);
+    ctx->reset_play_progress();
+    auto fmt_ctx = ctx->format_ctx;
+    auto pkt = ctx->pkt;
+    auto video_decoder_ctx = ctx->video_decoder_ctx;
+    auto audio_decoder_ctx = ctx->audio_decoder_ctx;
+    auto frame = ctx->frame;
+    auto audio_stream = ctx->audio_stream;
+    auto video_stream = ctx->video_stream;
+    auto rgba_frame = av_frame_alloc();
+    int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, ctx->video_width, ctx->video_height,1);
+    auto rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(
+            buffer_size * sizeof(uint8_t)));
+    av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer,
+                         AV_PIX_FMT_RGBA, ctx->video_width, ctx->video_height, 1);
+
+    auto sws_ctx = sws_getContext(
+            ctx->video_width, ctx->video_height, video_decoder_ctx->pix_fmt,
+            ctx->video_width, ctx->video_height, AV_PIX_FMT_RGBA,
+            SWS_BICUBIC, nullptr, nullptr, nullptr
+    );
+    LOGD("Test decode start");
+    while (true) {
+        long time_start = get_time_millis();
+        av_packet_unref(pkt);
+
+        int result = av_read_frame(fmt_ctx, pkt);
+        if (result < 0) {
+            LOGD("Decode read frame fail: %d", result);
+            break;
+        }
+        if (pkt->stream_index == video_stream->index) {
+            avcodec_send_packet(video_decoder_ctx, pkt);
+            av_frame_unref(frame);
+            result = avcodec_receive_frame(video_decoder_ctx, frame);
+            if (result == -11) {
+                LOGD("Decode video do resend.");
+                continue;
+            }
+            if (result < 0) {
+                LOGD("Decode video receive video frame fail: %d", result);
+                break;
+            }
+            int scale_width = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
+            LOGD("Decode video scale result: %d", scale_width);
+            long time_end = get_time_millis();
+            LOGD("Decode video cost: %ld ms", time_end - time_start);
+        }
+
+//        if (pkt->stream_index == ctx->audio_stream->index) {
+//            result = avcodec_send_packet(audio_decoder_ctx, pkt);
 //            if (result < 0) {
-//                LOGD("Decode video send package fail: %d", result);
 //                break;
 //            }
-//            av_frame_unref(frame);
-//            result = avcodec_receive_frame(video_decoder_ctx, frame);
-//            if (result == -11) {
-//                continue;
+//            int count = 0;
+//            while (true) {
+//                av_frame_unref(frame);
+//                result = avcodec_receive_frame(audio_decoder_ctx, frame);
+//                if (result < 0) {
+//                    break;
+//                }
+//                long pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
+//                LOGD("Audio Pts: %ld ms, nb sample: %d", pts_millis, frame->nb_samples);
+//                count ++;
 //            }
-//            if (result < 0) {
-//                LOGD("Decode video receive video frame fail: %d", result);
-//                break;
-//            }
-//            int scale_width = sws_scale(ctx->sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
-//            LOGD("Decode video scale result: %d", scale_width);
 //            long time_end = get_time_millis();
-//            LOGD("Decode video cost: %ld ms", time_end - time_start);
+//            LOGD("Audio decode count: %d, cost: %ld ms", count, time_end - time_start);
 //        }
-//
-////        if (pkt->stream_index == ctx->audio_stream->index) {
-////            result = avcodec_send_packet(audio_decoder_ctx, pkt);
-////            if (result < 0) {
-////                break;
-////            }
-////            int count = 0;
-////            while (true) {
-////                av_frame_unref(frame);
-////                result = avcodec_receive_frame(audio_decoder_ctx, frame);
-////                if (result < 0) {
-////                    break;
-////                }
-////                long pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
-////                LOGD("Audio Pts: %ld ms, nb sample: %d", pts_millis, frame->nb_samples);
-////                count ++;
-////            }
-////            long time_end = get_time_millis();
-////            LOGD("Audio decode count: %d, cost: %ld ms", count, time_end - time_start);
-////        }
-////        msleep(20);
-//    }
-//    LOGD("Test decode end.");
-//    return nullptr;
-//}
+//        msleep(20);
+    }
+    LOGD("Test decode end.");
+    return nullptr;
+}
 
 AVPixelFormat hw_pix_fmt = AV_PIX_FMT_NONE;
 
@@ -164,104 +164,113 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
 
     // Video decode
     if (video_stream != nullptr) {
-        bool useHwCodec = false;
-        const char *mediacodecName;
-        switch (video_stream->codecpar->codec_id) {
+        AVStream *stream = video_stream;
+
+        AVCodecParameters *params = stream->codecpar;
+        video_width = params->width;
+        video_height = params->height;
+
+        // find decoder
+        bool useHwDecoder = true;
+        const char * mediacodecName;
+        switch (params->codec_id) {
             case AV_CODEC_ID_H264:
                 mediacodecName = "h264_mediacodec";
-                useHwCodec = true;
                 break;
             case AV_CODEC_ID_HEVC:
                 mediacodecName = "hevc_mediacodec";
-                useHwCodec = true;
                 break;
             default:
-                useHwCodec = false;
+                useHwDecoder = false;
+                LOGE("format(%d) not support hw decode, maybe rebuild ffmpeg so", params->codec_id);
                 break;
         }
 
-        if (false) {
-            AVHWDeviceType hwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
-            if (hwDeviceType == AV_HWDEVICE_TYPE_NONE) {
-                while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {
-
+        const AVCodec * mVideoCodec;
+        AVBufferRef *mHwDeviceCtx;
+        if (useHwDecoder) {
+            AVHWDeviceType type = av_hwdevice_find_type_by_name("mediacodec");
+            if (type == AV_HWDEVICE_TYPE_NONE) {
+                while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
+                    LOGD("av_hwdevice_iterate_types: %d", type);
                 }
             }
-            const AVCodec *mediacodec = avcodec_find_decoder_by_name(mediacodecName);
 
+            const AVCodec *mediacodec = avcodec_find_decoder_by_name(mediacodecName);
             if (mediacodec) {
                 LOGD("Find %s", mediacodecName);
-                for (int i = 0; ; i++) {
+                for (int i = 0; ; ++i) {
                     const AVCodecHWConfig *config = avcodec_get_hw_config(mediacodec, i);
                     if (!config) {
-                        LOGE("Don't find hw config: %d", i);
+                        LOGE("Decoder: %s does not support device type: %s", mediacodec->name,
+                             av_hwdevice_get_type_name(type));
                         break;
                     }
-                    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == hwDeviceType) {
+                    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
                         // AV_PIX_FMT_MEDIACODEC(165)
                         hw_pix_fmt = config->pix_fmt;
-                        LOGD("Find hw pix fmt: %d, %d", config->pix_fmt, i);
+                        LOGE("Decoder: %s support device type: %s, hw_pix_fmt: %d, AV_PIX_FMT_MEDIACODEC: %d", mediacodec->name,
+                             av_hwdevice_get_type_name(type), hw_pix_fmt, AV_PIX_FMT_MEDIACODEC);
                         break;
                     }
                 }
 
                 if (hw_pix_fmt == AV_PIX_FMT_NONE) {
                     LOGE("not use surface decoding");
-                    video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
+                    mVideoCodec = avcodec_find_decoder(params->codec_id);
                 } else {
-                    video_decoder = mediacodec;
-                    int ret = av_hwdevice_ctx_create(&hw_ctx, hwDeviceType, nullptr, nullptr, 0);
+                    mVideoCodec = mediacodec;
+                    int ret = av_hwdevice_ctx_create(&mHwDeviceCtx, type, nullptr, nullptr, 0);
                     if (ret != 0) {
                         LOGE("av_hwdevice_ctx_create err: %d", ret);
                     }
                 }
             } else {
                 LOGE("not find %s", mediacodecName);
-                video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
+                mVideoCodec = avcodec_find_decoder(params->codec_id);
             }
         } else {
-            video_decoder = avcodec_find_decoder(video_stream->codecpar->codec_id);
+            mVideoCodec = avcodec_find_decoder(params->codec_id);
         }
 
-        LOGD("hw decoder: %s", video_decoder->name);
+        if (mVideoCodec == nullptr) {
+//        std::string msg = "not find decoder";
+//        if (mErrorMsgListener) {
+//            mErrorMsgListener(-1000, msg);
+//        }
+            return OPT_FAIL;
+        }
+
         // init codec context
-        video_decoder_ctx = avcodec_alloc_context3(video_decoder);
+        video_decoder_ctx = avcodec_alloc_context3(mVideoCodec);
         if (!video_decoder_ctx) {
-            LOGE("Create video ctx fail.");
+//        std::string msg = "codec context alloc failed";
+//        if (mErrorMsgListener) {
+//            mErrorMsgListener(-2000, msg);
+//        }
             return OPT_FAIL;
         }
-        avcodec_parameters_to_context(video_decoder_ctx, video_stream->codecpar);
-        if (hw_ctx) {
+        avcodec_parameters_to_context(video_decoder_ctx, params);
+
+        if (mHwDeviceCtx) {
             video_decoder_ctx->get_format = get_hw_format;
-            video_decoder_ctx->hw_device_ctx = av_buffer_ref(hw_ctx);
-//            auto mMediaCodecContext = av_mediacodec_alloc_context();
-//            av_mediacodec_default_init(video_decoder_ctx, mMediaCodecContext, native_window);
+            video_decoder_ctx->hw_device_ctx = av_buffer_ref(mHwDeviceCtx);
+
+//        if (mSurface != nullptr) {
+//            mMediaCodecContext = av_mediacodec_alloc_context();
+//            av_mediacodec_default_init(mCodecContext, mMediaCodecContext, mSurface);
+//        }
         }
-        int ret = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
+
+        // open codec
+        int ret = avcodec_open2(video_decoder_ctx, mVideoCodec, nullptr);
         if (ret != 0) {
-            LOGE("Open video ctx fail: %d", ret);
+//        std::string msg = "codec open failed";
+//        if (mErrorMsgListener) {
+//            mErrorMsgListener(-3000, msg);
+//        }
             return OPT_FAIL;
         }
-
-        this->video_width = video_decoder_ctx->width;
-        this->video_height = video_decoder_ctx->height;
-        this->video_fps = av_q2d(video_stream->r_frame_rate);
-        this->video_base_time = av_q2d(video_stream->time_base);
-        this->video_time_den = video_stream->time_base.den;
-        long v_duration = video_stream->duration * 1000 / video_time_den;
-        this->duration = v_duration;
-        LOGD("Width: %d, Height: %d, Fps: %.1f, Base time: %.1f, Duration: %ld",
-             video_width,
-             video_height, video_fps,
-             video_base_time,
-             duration);
-
-        this->sws_ctx = sws_getContext(
-                video_width, video_height, video_decoder_ctx->pix_fmt,
-                video_width, video_height, AV_PIX_FMT_RGBA,
-                SWS_BICUBIC, nullptr, nullptr, nullptr
-        );
-        this->native_window_buffer = new ANativeWindow_Buffer;
     }
 
     // Audio decode
@@ -378,8 +387,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
     if (video_stream == nullptr && audio_stream == nullptr) {
         return OPT_FAIL;
     } else {
-//        pthread_t t;
-//        pthread_create(&t, nullptr, decode_test, this);
+        pthread_t t;
+        pthread_create(&t, nullptr, decode_test, this);
         return OPT_SUCCESS;
     }
 }

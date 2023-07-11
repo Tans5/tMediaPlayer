@@ -78,26 +78,27 @@ Java_com_tans_tmediaplayer_MediaPlayer_decodeNextFrameNative(
         jobject j_player,
         jlong j_player_id,
         jlong j_data_id) {
-    MediaPlayerContext* media_player_data = reinterpret_cast<MediaPlayerContext *>(j_player_id);
-    RenderRawData* raw_data = reinterpret_cast<RenderRawData *>(j_data_id);
-    if (media_player_data != nullptr && raw_data != nullptr) {
-        auto decode_result = media_player_data->decode_next_frame(env, j_player, raw_data);
-        long pts;
-        if (raw_data->is_video) {
-            pts = raw_data->video_data->pts;
-        } else {
-            pts = raw_data->audio_data->pts;
-        }
-        jlong j_buff[2] = {decode_result, pts};
-        auto result = env->NewLongArray(2);
-        env->SetLongArrayRegion(result, 0, 2, j_buff);
-        return result;
-    } else {
-        jlong j_buff[2] = {DECODE_FRAME_FAIL, 0};
-        auto result = env->NewLongArray(2);
-        env->SetLongArrayRegion(result, 0, 2, j_buff);
-        return result;
-    }
+//    MediaPlayerContext* media_player_data = reinterpret_cast<MediaPlayerContext *>(j_player_id);
+//    RenderRawData* raw_data = reinterpret_cast<RenderRawData *>(j_data_id);
+//    if (media_player_data != nullptr && raw_data != nullptr) {
+//        auto decode_result = media_player_data->decode_next_frame(env, j_player, raw_data);
+//        long pts;
+//        if (raw_data->is_video) {
+//            pts = raw_data->video_data->pts;
+//        } else {
+//            pts = raw_data->audio_data->pts;
+//        }
+//        jlong j_buff[2] = {decode_result, pts};
+//        auto result = env->NewLongArray(2);
+//        env->SetLongArrayRegion(result, 0, 2, j_buff);
+//        return result;
+//    } else {
+//
+//    }
+    jlong j_buff[2] = {DECODE_FRAME_FAIL, 0};
+    auto result = env->NewLongArray(2);
+    env->SetLongArrayRegion(result, 0, 2, j_buff);
+    return result;
 }
 
 extern "C" JNIEXPORT jint JNICALL
