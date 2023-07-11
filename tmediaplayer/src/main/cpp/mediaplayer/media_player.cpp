@@ -186,8 +186,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
                 break;
         }
 
-        const AVCodec * mVideoCodec;
-        AVBufferRef *mHwDeviceCtx;
+        const AVCodec * mVideoCodec = nullptr;
+        AVBufferRef *mHwDeviceCtx = nullptr;
         if (useHwDecoder) {
             AVHWDeviceType type = av_hwdevice_find_type_by_name("mediacodec");
             if (type == AV_HWDEVICE_TYPE_NONE) {
