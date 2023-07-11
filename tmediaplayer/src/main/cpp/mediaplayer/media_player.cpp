@@ -271,6 +271,13 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
 //        }
             return OPT_FAIL;
         }
+        this->sws_ctx = sws_getContext(
+                video_width, video_height, video_decoder_ctx->pix_fmt,
+                video_width, video_height, AV_PIX_FMT_RGBA,
+                SWS_BICUBIC, nullptr, nullptr, nullptr
+        );
+        this->video_decoder = mVideoCodec;
+        this->native_window_buffer = new ANativeWindow_Buffer;
     }
 
     // Audio decode
@@ -387,8 +394,8 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
     if (video_stream == nullptr && audio_stream == nullptr) {
         return OPT_FAIL;
     } else {
-        pthread_t t;
-        pthread_create(&t, nullptr, decode_test, this);
+//        pthread_t t;
+//        pthread_create(&t, nullptr, decode_test, this);
         return OPT_SUCCESS;
     }
 }
@@ -430,11 +437,8 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobjec
 
             long decode_frame_start = get_time_millis();
             // 2. send pkt to decoder.
-            int send_pkg_result = avcodec_send_packet(video_decoder_ctx, pkt);
-            if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
-                LOGE("Decode video send pkt fail: %d", send_pkg_result);
-                return DECODE_FRAME_FAIL;
-            }
+            avcodec_send_packet(video_decoder_ctx, pkt);
+
             // av_frame_unref(frame);
 
             // 3. receive frame
