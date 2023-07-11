@@ -365,7 +365,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::reset_play_progress() {
     return OPT_SUCCESS;
 }
 
-DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_data) {
+DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobject jplayer, RenderRawData* render_data) {
 
     if (pkt != nullptr &&
         frame != nullptr &&
@@ -392,18 +392,24 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(RenderRawData* render_
                 LOGE("Decode video send pkt fail: %d", send_pkg_result);
                 return DECODE_FRAME_FAIL;
             }
-            av_frame_unref(frame);
+            // av_frame_unref(frame);
 
             // 3. receive frame
             int receive_frame_result = avcodec_receive_frame(video_decoder_ctx, frame);
             if (receive_frame_result == AVERROR(EAGAIN)) {
-                return decode_next_frame(render_data);
+                return decode_next_frame(jniEnv, jplayer, render_data);
             }
             if (receive_frame_result < 0) {
                 LOGE("%s", "Decode video frame fail");
                 return DECODE_FRAME_FAIL;
             }
-
+            int size = frame->width * frame->height;
+            LOGD("Test size: %d", size);
+            jint jWidth = frame->width;
+            jint jHeight = frame->height;
+            jbyteArray jFrame = jniEnv->NewByteArray(size);
+            jniEnv->SetByteArrayRegion(jFrame, 0, size,reinterpret_cast<const jbyte *>(frame->data[0]));
+            jniEnv->CallVoidMethod(jplayer,jniEnv->GetMethodID(jniEnv->GetObjectClass(jplayer), "onNewVideoFrame", "(II[B)V"), jWidth, jHeight, jFrame);
             // 4.scale
             sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, render_data->video_data->rgba_frame->data, render_data->video_data->rgba_frame->linesize);
             int64_t pts_millis = frame->pts * 1000 / video_time_den;

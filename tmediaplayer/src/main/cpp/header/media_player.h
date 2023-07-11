@@ -99,7 +99,7 @@ typedef struct MediaPlayerContext {
 
     PLAYER_OPT_RESULT set_window(ANativeWindow *native_window);
 
-    DECODE_FRAME_RESULT decode_next_frame(RenderRawData* render_data);
+    DECODE_FRAME_RESULT decode_next_frame(JNIEnv* jniEnv, jobject jplayer, RenderRawData* render_data);
 
     PLAYER_OPT_RESULT render_raw_data(RenderRawData* raw_data);
 

@@ -381,6 +381,10 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
 
     private external fun releasePlayerNative(playerId: Long)
 
+    fun onNewVideoFrame(width: Int, height: Int, bytes: ByteArray) {
+        println(bytes)
+    }
+
     companion object {
         init {
             System.loadLibrary("tmediaplayer")

@@ -84,7 +84,7 @@ Java_com_tans_tmediaplayer_MediaPlayer_decodeNextFrameNative(
     MediaPlayerContext* media_player_data = reinterpret_cast<MediaPlayerContext *>(j_player_id);
     RenderRawData* raw_data = reinterpret_cast<RenderRawData *>(j_data_id);
     if (media_player_data != nullptr && raw_data != nullptr) {
-        auto decode_result = media_player_data->decode_next_frame(raw_data);
+        auto decode_result = media_player_data->decode_next_frame(env, j_player, raw_data);
         long pts;
         if (raw_data->is_video) {
             pts = raw_data->video_data->pts;
