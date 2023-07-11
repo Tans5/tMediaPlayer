@@ -8,17 +8,14 @@ extern "C" {
 }
 
 
-JavaVM *mJvm = nullptr;
-
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_tans_tmediaplayer_MediaPlayer_setupPlayerNative(
         JNIEnv * env,
         jobject j_player,
         jstring file_path) {
-    if (mJvm == nullptr) {
-        env->GetJavaVM(&mJvm);
-    }
-    av_jni_set_java_vm(mJvm, nullptr);
+    JavaVM * jvm = nullptr;
+    env->GetJavaVM(&jvm);
+    av_jni_set_java_vm(jvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, 0);
     auto player = new MediaPlayerContext;
     auto result = player->setup_media_player(file_path_chars);

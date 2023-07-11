@@ -15,43 +15,78 @@ extern "C" {
 #include "SLES/OpenSLES.h"
 #include "SLES/OpenSLES_Android.h"
 
-//void* decode_audio_test(void* player_cxt) {
+//void* decode_test(void* player_cxt) {
 //    MediaPlayerContext* ctx = static_cast<MediaPlayerContext *>(player_cxt);
+//    ctx->reset_play_progress();
 //    auto fmt_ctx = ctx->format_ctx;
 //    auto pkt = ctx->pkt;
+//    auto video_decoder_ctx = ctx->video_decoder_ctx;
 //    auto audio_decoder_ctx = ctx->audio_decoder_ctx;
 //    auto frame = ctx->frame;
 //    auto audio_stream = ctx->audio_stream;
-//    LOGD("Audio decode start");
+//    auto video_stream = ctx->video_stream;
+//    auto rgba_frame = av_frame_alloc();
+//    int buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, ctx->video_width, ctx->video_height,1);
+//    auto rgba_frame_buffer = static_cast<uint8_t *>(av_malloc(
+//            buffer_size * sizeof(uint8_t)));
+//    av_image_fill_arrays(rgba_frame->data, rgba_frame->linesize, rgba_frame_buffer,
+//                         AV_PIX_FMT_RGBA, ctx->video_width, ctx->video_height, 1);
+//    LOGD("Test decode start");
 //    while (true) {
 //        long time_start = get_time_millis();
 //        av_packet_unref(pkt);
+//
 //        int result = av_read_frame(fmt_ctx, pkt);
 //        if (result < 0) {
+//            LOGD("Decode read frame fail: %d", result);
 //            break;
 //        }
-//        if (pkt->stream_index == ctx->audio_stream->index) {
-//            result = avcodec_send_packet(audio_decoder_ctx, pkt);
+//        if (pkt->stream_index == video_stream->index) {
+//            result = avcodec_send_packet(video_decoder_ctx, pkt);
+//            if (result == -11) {
+//                continue;
+//            }
 //            if (result < 0) {
+//                LOGD("Decode video send package fail: %d", result);
 //                break;
 //            }
-//            int count = 0;
-//            while (true) {
-//                av_frame_unref(frame);
-//                result = avcodec_receive_frame(audio_decoder_ctx, frame);
-//                if (result < 0) {
-//                    break;
-//                }
-//                long pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
-//                LOGD("Audio Pts: %ld ms, nb sample: %d", pts_millis, frame->nb_samples);
-//                count ++;
+//            av_frame_unref(frame);
+//            result = avcodec_receive_frame(video_decoder_ctx, frame);
+//            if (result == -11) {
+//                continue;
 //            }
+//            if (result < 0) {
+//                LOGD("Decode video receive video frame fail: %d", result);
+//                break;
+//            }
+//            int scale_width = sws_scale(ctx->sws_ctx, frame->data, frame->linesize, 0, frame->height, rgba_frame->data, rgba_frame->linesize);
+//            LOGD("Decode video scale result: %d", scale_width);
 //            long time_end = get_time_millis();
-//            LOGD("Audio decode count: %d, cost: %ld ms", count, time_end - time_start);
+//            LOGD("Decode video cost: %ld ms", time_end - time_start);
 //        }
-//        msleep(20);
+//
+////        if (pkt->stream_index == ctx->audio_stream->index) {
+////            result = avcodec_send_packet(audio_decoder_ctx, pkt);
+////            if (result < 0) {
+////                break;
+////            }
+////            int count = 0;
+////            while (true) {
+////                av_frame_unref(frame);
+////                result = avcodec_receive_frame(audio_decoder_ctx, frame);
+////                if (result < 0) {
+////                    break;
+////                }
+////                long pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
+////                LOGD("Audio Pts: %ld ms, nb sample: %d", pts_millis, frame->nb_samples);
+////                count ++;
+////            }
+////            long time_end = get_time_millis();
+////            LOGD("Audio decode count: %d, cost: %ld ms", count, time_end - time_start);
+////        }
+////        msleep(20);
 //    }
-//    LOGD("Audio decode end.");
+//    LOGD("Test decode end.");
 //    return nullptr;
 //}
 
@@ -344,8 +379,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
         return OPT_FAIL;
     } else {
 //        pthread_t t;
-//        reset_play_progress();
-//        pthread_create(&t, nullptr, decode_audio_test, this);
+//        pthread_create(&t, nullptr, decode_test, this);
         return OPT_SUCCESS;
     }
 }
