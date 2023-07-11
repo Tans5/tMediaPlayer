@@ -1,11 +1,14 @@
 package com.tans.tmediaplayer
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.SurfaceTexture
 import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import java.lang.ref.SoftReference
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
@@ -382,6 +385,8 @@ class MediaPlayer(private val rowBufferSize: Int = 50) {
     private external fun releasePlayerNative(playerId: Long)
 
     fun onNewVideoFrame(width: Int, height: Int, bytes: ByteArray) {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bytes))
         println(bytes)
     }
 

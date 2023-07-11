@@ -145,7 +145,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
                 break;
         }
 
-        if (useHwCodec) {
+        if (false) {
             AVHWDeviceType hwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
             if (hwDeviceType == AV_HWDEVICE_TYPE_NONE) {
                 while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {
@@ -403,15 +403,18 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobjec
                 LOGE("%s", "Decode video frame fail");
                 return DECODE_FRAME_FAIL;
             }
-            int size = frame->width * frame->height;
-            LOGD("Test size: %d", size);
-            jint jWidth = frame->width;
-            jint jHeight = frame->height;
-            jbyteArray jFrame = jniEnv->NewByteArray(size);
-            jniEnv->SetByteArrayRegion(jFrame, 0, size,reinterpret_cast<const jbyte *>(frame->data[0]));
-            jniEnv->CallVoidMethod(jplayer,jniEnv->GetMethodID(jniEnv->GetObjectClass(jplayer), "onNewVideoFrame", "(II[B)V"), jWidth, jHeight, jFrame);
             // 4.scale
-            sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, render_data->video_data->rgba_frame->data, render_data->video_data->rgba_frame->linesize);
+            int scale_width = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, render_data->video_data->rgba_frame->data, render_data->video_data->rgba_frame->linesize);
+            if (scale_width == frame->height) {
+                int size = frame->width * frame->height * 4;
+                jint jWidth = frame->width;
+                jint jHeight = frame->height;
+                jbyteArray jFrame = jniEnv->NewByteArray(size);
+                jniEnv->SetByteArrayRegion(jFrame, 0, size,reinterpret_cast<const jbyte *>(render_data->video_data->rgba_frame_buffer));
+                jniEnv->CallVoidMethod(jplayer,jniEnv->GetMethodID(jniEnv->GetObjectClass(jplayer), "onNewVideoFrame", "(II[B)V"), jWidth, jHeight, jFrame);
+            } else {
+                LOGE("Decode video scale fail: %d", scale_width);
+            }
             int64_t pts_millis = frame->pts * 1000 / video_time_den;
             LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_frame_start);
             render_data->video_data->pts = pts_millis;
