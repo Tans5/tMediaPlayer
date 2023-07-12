@@ -18,6 +18,9 @@ Java_com_tans_tmediaplayer_MediaPlayer_setupPlayerNative(
     av_jni_set_java_vm(jvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, 0);
     auto player = new MediaPlayerContext;
+    player->jniEnv = env;
+    player->jplayer = j_player;
+    player->jvm = jvm;
     auto result = player->setup_media_player(file_path_chars);
     if (result == OPT_SUCCESS) {
         return reinterpret_cast<jlong>(player);

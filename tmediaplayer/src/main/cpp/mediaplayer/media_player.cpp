@@ -17,6 +17,7 @@ extern "C" {
 
 void* decode_test(void* player_cxt) {
     MediaPlayerContext* ctx = static_cast<MediaPlayerContext *>(player_cxt);
+    // ctx->jvm->AttachCurrentThread(&ctx->jniEnv, nullptr);
     ctx->reset_play_progress();
     auto fmt_ctx = ctx->format_ctx;
     auto pkt = ctx->pkt;
@@ -37,22 +38,34 @@ void* decode_test(void* player_cxt) {
             ctx->video_width, ctx->video_height, AV_PIX_FMT_RGBA,
             SWS_BICUBIC, nullptr, nullptr, nullptr
     );
+    bool skipReadPktFrame = false;
     LOGD("Test decode start");
+    int result = 0;
     while (true) {
         long time_start = get_time_millis();
-        av_packet_unref(pkt);
 
-        int result = av_read_frame(fmt_ctx, pkt);
-        if (result < 0) {
-            LOGD("Decode read frame fail: %d", result);
-            break;
+        if (!skipReadPktFrame) {
+            av_packet_unref(pkt);
+            result = av_read_frame(fmt_ctx, pkt);
+            if (result < 0) {
+                LOGD("Decode read frame fail: %d", result);
+                break;
+            }
         }
         if (pkt->stream_index == video_stream->index) {
-            avcodec_send_packet(video_decoder_ctx, pkt);
+            result = avcodec_send_packet(video_decoder_ctx, pkt);
+            skipReadPktFrame = result == -11;
+            if (result != 0 && !skipReadPktFrame) {
+                LOGE("Decode video send pkt: %d", result);
+                break;
+            }
+            if (skipReadPktFrame) {
+                LOGD("Decode video skip read pkt frame");
+            }
             av_frame_unref(frame);
             result = avcodec_receive_frame(video_decoder_ctx, frame);
             if (result == -11) {
-                LOGD("Decode video do resend.");
+                LOGD("Decode video do resend frame");
                 continue;
             }
             if (result < 0) {
@@ -63,6 +76,18 @@ void* decode_test(void* player_cxt) {
             LOGD("Decode video scale result: %d", scale_width);
             long time_end = get_time_millis();
             LOGD("Decode video cost: %ld ms", time_end - time_start);
+            if (scale_width > 0) {
+                int size = ctx->video_width * ctx->video_height * 4;
+                jint jWidth = ctx->video_width;
+                jint jHeight = ctx->video_height;
+                jbyteArray jFrame = ctx->jniEnv->NewByteArray(size);
+                ctx->jniEnv->SetByteArrayRegion(jFrame, 0, size,reinterpret_cast<const jbyte *>(rgba_frame_buffer));
+                ctx->jniEnv->CallVoidMethod(ctx->jplayer,ctx->jniEnv->GetMethodID(ctx->jniEnv->GetObjectClass(ctx->jplayer), "onNewVideoFrame", "(II[B)V"), jWidth, jHeight, jFrame);
+                ctx->jniEnv->DeleteLocalRef(jFrame);
+            }
+            // msleep(100);
+        } else {
+            skipReadPktFrame = false;
         }
 
 //        if (pkt->stream_index == ctx->audio_stream->index) {
@@ -396,6 +421,7 @@ PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path)
     } else {
 //        pthread_t t;
 //        pthread_create(&t, nullptr, decode_test, this);
+//        decode_test(this);
         return OPT_SUCCESS;
     }
 }

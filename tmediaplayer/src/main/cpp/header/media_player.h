@@ -60,6 +60,10 @@ typedef struct MediaPlayerContext {
     AVFrame *frame = nullptr;
     long duration;
 
+    JNIEnv* jniEnv = nullptr;
+    JavaVM* jvm = nullptr;
+    jobject jplayer = nullptr;
+
     /**
      * Video
      */
