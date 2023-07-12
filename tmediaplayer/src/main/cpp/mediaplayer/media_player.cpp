@@ -520,42 +520,40 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobjec
 
             long decode_frame_start = get_time_millis();
 
-            int send_pkg_result = avcodec_send_packet(audio_decoder_ctx, pkt);
-            if (send_pkg_result < 0 && send_pkg_result != AVERROR(EAGAIN)) {
-                LOGE("Decode video send pkt fail: %d", send_pkg_result);
+            result = avcodec_send_packet(audio_decoder_ctx, pkt);
+            skipReadPkt = result == AVERROR(EAGAIN);
+            if (result < 0 && result != AVERROR(EAGAIN)) {
+                LOGE("Decode audio send pkt fail: %d", result);
                 return DECODE_FRAME_FAIL;
             }
-
             int buffer_count = 0;
             AudioBuffer **audio_buffers = nullptr;
             int64_t pts_millis = 0;
-            while (true) {
-                int receive_frame_result = avcodec_receive_frame(audio_decoder_ctx, frame);
-                if (receive_frame_result < 0) {
-                    break;
-                }
-                int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
-                int audio_buffer_size = av_samples_get_buffer_size(nullptr, 2, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
-                unsigned char *buffer = static_cast<unsigned char *>(malloc(audio_buffer_size));
-                int convert_result = swr_convert(swr_ctx, &buffer, output_nb_samples,(const uint8_t **) frame->data, frame->nb_samples);
-                if (convert_result < 0) {
-                    free(buffer);
-                    break;
-                }
-                AudioBuffer *audio_buffer = new AudioBuffer;
-                audio_buffer->buffer_size = audio_buffer_size;
-                audio_buffer->buffer = buffer;
-                if (audio_buffers == nullptr) {
-                    audio_buffers = static_cast<AudioBuffer **>(malloc(sizeof(audio_buffer)));
-                    pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
-                } else {
-                    audio_buffers = static_cast<AudioBuffer **>(realloc(audio_buffers,
-                                                                        (buffer_count + 1) *
-                                                                        sizeof(audio_buffer)));
-                }
-                audio_buffers[buffer_count] = audio_buffer;
-                buffer_count ++;
+            result = avcodec_receive_frame(audio_decoder_ctx, frame);
+            if (result == AVERROR(EAGAIN)) {
+                return decode_next_frame(jniEnv, jplayer, render_data);
             }
+            if (result < 0) {
+                LOGE("Decode audio receive frame fail: %d", result);
+            }
+
+            int output_nb_samples = av_rescale_rnd(frame->nb_samples, AUDIO_OUTPUT_SAMPLE_RATE, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+            int audio_buffer_size = av_samples_get_buffer_size(nullptr, 2, output_nb_samples, AUDIO_OUTPUT_SAMPLE_FMT, 1);
+            auto *buffer = static_cast<unsigned char *>(malloc(audio_buffer_size));
+            result = swr_convert(swr_ctx, &buffer, output_nb_samples,(const uint8_t **) frame->data, frame->nb_samples);
+            if (result < 0) {
+                free(buffer);
+                LOGE("Decode audio swr convert fail: %d", result);
+                return DECODE_FRAME_FAIL;
+            }
+            auto *audio_buffer = new AudioBuffer;
+            audio_buffer->buffer_size = audio_buffer_size;
+            audio_buffer->buffer = buffer;
+            audio_buffers = static_cast<AudioBuffer **>(malloc(sizeof(audio_buffer)));
+            pts_millis = frame->pts * 1000 / audio_stream->time_base.den;
+            audio_buffers[buffer_count] = audio_buffer;
+            buffer_count ++;
+
             if (buffer_count <= 0) {
                 return DECODE_FRAME_FAIL;
             }
