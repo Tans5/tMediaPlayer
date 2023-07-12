@@ -441,19 +441,26 @@ PLAYER_OPT_RESULT MediaPlayerContext::reset_play_progress() {
     return OPT_SUCCESS;
 }
 
+bool skipReadPkt = false;
 DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobject jplayer, RenderRawData* render_data) {
 
     if (pkt != nullptr &&
         frame != nullptr &&
         format_ctx != nullptr &&
         render_data != nullptr) {
-        av_packet_unref(pkt);
-        // 1. read pkt.
-        int read_frame_result = av_read_frame(format_ctx, pkt);
-        if (read_frame_result < 0) {
-            LOGD("%s", "Decode video read frame result.");
-            return DECODE_FRAME_FINISHED;
+
+        int result;
+
+        if (!skipReadPkt) {
+            // 1. read pkt.
+            av_packet_unref(pkt);
+            int read_frame_result = av_read_frame(format_ctx, pkt);
+            if (read_frame_result < 0) {
+                LOGD("%s", "Decode video read frame result.");
+                return DECODE_FRAME_FINISHED;
+            }
         }
+        skipReadPkt = false;
 
         // decode video
         if (video_decoder_ctx != nullptr &&
@@ -463,28 +470,37 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobjec
 
             long decode_frame_start = get_time_millis();
             // 2. send pkt to decoder.
-            avcodec_send_packet(video_decoder_ctx, pkt);
+            result = avcodec_send_packet(video_decoder_ctx, pkt);
+            if (result == AVERROR(EAGAIN)) {
+                LOGD("Decode video skip read pkt");
+                skipReadPkt = true;
+            } else {
+                skipReadPkt = false;
+            }
+            if (result != 0 && !skipReadPkt) {
+                return DECODE_FRAME_FAIL;
+            }
 
-            // av_frame_unref(frame);
+            av_frame_unref(frame);
 
             // 3. receive frame
-            int receive_frame_result = avcodec_receive_frame(video_decoder_ctx, frame);
-            if (receive_frame_result == AVERROR(EAGAIN)) {
+            result = avcodec_receive_frame(video_decoder_ctx, frame);
+            if (result == AVERROR(EAGAIN)) {
                 return decode_next_frame(jniEnv, jplayer, render_data);
             }
-            if (receive_frame_result < 0) {
+            if (result < 0) {
                 LOGE("%s", "Decode video frame fail");
                 return DECODE_FRAME_FAIL;
             }
             // 4.scale
             int scale_width = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, render_data->video_data->rgba_frame->data, render_data->video_data->rgba_frame->linesize);
             if (scale_width == frame->height) {
-                int size = frame->width * frame->height * 4;
-                jint jWidth = frame->width;
-                jint jHeight = frame->height;
-                jbyteArray jFrame = jniEnv->NewByteArray(size);
-                jniEnv->SetByteArrayRegion(jFrame, 0, size,reinterpret_cast<const jbyte *>(render_data->video_data->rgba_frame_buffer));
-                jniEnv->CallVoidMethod(jplayer,jniEnv->GetMethodID(jniEnv->GetObjectClass(jplayer), "onNewVideoFrame", "(II[B)V"), jWidth, jHeight, jFrame);
+//                int size = frame->width * frame->height * 4;
+//                jint jWidth = frame->width;
+//                jint jHeight = frame->height;
+//                jbyteArray jFrame = jniEnv->NewByteArray(size);
+//                jniEnv->SetByteArrayRegion(jFrame, 0, size,reinterpret_cast<const jbyte *>(render_data->video_data->rgba_frame_buffer));
+//                jniEnv->CallVoidMethod(jplayer,jniEnv->GetMethodID(jniEnv->GetObjectClass(jplayer), "onNewVideoFrame", "(II[B)V"), jWidth, jHeight, jFrame);
             } else {
                 LOGE("Decode video scale fail: %d", scale_width);
             }
