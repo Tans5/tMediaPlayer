@@ -504,7 +504,7 @@ DECODE_FRAME_RESULT MediaPlayerContext::decode_next_frame(JNIEnv* jniEnv, jobjec
             } else {
                 LOGE("Decode video scale fail: %d", scale_width);
             }
-            int64_t pts_millis = frame->pts * 1000 / video_time_den;
+            int64_t pts_millis = frame->pts * 1000 / video_stream->time_base.den;
             LOGD("Decode video frame success: %lld, time cost: %ld", pts_millis, get_time_millis() - decode_frame_start);
             render_data->video_data->pts = pts_millis;
             render_data->is_video = true;
