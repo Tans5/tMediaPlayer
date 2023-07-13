@@ -1,6 +1,8 @@
 package com.tans.tmediaplayer
 
+import android.graphics.Bitmap
 import androidx.annotation.Keep
+import java.nio.ByteBuffer
 
 @Suppress("ClassName")
 @Keep
@@ -15,13 +17,24 @@ class tMediaPlayer {
             Thread {
                 while (true) {
                     val nativeBuffer = allocDecodeDataNative(nativePlayer)
-                    val result = decodeNative(nativePlayer, nativeBuffer)
-                    MediaLog.d(TAG, "Decode result: $result")
-                    if (result == 1) {
+                    val decodeResult = decodeNative(nativePlayer, nativeBuffer)
+//                    if (decodeResult == 0 && isVideoBufferNative(nativeBuffer)) {
+//                        val bytes = getVideoFrameBytesNative(nativeBuffer)
+//                        val bitmap = Bitmap.createBitmap(
+//                            getVideoWidthNative(nativeBuffer),
+//                            getVideoHeightNative(nativeBuffer),
+//                            Bitmap.Config.ARGB_8888
+//                        )
+//                        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bytes))
+//                        println(bitmap)
+//                    }
+                    MediaLog.d(TAG, "Decode result: $decodeResult")
+                    if (decodeResult == 1) {
                         break
                     }
                     freeDecodeDataNative(nativePlayer, nativeBuffer)
                 }
+                releaseNative(nativePlayer)
             }.start()
         } else {
             releaseNative(nativePlayer)
@@ -72,6 +85,16 @@ class tMediaPlayer {
     private external fun audioDurationNative(nativePlayer: Long): Long
 
     private external fun allocDecodeDataNative(nativePlayer: Long): Long
+
+    private external fun isVideoBufferNative(nativeBuffer: Long): Boolean
+
+    private external fun getVideoWidthNative(nativeBuffer: Long): Int
+
+    private external fun getVideoHeightNative(nativeBuffer: Long): Int
+
+    private external fun getVideoPtsNative(nativeBuffer: Long): Long
+
+    private external fun getVideoFrameBytesNative(nativeBuffer: Long): ByteArray
 
     private external fun freeDecodeDataNative(nativePlayer: Long, nativeBuffer: Long)
 

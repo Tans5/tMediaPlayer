@@ -131,6 +131,54 @@ Java_com_tans_tmediaplayer_tMediaPlayer_allocDecodeDataNative(
     return reinterpret_cast<jlong>(buffer);
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_isVideoBufferNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    return buffer->is_video;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoWidthNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    return buffer->videoBuffer->width;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoHeightNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    return buffer->videoBuffer->height;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoPtsNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    return buffer->videoBuffer->pts;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    auto jbyteArray = env->NewByteArray(buffer->videoBuffer->size);
+    env->SetByteArrayRegion(jbyteArray, 0, buffer->videoBuffer->size,
+                               reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
+    return jbyteArray;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_freeDecodeDataNative(
         JNIEnv * env,

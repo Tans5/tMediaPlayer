@@ -149,6 +149,21 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             LOGE("Open video decoder ctx fail: %d", result);
             return OptFail;
         }
+        this->sws_ctx = sws_getContext(
+                video_width,
+                video_height,
+                video_decoder_ctx->pix_fmt,
+                video_width,
+                video_height,
+                AV_PIX_FMT_RGBA,
+                SWS_BICUBIC,
+                nullptr,
+                nullptr,
+                nullptr);
+        if (sws_ctx == nullptr) {
+            LOGE("Open video decoder get sws ctx fail.");
+            return OptFail;
+        }
         LOGD("Prepare video decoder success.");
     }
 
@@ -241,21 +256,6 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
 
             int w = frame->width;
             int h = frame->height;
-            auto sws_ctx = sws_getContext(
-                    w,
-                    h,
-                    (AVPixelFormat) frame->format,
-                    w,
-                    h,
-                    AV_PIX_FMT_RGBA,
-                    SWS_BICUBIC,
-                    nullptr,
-                    nullptr,
-                    nullptr);
-            if (sws_ctx == nullptr) {
-                LOGE("Decode video fail, sws ctx create fail.");
-                return DecodeFail;
-            }
             auto videoBuffer = buffer->videoBuffer;
             if (w != videoBuffer->width ||
                 h != videoBuffer->height) {
@@ -268,20 +268,33 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                         videoBuffer->size * sizeof(uint8_t)));
                 av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                                      AV_PIX_FMT_RGBA, w, h, 1);
+
+                if (sws_ctx != nullptr) {
+                    sws_freeContext(sws_ctx);
+                }
+
+                this->sws_ctx = sws_getContext(
+                        w,
+                        h,
+                        (AVPixelFormat) frame->format,
+                        w,
+                        h,
+                        AV_PIX_FMT_RGBA,
+                        SWS_BICUBIC,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+                if (sws_ctx == nullptr) {
+                    LOGE("Decode video fail, sws ctx create fail.");
+                    return DecodeFail;
+                }
             }
             buffer->is_video = true;
             result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
-            sws_freeContext(sws_ctx);
             if (result < 0) {
                 LOGE("Decode video sws scale fail: %d", result);
                 return DecodeFail;
             }
-//            if (videoBuffer->jByteArray != nullptr) {
-//                jniEnv->DeleteLocalRef(videoBuffer->jByteArray);
-//            }
-//            auto jByteArray = jniEnv->NewByteArray(videoBuffer->size);
-//            jniEnv->SetByteArrayRegion(jByteArray, 0, videoBuffer->size, reinterpret_cast<const jbyte *>(videoBuffer->rgbaBuffer));
-//            videoBuffer->jByteArray = jByteArray;
             videoBuffer->pts = (long) (frame->pts * 1000L / video_stream->time_base.den);
             LOGD("Decode video success: %ld", videoBuffer->pts);
             return DecodeSuccess;
@@ -363,9 +376,9 @@ void tMediaPlayerContext::release() {
         avcodec_free_context(&video_decoder_ctx);
     }
 
-//    if (sws_ctx != nullptr) {
-//        sws_freeContext(sws_ctx);
-//    }
+    if (sws_ctx != nullptr) {
+        sws_freeContext(sws_ctx);
+    }
 
     // Audio free.
     if (audio_decoder_ctx != nullptr) {
