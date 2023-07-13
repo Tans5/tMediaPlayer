@@ -79,7 +79,8 @@ add_library( # Sets the name of the library.
         mediaplayer/media_player_pool.cpp
 
         # tmediaplayer
-        tmediaplayer/tmediaplayer.cpp)
+        tmediaplayer/tmediaplayer.cpp
+        tmediaplayer/jni.cpp)
 
 target_include_directories(tmediaplayer PUBLIC
         ffmpeg/header

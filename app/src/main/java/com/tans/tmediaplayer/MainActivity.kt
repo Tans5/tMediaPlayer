@@ -14,8 +14,8 @@ val ioExecutor: Executor by lazy {
 
 class MainActivity : AppCompatActivity() {
 
-    private val mediaPlayer: MediaPlayer by lazy {
-        MediaPlayer()
+    private val mediaPlayer: tMediaPlayer by lazy {
+        tMediaPlayer()
     }
     private val textureView by lazy {
         findViewById<TextureView>(R.id.texture_view)
@@ -48,43 +48,20 @@ class MainActivity : AppCompatActivity() {
                     output.flush()
                 }
             }
-            mediaPlayer.setupPlayer(testVideoFile.absolutePath)
+            mediaPlayer.prepare(testVideoFile.absolutePath)
         }
 
-        mediaPlayer.setPlayerStateObserver { state ->
-            println("PlayerState: $state")
-            if (state == MediaPlayerState.Prepared && mediaPlayer.isRenderActive()) {
-                mediaPlayer.playStart()
-            }
-        }
-        mediaPlayer.setRenderStateObserver { isActive ->
-            println("RenderState: $isActive")
-            if (isActive && mediaPlayer.getPlayerState() == MediaPlayerState.Prepared) {
-                mediaPlayer.playStart()
-            }
-        }
-        mediaPlayer.setTextureView(textureView)
-        mediaPlayer.setProgressObserver { position, duration ->
-            println("Progress: $position, Duration: $duration")
-        }
     }
 
     override fun onResume() {
         super.onResume()
-        if (mediaPlayer.getPlayerState() == MediaPlayerState.Paused) {
-            mediaPlayer.play()
-        }
     }
 
     override fun onPause() {
         super.onPause()
-        if (mediaPlayer.getPlayerState() == MediaPlayerState.Playing) {
-            mediaPlayer.pause()
-        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        mediaPlayer.releasePlayer()
     }
 }

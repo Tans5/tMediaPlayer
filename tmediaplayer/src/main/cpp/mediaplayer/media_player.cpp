@@ -14,6 +14,7 @@ extern "C" {
 #include "media_time.h"
 #include "SLES/OpenSLES.h"
 #include "SLES/OpenSLES_Android.h"
+#include "tmediaplayer.h"
 
 void* decode_test(void* player_cxt) {
     MediaPlayerContext* ctx = static_cast<MediaPlayerContext *>(player_cxt);
@@ -133,297 +134,300 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 }
 
 PLAYER_OPT_RESULT MediaPlayerContext::setup_media_player( const char *file_path) {
-    LOGD("Setup media player file path: %s", file_path);
-
-    this->media_file = file_path;
-    // Find audio and video streams.
-    this->format_ctx = avformat_alloc_context();
-    int format_open_result = avformat_open_input(&format_ctx, file_path, nullptr, nullptr);
-    if (format_open_result != 0) {
-        LOGE("Format open file fail: %d", format_open_result);
-        return OPT_FAIL;
-    }
-    int stream_find_result = avformat_find_stream_info(format_ctx, nullptr);
-    if (stream_find_result < 0) {
-        LOGE("Format find stream error: %d", stream_find_result);
-        return OPT_FAIL;
-    }
-    // const AVCodec *videoCodec;
-//    int videoStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0);
-//    LOGD("Find best video stream id: %d", videoStreamId);
-//    const AVCodec *audioCodec;
-//    int audioStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0);
-//    LOGD("Find best audio stream id: %d", audioStreamId);
-    for (int i = 0; i < format_ctx->nb_streams; i++) {
-        auto stream = format_ctx->streams[i];
-        auto codec_type = stream->codecpar->codec_type;
-        switch (codec_type) {
-            case AVMEDIA_TYPE_AUDIO:
-                this->audio_stream = stream;
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
-                break;
-            case AVMEDIA_TYPE_VIDEO:
-                this->video_stream = stream;
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
-                break;
-            case AVMEDIA_TYPE_UNKNOWN:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_UNKNOWN");
-                break;
-            case AVMEDIA_TYPE_DATA:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_DATA");
-                break;
-            case AVMEDIA_TYPE_SUBTITLE:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_SUBTITLE");
-                break;
-            case AVMEDIA_TYPE_ATTACHMENT:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_ATTACHMENT");
-                break;
-            case AVMEDIA_TYPE_NB:
-                LOGD("Find Stream: %s", "AVMEDIA_TYPE_NB");
-                break;
-        }
-    }
-
-    this->pkt = av_packet_alloc();
-    this->frame = av_frame_alloc();
-
-    // Video decode
-    if (video_stream != nullptr) {
-        AVStream *stream = video_stream;
-
-        AVCodecParameters *params = stream->codecpar;
-        video_width = params->width;
-        video_height = params->height;
-
-        // find decoder
-        bool useHwDecoder = true;
-        const char * mediacodecName;
-        switch (params->codec_id) {
-            case AV_CODEC_ID_H264:
-                mediacodecName = "h264_mediacodec";
-                break;
-            case AV_CODEC_ID_HEVC:
-                mediacodecName = "hevc_mediacodec";
-                break;
-            default:
-                useHwDecoder = false;
-                LOGE("format(%d) not support hw decode, maybe rebuild ffmpeg so", params->codec_id);
-                break;
-        }
-
-        const AVCodec * mVideoCodec = nullptr;
-        AVBufferRef *mHwDeviceCtx = nullptr;
-        if (useHwDecoder) {
-            AVHWDeviceType type = av_hwdevice_find_type_by_name("mediacodec");
-            if (type == AV_HWDEVICE_TYPE_NONE) {
-                while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
-                    LOGD("av_hwdevice_iterate_types: %d", type);
-                }
-            }
-
-            const AVCodec *mediacodec = avcodec_find_decoder_by_name(mediacodecName);
-            if (mediacodec) {
-                LOGD("Find %s", mediacodecName);
-                for (int i = 0; ; ++i) {
-                    const AVCodecHWConfig *config = avcodec_get_hw_config(mediacodec, i);
-                    if (!config) {
-                        LOGE("Decoder: %s does not support device type: %s", mediacodec->name,
-                             av_hwdevice_get_type_name(type));
-                        break;
-                    }
-                    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
-                        // AV_PIX_FMT_MEDIACODEC(165)
-                        hw_pix_fmt = config->pix_fmt;
-                        LOGE("Decoder: %s support device type: %s, hw_pix_fmt: %d, AV_PIX_FMT_MEDIACODEC: %d", mediacodec->name,
-                             av_hwdevice_get_type_name(type), hw_pix_fmt, AV_PIX_FMT_MEDIACODEC);
-                        break;
-                    }
-                }
-
-                if (hw_pix_fmt == AV_PIX_FMT_NONE) {
-                    LOGE("not use surface decoding");
-                    mVideoCodec = avcodec_find_decoder(params->codec_id);
-                } else {
-                    mVideoCodec = mediacodec;
-                    int ret = av_hwdevice_ctx_create(&mHwDeviceCtx, type, nullptr, nullptr, 0);
-                    if (ret != 0) {
-                        LOGE("av_hwdevice_ctx_create err: %d", ret);
-                    }
-                }
-            } else {
-                LOGE("not find %s", mediacodecName);
-                mVideoCodec = avcodec_find_decoder(params->codec_id);
-            }
-        } else {
-            mVideoCodec = avcodec_find_decoder(params->codec_id);
-        }
-
-        if (mVideoCodec == nullptr) {
-//        std::string msg = "not find decoder";
-//        if (mErrorMsgListener) {
-//            mErrorMsgListener(-1000, msg);
+    auto tMediaPlayer = new tMediaPlayerContext;
+    tMediaPlayer->prepare(file_path, true, 2);
+    return OPT_FAIL;
+//    LOGD("Setup media player file path: %s", file_path);
+//
+//    this->media_file = file_path;
+//    // Find audio and video streams.
+//    this->format_ctx = avformat_alloc_context();
+//    int format_open_result = avformat_open_input(&format_ctx, file_path, nullptr, nullptr);
+//    if (format_open_result != 0) {
+//        LOGE("Format open file fail: %d", format_open_result);
+//        return OPT_FAIL;
+//    }
+//    int stream_find_result = avformat_find_stream_info(format_ctx, nullptr);
+//    if (stream_find_result < 0) {
+//        LOGE("Format find stream error: %d", stream_find_result);
+//        return OPT_FAIL;
+//    }
+//    // const AVCodec *videoCodec;
+////    int videoStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0);
+////    LOGD("Find best video stream id: %d", videoStreamId);
+////    const AVCodec *audioCodec;
+////    int audioStreamId = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0);
+////    LOGD("Find best audio stream id: %d", audioStreamId);
+//    for (int i = 0; i < format_ctx->nb_streams; i++) {
+//        auto stream = format_ctx->streams[i];
+//        auto codec_type = stream->codecpar->codec_type;
+//        switch (codec_type) {
+//            case AVMEDIA_TYPE_AUDIO:
+//                this->audio_stream = stream;
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_AUDIO");
+//                break;
+//            case AVMEDIA_TYPE_VIDEO:
+//                this->video_stream = stream;
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_VIDEO");
+//                break;
+//            case AVMEDIA_TYPE_UNKNOWN:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_UNKNOWN");
+//                break;
+//            case AVMEDIA_TYPE_DATA:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_DATA");
+//                break;
+//            case AVMEDIA_TYPE_SUBTITLE:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_SUBTITLE");
+//                break;
+//            case AVMEDIA_TYPE_ATTACHMENT:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_ATTACHMENT");
+//                break;
+//            case AVMEDIA_TYPE_NB:
+//                LOGD("Find Stream: %s", "AVMEDIA_TYPE_NB");
+//                break;
 //        }
-            return OPT_FAIL;
-        }
-
-        // init codec context
-        video_decoder_ctx = avcodec_alloc_context3(mVideoCodec);
-        if (!video_decoder_ctx) {
-//        std::string msg = "codec context alloc failed";
-//        if (mErrorMsgListener) {
-//            mErrorMsgListener(-2000, msg);
+//    }
+//
+//    this->pkt = av_packet_alloc();
+//    this->frame = av_frame_alloc();
+//
+//    // Video decode
+//    if (video_stream != nullptr) {
+//        AVStream *stream = video_stream;
+//
+//        AVCodecParameters *params = stream->codecpar;
+//        video_width = params->width;
+//        video_height = params->height;
+//
+//        // find decoder
+//        bool useHwDecoder = true;
+//        const char * mediacodecName;
+//        switch (params->codec_id) {
+//            case AV_CODEC_ID_H264:
+//                mediacodecName = "h264_mediacodec";
+//                break;
+//            case AV_CODEC_ID_HEVC:
+//                mediacodecName = "hevc_mediacodec";
+//                break;
+//            default:
+//                useHwDecoder = false;
+//                LOGE("format(%d) not support hw decode, maybe rebuild ffmpeg so", params->codec_id);
+//                break;
 //        }
-            return OPT_FAIL;
-        }
-        avcodec_parameters_to_context(video_decoder_ctx, params);
-
-        if (mHwDeviceCtx) {
-            video_decoder_ctx->get_format = get_hw_format;
-            video_decoder_ctx->hw_device_ctx = av_buffer_ref(mHwDeviceCtx);
-
-//        if (mSurface != nullptr) {
-//            mMediaCodecContext = av_mediacodec_alloc_context();
-//            av_mediacodec_default_init(mCodecContext, mMediaCodecContext, mSurface);
+//
+//        const AVCodec * mVideoCodec = nullptr;
+//        AVBufferRef *mHwDeviceCtx = nullptr;
+//        if (useHwDecoder) {
+//            AVHWDeviceType type = av_hwdevice_find_type_by_name("mediacodec");
+//            if (type == AV_HWDEVICE_TYPE_NONE) {
+//                while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
+//                    LOGD("av_hwdevice_iterate_types: %d", type);
+//                }
+//            }
+//
+//            const AVCodec *mediacodec = avcodec_find_decoder_by_name(mediacodecName);
+//            if (mediacodec) {
+//                LOGD("Find %s", mediacodecName);
+//                for (int i = 0; ; ++i) {
+//                    const AVCodecHWConfig *config = avcodec_get_hw_config(mediacodec, i);
+//                    if (!config) {
+//                        LOGE("Decoder: %s does not support device type: %s", mediacodec->name,
+//                             av_hwdevice_get_type_name(type));
+//                        break;
+//                    }
+//                    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
+//                        // AV_PIX_FMT_MEDIACODEC(165)
+//                        hw_pix_fmt = config->pix_fmt;
+//                        LOGE("Decoder: %s support device type: %s, hw_pix_fmt: %d, AV_PIX_FMT_MEDIACODEC: %d", mediacodec->name,
+//                             av_hwdevice_get_type_name(type), hw_pix_fmt, AV_PIX_FMT_MEDIACODEC);
+//                        break;
+//                    }
+//                }
+//
+//                if (hw_pix_fmt == AV_PIX_FMT_NONE) {
+//                    LOGE("not use surface decoding");
+//                    mVideoCodec = avcodec_find_decoder(params->codec_id);
+//                } else {
+//                    mVideoCodec = mediacodec;
+//                    int ret = av_hwdevice_ctx_create(&mHwDeviceCtx, type, nullptr, nullptr, 0);
+//                    if (ret != 0) {
+//                        LOGE("av_hwdevice_ctx_create err: %d", ret);
+//                    }
+//                }
+//            } else {
+//                LOGE("not find %s", mediacodecName);
+//                mVideoCodec = avcodec_find_decoder(params->codec_id);
+//            }
+//        } else {
+//            mVideoCodec = avcodec_find_decoder(params->codec_id);
 //        }
-        }
-
-        // open codec
-        int ret = avcodec_open2(video_decoder_ctx, mVideoCodec, nullptr);
-        if (ret != 0) {
-//        std::string msg = "codec open failed";
-//        if (mErrorMsgListener) {
-//            mErrorMsgListener(-3000, msg);
+//
+//        if (mVideoCodec == nullptr) {
+////        std::string msg = "not find decoder";
+////        if (mErrorMsgListener) {
+////            mErrorMsgListener(-1000, msg);
+////        }
+//            return OPT_FAIL;
 //        }
-            return OPT_FAIL;
-        }
-        this->sws_ctx = sws_getContext(
-                video_width, video_height, video_decoder_ctx->pix_fmt,
-                video_width, video_height, AV_PIX_FMT_RGBA,
-                SWS_BICUBIC, nullptr, nullptr, nullptr
-        );
-        this->video_decoder = mVideoCodec;
-        this->native_window_buffer = new ANativeWindow_Buffer;
-    }
-
-    // Audio decode
-    if (audio_stream != nullptr) {
-        this->audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
-        if (audio_decoder == nullptr) {
-            LOGE("%s", "Do not find audio decoder");
-            return OPT_FAIL;
-        } else {
-            this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
-        }
-
-        if (avcodec_parameters_to_context(audio_decoder_ctx, audio_stream->codecpar) < 0) {
-            LOGE("Set audio stream params fail");
-            return OPT_FAIL;
-        }
-        if (avcodec_open2(audio_decoder_ctx, audio_decoder, nullptr) < 0) {
-            LOGE("Open audio decoder fail");
-            return OPT_FAIL;
-        }
-
-        long a_duration = audio_stream->duration * 1000 / audio_stream->time_base.den;
-        if (a_duration > duration) {
-            this->duration = a_duration;
-        }
-
-        audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
-        audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
-        audio_simple_rate = audio_decoder_ctx->sample_rate;
-
-        LOGD("Audio channel size: %d, simple size: %d, simple rate: %d", audio_channels, audio_pre_sample_bytes, audio_simple_rate);
-        swr_ctx = swr_alloc();
-        swr_alloc_set_opts(swr_ctx, AUDIO_OUTPUT_CH_LAYOUT, AUDIO_OUTPUT_SAMPLE_FMT, AUDIO_OUTPUT_SAMPLE_RATE,
-                           audio_decoder_ctx->channel_layout, audio_decoder_ctx->sample_fmt,
-                           audio_decoder_ctx->sample_rate, 0,nullptr);
-        if (0 > swr_init(swr_ctx)) {
-            return OPT_FAIL;
-        }
-
-        // OpenSL ES
-        // Cte engine
-        SLresult sl_result;
-        sl_result = slCreateEngine(&sl_engine_object, 0, NULL, 0, NULL, NULL);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-        sl_result = (*sl_engine_object)->Realize(sl_engine_object, SL_BOOLEAN_FALSE);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-        sl_result = (*sl_engine_object)->GetInterface(sl_engine_object, SL_IID_ENGINE, &sl_engine_engine);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-
-        // Create Mix
-        const SLInterfaceID ids[1] = {SL_IID_ENVIRONMENTALREVERB};
-        const SLboolean req[1] = {SL_BOOLEAN_FALSE};
-        sl_result = (*sl_engine_engine)->CreateOutputMix(sl_engine_engine, &sl_output_mix_object, 1, ids, req);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-        sl_result = (*sl_output_mix_object)->Realize(sl_output_mix_object, SL_BOOLEAN_FALSE);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-//        sl_result = (*sl_output_mix_object)->GetInterface(sl_output_mix_object, SL_IID_ENVIRONMENTALREVERB,
-//                                                  &sl_output_mix_rev);
-//        if (SL_RESULT_SUCCESS == sl_result) {
-//            SLEnvironmentalReverbSettings reverbSettings =
-//                    SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
-//            (*sl_output_mix_rev)->SetEnvironmentalReverbProperties(
-//                    sl_output_mix_rev, &reverbSettings);
+//
+//        // init codec context
+//        video_decoder_ctx = avcodec_alloc_context3(mVideoCodec);
+//        if (!video_decoder_ctx) {
+////        std::string msg = "codec context alloc failed";
+////        if (mErrorMsgListener) {
+////            mErrorMsgListener(-2000, msg);
+////        }
+//            return OPT_FAIL;
 //        }
-
-        // Create DataSrc/DataSink
-        SLDataLocator_AndroidSimpleBufferQueue sl_buffer_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 10};
-        SLDataFormat_PCM format_pcm = {SL_DATAFORMAT_PCM, 2, SL_SAMPLINGRATE_44_1,
-                                       SL_PCMSAMPLEFORMAT_FIXED_32, SL_PCMSAMPLEFORMAT_FIXED_32,
-                                       SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT, SL_BYTEORDER_LITTLEENDIAN};
-
-        SLDataSource audioSrc = {&sl_buffer_queue, &format_pcm};
-        SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, sl_output_mix_object};
-        SLDataSink audioSnk = {&loc_outmix, NULL};
-
-
-        const SLInterfaceID sl_ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME, SL_IID_EFFECTSEND,
-                /*SL_IID_MUTESOLO,*/};
-        const SLboolean sl_req[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE,
-                /*SL_BOOLEAN_TRUE,*/ };
-
-        // Create Player
-        sl_result = (*sl_engine_engine)->CreateAudioPlayer(sl_engine_engine, &sl_player_object, &audioSrc, &audioSnk, 2, sl_ids, sl_req);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-        sl_result = (*sl_player_object)->Realize(sl_player_object, SL_BOOLEAN_FALSE);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-        sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_PLAY, &sl_player_play);
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-        sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_BUFFERQUEUE,
-                                                 &sl_player_buffer_queue);
-        (*sl_player_play)->SetPlayState(sl_player_play, SL_PLAYSTATE_PLAYING);
-        LOGD("Create SL success.");
-        if (sl_result != SL_RESULT_SUCCESS) {
-            return OPT_FAIL;
-        }
-
-    }
-    if (video_stream == nullptr && audio_stream == nullptr) {
-        return OPT_FAIL;
-    } else {
-//        pthread_t t;
-//        pthread_create(&t, nullptr, decode_test, this);
-//        decode_test(this);
-        return OPT_SUCCESS;
-    }
+//        avcodec_parameters_to_context(video_decoder_ctx, params);
+//
+//        if (mHwDeviceCtx) {
+//            video_decoder_ctx->get_format = get_hw_format;
+//            video_decoder_ctx->hw_device_ctx = av_buffer_ref(mHwDeviceCtx);
+//
+////        if (mSurface != nullptr) {
+////            mMediaCodecContext = av_mediacodec_alloc_context();
+////            av_mediacodec_default_init(mCodecContext, mMediaCodecContext, mSurface);
+////        }
+//        }
+//
+//        // open codec
+//        int ret = avcodec_open2(video_decoder_ctx, mVideoCodec, nullptr);
+//        if (ret != 0) {
+////        std::string msg = "codec open failed";
+////        if (mErrorMsgListener) {
+////            mErrorMsgListener(-3000, msg);
+////        }
+//            return OPT_FAIL;
+//        }
+//        this->sws_ctx = sws_getContext(
+//                video_width, video_height, video_decoder_ctx->pix_fmt,
+//                video_width, video_height, AV_PIX_FMT_RGBA,
+//                SWS_BICUBIC, nullptr, nullptr, nullptr
+//        );
+//        this->video_decoder = mVideoCodec;
+//        this->native_window_buffer = new ANativeWindow_Buffer;
+//    }
+//
+//    // Audio decode
+//    if (audio_stream != nullptr) {
+//        this->audio_decoder = avcodec_find_decoder(audio_stream->codecpar->codec_id);
+//        if (audio_decoder == nullptr) {
+//            LOGE("%s", "Do not find audio decoder");
+//            return OPT_FAIL;
+//        } else {
+//            this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
+//        }
+//
+//        if (avcodec_parameters_to_context(audio_decoder_ctx, audio_stream->codecpar) < 0) {
+//            LOGE("Set audio stream params fail");
+//            return OPT_FAIL;
+//        }
+//        if (avcodec_open2(audio_decoder_ctx, audio_decoder, nullptr) < 0) {
+//            LOGE("Open audio decoder fail");
+//            return OPT_FAIL;
+//        }
+//
+//        long a_duration = audio_stream->duration * 1000 / audio_stream->time_base.den;
+//        if (a_duration > duration) {
+//            this->duration = a_duration;
+//        }
+//
+//        audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
+//        audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
+//        audio_simple_rate = audio_decoder_ctx->sample_rate;
+//
+//        LOGD("Audio channel size: %d, simple size: %d, simple rate: %d", audio_channels, audio_pre_sample_bytes, audio_simple_rate);
+//        swr_ctx = swr_alloc();
+//        swr_alloc_set_opts(swr_ctx, AUDIO_OUTPUT_CH_LAYOUT, AUDIO_OUTPUT_SAMPLE_FMT, AUDIO_OUTPUT_SAMPLE_RATE,
+//                           audio_decoder_ctx->channel_layout, audio_decoder_ctx->sample_fmt,
+//                           audio_decoder_ctx->sample_rate, 0,nullptr);
+//        if (0 > swr_init(swr_ctx)) {
+//            return OPT_FAIL;
+//        }
+//
+//        // OpenSL ES
+//        // Cte engine
+//        SLresult sl_result;
+//        sl_result = slCreateEngine(&sl_engine_object, 0, NULL, 0, NULL, NULL);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//        sl_result = (*sl_engine_object)->Realize(sl_engine_object, SL_BOOLEAN_FALSE);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//        sl_result = (*sl_engine_object)->GetInterface(sl_engine_object, SL_IID_ENGINE, &sl_engine_engine);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//
+//        // Create Mix
+//        const SLInterfaceID ids[1] = {SL_IID_ENVIRONMENTALREVERB};
+//        const SLboolean req[1] = {SL_BOOLEAN_FALSE};
+//        sl_result = (*sl_engine_engine)->CreateOutputMix(sl_engine_engine, &sl_output_mix_object, 1, ids, req);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//        sl_result = (*sl_output_mix_object)->Realize(sl_output_mix_object, SL_BOOLEAN_FALSE);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+////        sl_result = (*sl_output_mix_object)->GetInterface(sl_output_mix_object, SL_IID_ENVIRONMENTALREVERB,
+////                                                  &sl_output_mix_rev);
+////        if (SL_RESULT_SUCCESS == sl_result) {
+////            SLEnvironmentalReverbSettings reverbSettings =
+////                    SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
+////            (*sl_output_mix_rev)->SetEnvironmentalReverbProperties(
+////                    sl_output_mix_rev, &reverbSettings);
+////        }
+//
+//        // Create DataSrc/DataSink
+//        SLDataLocator_AndroidSimpleBufferQueue sl_buffer_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 10};
+//        SLDataFormat_PCM format_pcm = {SL_DATAFORMAT_PCM, 2, SL_SAMPLINGRATE_44_1,
+//                                       SL_PCMSAMPLEFORMAT_FIXED_32, SL_PCMSAMPLEFORMAT_FIXED_32,
+//                                       SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT, SL_BYTEORDER_LITTLEENDIAN};
+//
+//        SLDataSource audioSrc = {&sl_buffer_queue, &format_pcm};
+//        SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, sl_output_mix_object};
+//        SLDataSink audioSnk = {&loc_outmix, NULL};
+//
+//
+//        const SLInterfaceID sl_ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME, SL_IID_EFFECTSEND,
+//                /*SL_IID_MUTESOLO,*/};
+//        const SLboolean sl_req[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE,
+//                /*SL_BOOLEAN_TRUE,*/ };
+//
+//        // Create Player
+//        sl_result = (*sl_engine_engine)->CreateAudioPlayer(sl_engine_engine, &sl_player_object, &audioSrc, &audioSnk, 2, sl_ids, sl_req);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//        sl_result = (*sl_player_object)->Realize(sl_player_object, SL_BOOLEAN_FALSE);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//        sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_PLAY, &sl_player_play);
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//        sl_result = (*sl_player_object)->GetInterface(sl_player_object, SL_IID_BUFFERQUEUE,
+//                                                 &sl_player_buffer_queue);
+//        (*sl_player_play)->SetPlayState(sl_player_play, SL_PLAYSTATE_PLAYING);
+//        LOGD("Create SL success.");
+//        if (sl_result != SL_RESULT_SUCCESS) {
+//            return OPT_FAIL;
+//        }
+//
+//    }
+//    if (video_stream == nullptr && audio_stream == nullptr) {
+//        return OPT_FAIL;
+//    } else {
+////        pthread_t t;
+////        pthread_create(&t, nullptr, decode_test, this);
+////        decode_test(this);
+//        return OPT_SUCCESS;
+//    }
 }
 
 PLAYER_OPT_RESULT MediaPlayerContext::set_window(ANativeWindow *native_window_l) {

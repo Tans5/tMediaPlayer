@@ -12,7 +12,6 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 
     for (p = pix_fmts; *p != -1; p++) {
         if (*p == hw_pix_fmt_i) {
-            LOGE("get HW surface format: %d", *p);
             return *p;
         }
     }
@@ -169,6 +168,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             LOGE("Open audio ctx fail: %d", result);
             return Fail;
         }
+        LOGD("Prepare audio decoder success.");
     }
     return Success;
 }
