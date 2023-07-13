@@ -60,6 +60,10 @@ class tMediaPlayer {
 
     private external fun audioDurationNative(nativePlayer: Long): Long
 
+    private external fun allocDecodeDataNative(nativePlayer: Long): Long
+
+    private external fun freeDecodeDataNative(nativePlayer: Long, nativeBuffer: Long)
+
     private external fun releaseNative(nativePlayer: Long)
 
     companion object {

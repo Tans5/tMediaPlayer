@@ -199,6 +199,56 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     return Success;
 }
 
+tMediaDecodeBuffer * tMediaPlayerContext::allocDecodeBuffer() {
+    auto buffer = new tMediaDecodeBuffer;
+    auto audioBuffer = new tMediaAudioBuffer;
+    buffer->audioBuffer = audioBuffer;
+    auto videoBuffer = new tMediaVideoBuffer;
+
+    videoBuffer->width = video_width;
+    videoBuffer->height = video_height;
+    videoBuffer->rgbaFrame = av_frame_alloc();
+    videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_width, video_height,1);
+    videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(
+            videoBuffer->size * sizeof(uint8_t)));
+    av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
+                         AV_PIX_FMT_RGBA, video_width, video_height, 1);
+    buffer->videoBuffer = videoBuffer;
+    return buffer;
+}
+
+void tMediaPlayerContext::freeDecodeBuffer(tMediaDecodeBuffer *b) {
+    auto audioBuffer = b->audioBuffer;
+    if (audioBuffer != nullptr) {
+        if (audioBuffer->pcmBuffer != nullptr) {
+            free(audioBuffer->pcmBuffer);
+        }
+        if (audioBuffer->jByteArray != nullptr) {
+            jniEnv->DeleteLocalRef(audioBuffer->jByteArray);
+            free(audioBuffer->jByteArray);
+        }
+        free(audioBuffer);
+        b->audioBuffer = nullptr;
+    }
+    auto videoBuffer = b->videoBuffer;
+    if (videoBuffer != nullptr) {
+        if (videoBuffer->rgbaFrame != nullptr) {
+            free(videoBuffer->rgbaFrame);
+        }
+        if (videoBuffer->jByteArray != nullptr) {
+            jniEnv->DeleteLocalRef(videoBuffer->jByteArray);
+            free(videoBuffer->jByteArray);
+        }
+        if (videoBuffer->rgbaFrame != nullptr) {
+            av_frame_unref(videoBuffer->rgbaFrame);
+            av_frame_free(&videoBuffer->rgbaFrame);
+        }
+        free(videoBuffer);
+        b->videoBuffer = nullptr;
+    }
+    free(b);
+}
+
 void tMediaPlayerContext::release() {
     if (pkt != nullptr) {
         av_packet_unref(pkt);

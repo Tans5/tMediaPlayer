@@ -25,22 +25,22 @@ typedef struct tMediaVideoBuffer {
     int size;
     int width;
     int height;
-    AVFrame *rgbaFrame;
-    uint8_t *rgbaBuffer;
-    jbyteArray jByteArray;
+    AVFrame *rgbaFrame = nullptr;
+    uint8_t *rgbaBuffer = nullptr;
+    jbyteArray jByteArray = nullptr;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
     long pts;
     int size;
-    uint8_t  *pcmBuffer;
-    jbyteArray jByteArray;
+    uint8_t  *pcmBuffer = nullptr;
+    jbyteArray jByteArray = nullptr;
 } tMediaAudioBuffer;
 
 typedef struct tMediaDecodeBuffer {
     bool is_video = false;
-    tMediaVideoBuffer *videoBuffer;
-    tMediaAudioBuffer *audioBuffer;
+    tMediaVideoBuffer *videoBuffer = nullptr;
+    tMediaAudioBuffer *audioBuffer = nullptr;
 } tMediaDecodeBuffer;
 
 enum tMediaOptResult {
@@ -95,6 +95,10 @@ typedef struct tMediaPlayerContext {
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
+
+    tMediaDecodeBuffer* allocDecodeBuffer();
+
+    void freeDecodeBuffer(tMediaDecodeBuffer *b);
 
     void release();
 } tMediaPlayerContext;
