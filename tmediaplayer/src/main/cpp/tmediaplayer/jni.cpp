@@ -32,7 +32,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_prepareNative(
         jint targetAudioChannels) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     if (player == nullptr) {
-        return Fail;
+        return OptFail;
     }
     av_jni_set_java_vm(player->jvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, 0);

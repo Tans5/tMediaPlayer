@@ -26,12 +26,12 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     int result = avformat_open_input(&format_ctx, media_file, nullptr, nullptr);
     if (result < 0) {
         LOGE("Avformat open file fail: %d", result);
-        return Fail;
+        return OptFail;
     }
     result = avformat_find_stream_info(format_ctx, nullptr);
     if (result < 0) {
         LOGE("Avformat find stream info fail: %d", result);
-        return Fail;
+        return OptFail;
     }
     for (int i = 0; i < format_ctx->nb_streams; i ++) {
         auto s = format_ctx->streams[i];
@@ -53,7 +53,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     }
     if (video_stream == nullptr && audio_stream == nullptr) {
         LOGE("Didn't find video stream or audio stream");
-        return Fail;
+        return OptFail;
     }
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
@@ -108,7 +108,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                                                         nullptr, 0);
                         if (result < 0) {
                             LOGE("Create hw device ctx fail: %d", result);
-                            return Fail;
+                            return OptFail;
                         }
                     } else {
                         LOGE("Don't find hw decoder config");
@@ -127,17 +127,17 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
 
         if (video_decoder == nullptr) {
             LOGE("Didn't find video decoder.");
-            return Fail;
+            return OptFail;
         }
         this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
         if (!video_decoder_ctx) {
             LOGE("Create video decoder ctx fail.");
-            return Fail;
+            return OptFail;
         }
         result = avcodec_parameters_to_context(video_decoder_ctx, params);
         if (result < 0) {
             LOGE("Attach video params to ctx fail: %d", result);
-            return Fail;
+            return OptFail;
         }
         if (hardware_ctx) {
             video_decoder_ctx->get_format = get_hw_format;
@@ -147,7 +147,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
         if (result < 0) {
             LOGE("Open video decoder ctx fail: %d", result);
-            return Fail;
+            return OptFail;
         }
         LOGD("Prepare video decoder success.");
     }
@@ -158,22 +158,22 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->audio_decoder = avcodec_find_decoder(params->codec_id);
         if (!audio_decoder) {
             LOGE("Didn't find audio decoder.");
-            return Fail;
+            return OptFail;
         }
         this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
         if (!audio_decoder_ctx) {
             LOGE("Create audio decoder ctx fail");
-            return Fail;
+            return OptFail;
         }
         result = avcodec_parameters_to_context(audio_decoder_ctx, params);
         if (result < 0) {
             LOGE("Attach params to audio ctx fail: %d", result);
-            return Fail;
+            return OptFail;
         }
         result = avcodec_open2(audio_decoder_ctx, audio_decoder, nullptr);
         if (result < 0) {
             LOGE("Open audio ctx fail: %d", result);
-            return Fail;
+            return OptFail;
         }
         this->audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
         this->audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
@@ -192,11 +192,104 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         result = swr_init(swr_ctx);
         if (result < 0) {
             LOGE("Init swr ctx fail: %d", result);
-            return Fail;
+            return OptFail;
         }
         LOGD("Prepare audio decoder success.");
     }
-    return Success;
+    return OptSuccess;
+}
+
+tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
+    if (pkt != nullptr &&
+        frame != nullptr &&
+        format_ctx != nullptr &&
+        buffer != nullptr) {
+        int result;
+        if (!skipPktRead) {
+            av_packet_unref(pkt);
+            result = av_read_frame(format_ctx, pkt);
+            if (result < 0) {
+                LOGD("Decode media end.");
+                return DecodeEnd;
+            }
+        }
+        skipPktRead = false;
+        if (video_stream != nullptr &&
+            pkt->stream_index == video_stream->index &&
+            video_decoder_ctx != nullptr) {
+            result = avcodec_send_packet(video_decoder_ctx, pkt);
+            if (result == AVERROR(EAGAIN)) {
+                LOGD("Decode video skip read pkt");
+                skipPktRead = true;
+            } else {
+                skipPktRead = false;
+            }
+            if (result != 0 && !skipPktRead) {
+                LOGE("Decode video send pkt fail: %d", result);
+                return DecodeFail;
+            }
+            av_frame_unref(frame);
+            result = avcodec_receive_frame(video_decoder_ctx, frame);
+            if (result == AVERROR(EAGAIN)) {
+                LOGD("Decode video reload frame");
+                return decode(buffer);
+            }
+            if (result < 0) {
+                LOGE("Decode video receive frame fail: %d", result);
+                return DecodeFail;
+            }
+
+            int w = frame->width;
+            int h = frame->height;
+            auto sws_ctx = sws_getContext(
+                    w,
+                    h,
+                    (AVPixelFormat) frame->format,
+                    w,
+                    h,
+                    AV_PIX_FMT_RGBA,
+                    SWS_BICUBIC,
+                    nullptr,
+                    nullptr,
+                    nullptr);
+            if (sws_ctx == nullptr) {
+                LOGE("Decode video fail, sws ctx create fail.");
+                return DecodeFail;
+            }
+            auto videoBuffer = buffer->videoBuffer;
+            if (w != videoBuffer->width ||
+                h != videoBuffer->height) {
+                videoBuffer->width = w;
+                videoBuffer->height = h;
+                videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h,1);
+                free(videoBuffer->rgbaBuffer);
+                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(
+                        videoBuffer->size * sizeof(uint8_t)));
+                av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
+                                     AV_PIX_FMT_RGBA, w, h, 1);
+            }
+            buffer->is_video = true;
+            result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+            if (result < 0) {
+                LOGE("Decode video sws scale fail: %d", result);
+                return DecodeFail;
+            }
+            if (videoBuffer->jByteArray != nullptr) {
+                jniEnv->DeleteLocalRef(videoBuffer->jByteArray);
+            }
+            auto jByteArray = jniEnv->NewByteArray(videoBuffer->size);
+            jniEnv->SetByteArrayRegion(jByteArray, 0, videoBuffer->size, reinterpret_cast<const jbyte *>(videoBuffer->rgbaBuffer));
+            videoBuffer->jByteArray = jByteArray;
+            videoBuffer->pts = (long) (frame->pts * 1000L / video_stream->time_base.den);
+            LOGD("Decode video success: %ld", videoBuffer->pts);
+            return DecodeSuccess;
+        }
+        LOGE("Decode unknown pkt");
+        return DecodeFail;
+    } else {
+        LOGE("Decode wrong player context.");
+        return DecodeFail;
+    }
 }
 
 tMediaDecodeBuffer * tMediaPlayerContext::allocDecodeBuffer() {

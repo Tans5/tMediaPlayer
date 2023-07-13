@@ -44,8 +44,14 @@ typedef struct tMediaDecodeBuffer {
 } tMediaDecodeBuffer;
 
 enum tMediaOptResult {
-    Success,
-    Fail
+    OptSuccess,
+    OptFail
+};
+
+enum tMediaDecodeResult {
+    DecodeSuccess,
+    DecodeEnd,
+    DecodeFail
 };
 
 typedef struct tMediaPlayerContext {
@@ -95,6 +101,8 @@ typedef struct tMediaPlayerContext {
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
+
+    tMediaDecodeResult decode(tMediaDecodeBuffer *buffer);
 
     tMediaDecodeBuffer* allocDecodeBuffer();
 
