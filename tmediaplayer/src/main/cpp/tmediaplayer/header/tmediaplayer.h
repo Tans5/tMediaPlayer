@@ -51,6 +51,7 @@ typedef struct tMediaPlayerContext {
     int video_width;
     int video_height;
     double video_fps;
+    long video_duration;
     AVCodecContext *video_decoder_ctx = nullptr;
 
     /**
@@ -63,9 +64,12 @@ typedef struct tMediaPlayerContext {
     int audio_channels;
     int audio_pre_sample_bytes;
     int audio_simple_rate;
+    long audio_duration;
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
+
+    void release();
 } tMediaPlayerContext;
 
 #endif //TMEDIAPLAYER_TMEDIAPLAYER_H

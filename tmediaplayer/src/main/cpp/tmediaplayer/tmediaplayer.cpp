@@ -40,10 +40,12 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             case AVMEDIA_TYPE_VIDEO:
                 LOGD("Find video stream.");
                 this->video_stream = s;
+                this->video_duration = (long) (s->duration / s->time_base.den * 1000L);
                 break;
             case AVMEDIA_TYPE_AUDIO:
                 LOGD("Find audio stream.");
                 this->audio_stream = s;
+                this->audio_duration = (long) (s->duration / s->time_base.den * 1000L);
                 break;
             default:
                 break;
@@ -55,6 +57,11 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     }
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
+    if (video_duration > audio_duration) {
+        this->duration = video_duration;
+    } else {
+        this->duration = audio_duration;
+    }
 
     // Video
     if (video_stream != nullptr) {
@@ -168,7 +175,46 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             LOGE("Open audio ctx fail: %d", result);
             return Fail;
         }
+        this->audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
+        this->audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
+        this->audio_simple_rate = audio_decoder_ctx->sample_rate;
         LOGD("Prepare audio decoder success.");
     }
     return Success;
+}
+
+void tMediaPlayerContext::release() {
+    if (pkt != nullptr) {
+        av_packet_unref(pkt);
+        av_packet_free(&pkt);
+    }
+    if (format_ctx != nullptr) {
+        avformat_close_input(&format_ctx);
+        avformat_free_context(format_ctx);
+    }
+    if (frame != nullptr) {
+        av_frame_free(&frame);
+    }
+
+    // Video Release.
+    if (video_decoder_ctx != nullptr) {
+        avcodec_close(video_decoder_ctx);
+        avcodec_free_context(&video_decoder_ctx);
+    }
+
+    if (sws_ctx != nullptr) {
+        sws_freeContext(sws_ctx);
+    }
+
+    // Audio free.
+    if (audio_decoder_ctx != nullptr) {
+        avcodec_close(audio_decoder_ctx);
+        avcodec_free_context(&audio_decoder_ctx);
+    }
+
+    if (swr_ctx != nullptr) {
+        swr_free(&swr_ctx);
+    }
+    free(this);
+    LOGD("Release media player");
 }
