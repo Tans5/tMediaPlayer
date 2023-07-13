@@ -12,6 +12,17 @@ class tMediaPlayer {
         if (result == OptResult.Success) {
             val mediaInfo = getMediaInfo(nativePlayer)
             MediaLog.d(TAG, "Prepare player success: $mediaInfo")
+            Thread {
+                while (true) {
+                    val nativeBuffer = allocDecodeDataNative(nativePlayer)
+                    val result = decodeNative(nativePlayer, nativeBuffer)
+                    MediaLog.d(TAG, "Decode result: $result")
+                    if (result == 1) {
+                        break
+                    }
+                    freeDecodeDataNative(nativePlayer, nativeBuffer)
+                }
+            }.start()
         } else {
             releaseNative(nativePlayer)
             MediaLog.e(TAG, "Prepare player fail.")
@@ -63,6 +74,8 @@ class tMediaPlayer {
     private external fun allocDecodeDataNative(nativePlayer: Long): Long
 
     private external fun freeDecodeDataNative(nativePlayer: Long, nativeBuffer: Long)
+
+    private external fun decodeNative(nativePlayer: Long, nativeBuffer: Long): Int
 
     private external fun releaseNative(nativePlayer: Long)
 

@@ -142,6 +142,17 @@ Java_com_tans_tmediaplayer_tMediaPlayer_freeDecodeDataNative(
     player->freeDecodeBuffer(buffer);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_decodeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong player_l,
+        jlong buffer_l) {
+    auto player = reinterpret_cast<tMediaPlayerContext *>(player_l);
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    return player->decode(buffer);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_releaseNative(
         JNIEnv * env,
