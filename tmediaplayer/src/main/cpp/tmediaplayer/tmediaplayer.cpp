@@ -228,7 +228,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 LOGE("Decode video send pkt fail: %d", result);
                 return DecodeFail;
             }
-            // av_frame_unref(frame);
+            av_frame_unref(frame);
             result = avcodec_receive_frame(video_decoder_ctx, frame);
             if (result == AVERROR(EAGAIN)) {
                 LOGD("Decode video reload frame");
@@ -259,6 +259,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             auto videoBuffer = buffer->videoBuffer;
             if (w != videoBuffer->width ||
                 h != videoBuffer->height) {
+                LOGE("Decode video change size.");
                 videoBuffer->width = w;
                 videoBuffer->height = h;
                 videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h,1);
@@ -270,6 +271,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             }
             buffer->is_video = true;
             result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+            sws_freeContext(sws_ctx);
             if (result < 0) {
                 LOGE("Decode video sws scale fail: %d", result);
                 return DecodeFail;
@@ -326,15 +328,15 @@ void tMediaPlayerContext::freeDecodeBuffer(tMediaDecodeBuffer *b) {
     auto videoBuffer = b->videoBuffer;
     if (videoBuffer != nullptr) {
         if (videoBuffer->rgbaFrame != nullptr) {
-            free(videoBuffer->rgbaFrame);
+            av_frame_unref(videoBuffer->rgbaFrame);
+            av_frame_free(&videoBuffer->rgbaFrame);
+        }
+        if (videoBuffer->rgbaBuffer != nullptr) {
+            free(videoBuffer->rgbaBuffer);
         }
         if (videoBuffer->jByteArray != nullptr) {
             jniEnv->DeleteLocalRef(videoBuffer->jByteArray);
             free(videoBuffer->jByteArray);
-        }
-        if (videoBuffer->rgbaFrame != nullptr) {
-            // av_frame_unref(videoBuffer->rgbaFrame);
-            // av_frame_free(&videoBuffer->rgbaFrame);
         }
         free(videoBuffer);
         b->videoBuffer = nullptr;
