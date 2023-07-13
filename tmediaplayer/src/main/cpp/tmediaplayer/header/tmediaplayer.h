@@ -20,6 +20,29 @@ extern "C" {
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+typedef struct tMediaVideoBuffer {
+    long pts;
+    int size;
+    int width;
+    int height;
+    AVFrame *rgbaFrame;
+    uint8_t *rgbaBuffer;
+    jbyteArray jByteArray;
+} tMediaVideoBuffer;
+
+typedef struct tMediaAudioBuffer {
+    long pts;
+    int size;
+    uint8_t  *pcmBuffer;
+    jbyteArray jByteArray;
+} tMediaAudioBuffer;
+
+typedef struct tMediaDecodeBuffer {
+    bool is_video = false;
+    tMediaVideoBuffer *videoBuffer;
+    tMediaAudioBuffer *audioBuffer;
+} tMediaDecodeBuffer;
+
 enum tMediaOptResult {
     Success,
     Fail
@@ -47,7 +70,7 @@ typedef struct tMediaPlayerContext {
     AVStream *video_stream = nullptr;
     AVBufferRef *hardware_ctx = nullptr;
     const AVCodec *video_decoder = nullptr;
-    SwsContext * sws_ctx = nullptr;
+    // SwsContext * sws_ctx = nullptr;
     int video_width;
     int video_height;
     double video_fps;
@@ -65,6 +88,10 @@ typedef struct tMediaPlayerContext {
     int audio_pre_sample_bytes;
     int audio_simple_rate;
     long audio_duration;
+    long audio_output_sample_rate = 44100;
+    AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
+    int audio_output_ch_layout;
+    int audio_output_channels;
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);

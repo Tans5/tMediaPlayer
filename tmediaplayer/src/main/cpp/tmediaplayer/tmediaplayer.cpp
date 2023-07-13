@@ -178,6 +178,22 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
         this->audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
         this->audio_simple_rate = audio_decoder_ctx->sample_rate;
+        if (target_audio_channels >= 2) {
+            this->audio_output_channels = 2;
+            this->audio_output_ch_layout = AV_CH_LAYOUT_STEREO;
+        } else {
+            this->audio_output_channels = 1;
+            this->audio_output_ch_layout = AV_CH_LAYOUT_MONO;
+        }
+        this->swr_ctx = swr_alloc();
+        swr_alloc_set_opts(swr_ctx, audio_output_ch_layout, audio_output_sample_fmt,audio_output_sample_rate,
+                           audio_decoder_ctx->channel_layout,audio_decoder_ctx->sample_fmt, audio_decoder_ctx->sample_rate,
+                           0,nullptr);
+        result = swr_init(swr_ctx);
+        if (result < 0) {
+            LOGE("Init swr ctx fail: %d", result);
+            return Fail;
+        }
         LOGD("Prepare audio decoder success.");
     }
     return Success;
@@ -202,9 +218,9 @@ void tMediaPlayerContext::release() {
         avcodec_free_context(&video_decoder_ctx);
     }
 
-    if (sws_ctx != nullptr) {
-        sws_freeContext(sws_ctx);
-    }
+//    if (sws_ctx != nullptr) {
+//        sws_freeContext(sws_ctx);
+//    }
 
     // Audio free.
     if (audio_decoder_ctx != nullptr) {
