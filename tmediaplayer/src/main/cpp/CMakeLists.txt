@@ -72,19 +72,13 @@ add_library( # Sets the name of the library.
         # Sets the library as a shared library.
         SHARED
 
-        # Provides a relative path to your source file(s).
-        t_media_jni.cpp
-        mediaplayer/media_player.cpp
-        mediaplayer/media_time.cpp
-        mediaplayer/media_player_pool.cpp
-
         # tmediaplayer
+        tmediaplayer/media_time.cpp
         tmediaplayer/tmediaplayer.cpp
         tmediaplayer/jni.cpp)
 
 target_include_directories(tmediaplayer PUBLIC
         ffmpeg/header
-        header
         tmediaplayer/header)
 
 
@@ -118,7 +112,6 @@ target_link_libraries( # Specifies the target library.
         libavformat
         libavutil
         libswresample
-        libswscale
-        )
+        libswscale)
 
 #################################tmediaplayer#########################################

@@ -2,6 +2,7 @@
 // Created by pengcheng.tan on 2023/7/13.
 //
 #include "tmediaplayer.h"
+#include "media_time.h"
 
 
 AVPixelFormat hw_pix_fmt_i = AV_PIX_FMT_NONE;
@@ -219,6 +220,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
         frame != nullptr &&
         format_ctx != nullptr &&
         buffer != nullptr) {
+        long start_time = get_time_millis();
         int result;
         if (!skipPktRead) {
             av_packet_unref(pkt);
@@ -296,7 +298,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 return DecodeFail;
             }
             videoBuffer->pts = (long) (frame->pts * 1000L / video_stream->time_base.den);
-            LOGD("Decode video success: %ld, buffer size: %d", videoBuffer->pts, videoBuffer->size);
+            LOGD("Decode video success: %ld, buffer size: %d, cost: %ld ms", videoBuffer->pts, videoBuffer->size, get_time_millis() - start_time);
             return DecodeSuccess;
         }
         if (audio_stream != nullptr &&
@@ -339,7 +341,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 return DecodeFail;
             }
             buffer->is_video = false;
-            LOGD("Decode audio success: %ld, buffer size: %d", audioBuffer->pts, output_audio_buffer_size);
+            LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", audioBuffer->pts, output_audio_buffer_size, get_time_millis() - start_time);
             return DecodeSuccess;
         }
         LOGE("Decode unknown pkt");
