@@ -6,8 +6,8 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <TextureView
-        android:id="@+id/texture_view"
+    <com.tans.tmediaplayer.tMediaPlayerView
+        android:id="@+id/player_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintStart_toStartOf="parent"

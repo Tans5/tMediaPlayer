@@ -17,8 +17,8 @@ class MainActivity : AppCompatActivity() {
     private val mediaPlayer: tMediaPlayer by lazy {
         tMediaPlayer()
     }
-    private val textureView by lazy {
-        findViewById<TextureView>(R.id.texture_view)
+    private val playerView by lazy {
+        findViewById<tMediaPlayerView>(R.id.player_view)
     }
 
     private val fileName = "gokuraku2.mp4"
