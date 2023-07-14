@@ -259,18 +259,9 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             int w = frame->width;
             int h = frame->height;
             auto videoBuffer = buffer->videoBuffer;
-            if (w != videoBuffer->width ||
-                h != videoBuffer->height) {
-                LOGE("Decode video change size.");
-                videoBuffer->width = w;
-                videoBuffer->height = h;
-                videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h,1);
-                free(videoBuffer->rgbaBuffer);
-                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(
-                        videoBuffer->size * sizeof(uint8_t)));
-                av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
-                                     AV_PIX_FMT_RGBA, w, h, 1);
-
+            if (w != video_width ||
+                h != video_height) {
+                LOGE("Decode video change size, recreate sws ctx.");
                 if (sws_ctx != nullptr) {
                     sws_freeContext(sws_ctx);
                 }
@@ -290,6 +281,26 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                     LOGE("Decode video fail, sws ctx create fail.");
                     return DecodeFail;
                 }
+            }
+            if (w != videoBuffer->width ||
+                h != videoBuffer->height ||
+                videoBuffer->rgbaBuffer == nullptr ||
+                videoBuffer->rgbaFrame == nullptr) {
+                LOGE("Decode video create new buffer.");
+                videoBuffer->width = w;
+                videoBuffer->height = h;
+                videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h,1);
+                if (videoBuffer->rgbaBuffer != nullptr) {
+                    free(videoBuffer->rgbaBuffer);
+                }
+                if (videoBuffer->rgbaFrame != nullptr) {
+                    av_frame_free(&(videoBuffer->rgbaFrame));
+                    videoBuffer->rgbaFrame = nullptr;
+                }
+                videoBuffer->rgbaFrame = av_frame_alloc();
+                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->size * sizeof(uint8_t)));
+                av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
+                                     AV_PIX_FMT_RGBA, w, h, 1);
             }
             buffer->is_video = true;
             result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
@@ -358,14 +369,6 @@ tMediaDecodeBuffer * tMediaPlayerContext::allocDecodeBuffer() {
     buffer->audioBuffer = audioBuffer;
 
     auto videoBuffer = new tMediaVideoBuffer;
-    videoBuffer->width = video_width;
-    videoBuffer->height = video_height;
-    videoBuffer->rgbaFrame = av_frame_alloc();
-    videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_width, video_height,1);
-    videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(
-            videoBuffer->size * sizeof(uint8_t)));
-    av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
-                         AV_PIX_FMT_RGBA, video_width, video_height, 1);
     buffer->videoBuffer = videoBuffer;
     return buffer;
 }
