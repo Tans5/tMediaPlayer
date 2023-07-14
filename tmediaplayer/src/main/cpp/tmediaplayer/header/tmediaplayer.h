@@ -21,20 +21,18 @@ extern "C" {
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 typedef struct tMediaVideoBuffer {
-    long pts;
-    int size;
-    int width;
-    int height;
+    long pts = 0;
+    int size = 0;
+    int width = 0;
+    int height = 0;
     AVFrame *rgbaFrame = nullptr;
     uint8_t *rgbaBuffer = nullptr;
-    jbyteArray jByteArray = nullptr;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
-    long pts;
-    int size;
+    long pts = 0;
+    int size = 0;
     uint8_t  *pcmBuffer = nullptr;
-    jbyteArray jByteArray = nullptr;
 } tMediaAudioBuffer;
 
 typedef struct tMediaDecodeBuffer {

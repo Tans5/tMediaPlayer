@@ -296,7 +296,50 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 return DecodeFail;
             }
             videoBuffer->pts = (long) (frame->pts * 1000L / video_stream->time_base.den);
-            LOGD("Decode video success: %ld", videoBuffer->pts);
+            LOGD("Decode video success: %ld, buffer size: %d", videoBuffer->pts, videoBuffer->size);
+            return DecodeSuccess;
+        }
+        if (audio_stream != nullptr &&
+            pkt->stream_index == audio_stream->index &&
+            audio_decoder_ctx != nullptr) {
+            result = avcodec_send_packet(audio_decoder_ctx, pkt);
+            skipPktRead = result == AVERROR(EAGAIN);
+            if (skipPktRead) {
+                LOGD("Decode audio skip read pkt");
+            }
+            if (result < 0 && !skipPktRead) {
+                LOGE("Decode audio send pkt fail: %d", result);
+                return DecodeFail;
+            }
+            av_frame_unref(frame);
+            result = avcodec_receive_frame(audio_decoder_ctx, frame);
+            if (result == AVERROR(EAGAIN)) {
+                LOGD("Decode audio reload frame");
+                return decode(buffer);
+            }
+            if (result < 0) {
+                LOGE("Decode audio receive frame fail: %d", result);
+                return DecodeFail;
+            }
+            int64_t output_nb_samples = av_rescale_rnd(frame->nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+            int output_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, output_nb_samples, audio_output_sample_fmt, 1);
+            auto audioBuffer = buffer->audioBuffer;
+            if (audioBuffer->size != output_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
+                LOGE("Decode audio change size.");
+                if (audioBuffer->pcmBuffer != nullptr) {
+                    free(audioBuffer->pcmBuffer);
+                }
+                audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(output_audio_buffer_size));
+            }
+            audioBuffer->size = output_audio_buffer_size;
+            audioBuffer->pts = (long) frame->pts / audio_stream->time_base.den * 1000L;
+            result = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), output_nb_samples,(const uint8_t **)(frame->data), frame->nb_samples);
+            if (result < 0) {
+                LOGE("Decode audio swr convert fail: %d", result);
+                return DecodeFail;
+            }
+            buffer->is_video = false;
+            LOGD("Decode audio success: %ld, buffer size: %d", audioBuffer->pts, output_audio_buffer_size);
             return DecodeSuccess;
         }
         LOGE("Decode unknown pkt");
@@ -311,8 +354,8 @@ tMediaDecodeBuffer * tMediaPlayerContext::allocDecodeBuffer() {
     auto buffer = new tMediaDecodeBuffer;
     auto audioBuffer = new tMediaAudioBuffer;
     buffer->audioBuffer = audioBuffer;
-    auto videoBuffer = new tMediaVideoBuffer;
 
+    auto videoBuffer = new tMediaVideoBuffer;
     videoBuffer->width = video_width;
     videoBuffer->height = video_height;
     videoBuffer->rgbaFrame = av_frame_alloc();
@@ -331,10 +374,6 @@ void tMediaPlayerContext::freeDecodeBuffer(tMediaDecodeBuffer *b) {
         if (audioBuffer->pcmBuffer != nullptr) {
             free(audioBuffer->pcmBuffer);
         }
-        if (audioBuffer->jByteArray != nullptr) {
-            jniEnv->DeleteLocalRef(audioBuffer->jByteArray);
-            free(audioBuffer->jByteArray);
-        }
         free(audioBuffer);
         b->audioBuffer = nullptr;
     }
@@ -346,10 +385,6 @@ void tMediaPlayerContext::freeDecodeBuffer(tMediaDecodeBuffer *b) {
         }
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
-        }
-        if (videoBuffer->jByteArray != nullptr) {
-            jniEnv->DeleteLocalRef(videoBuffer->jByteArray);
-            free(videoBuffer->jByteArray);
         }
         free(videoBuffer);
         b->videoBuffer = nullptr;

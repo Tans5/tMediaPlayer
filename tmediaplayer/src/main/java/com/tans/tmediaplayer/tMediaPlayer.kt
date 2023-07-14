@@ -28,6 +28,11 @@ class tMediaPlayer {
 //                        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bytes))
 //                        println(bitmap)
 //                    }
+//                    if (decodeResult == 0 && !isVideoBufferNative(nativeBuffer)) {
+//                        val audioPts = getAudioPtsNative(nativeBuffer)
+//                        val audioPcmBytes = getAudioFrameBytesNative(nativeBuffer)
+//                        println(audioPcmBytes)
+//                    }
                     MediaLog.d(TAG, "Decode result: $decodeResult")
                     if (decodeResult == 1) {
                         break
@@ -95,6 +100,10 @@ class tMediaPlayer {
     private external fun getVideoPtsNative(nativeBuffer: Long): Long
 
     private external fun getVideoFrameBytesNative(nativeBuffer: Long): ByteArray
+
+    private external fun getAudioPtsNative(nativeBuffer: Long): Long
+
+    private external fun getAudioFrameBytesNative(nativeBuffer: Long): ByteArray
 
     private external fun freeDecodeDataNative(nativePlayer: Long, nativeBuffer: Long)
 
