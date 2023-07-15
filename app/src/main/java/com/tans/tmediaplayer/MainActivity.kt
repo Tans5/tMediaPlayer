@@ -51,6 +51,8 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer.prepare(testVideoFile.absolutePath)
         }
 
+        mediaPlayer.attachPlayerView(playerView)
+
     }
 
     override fun onResume() {

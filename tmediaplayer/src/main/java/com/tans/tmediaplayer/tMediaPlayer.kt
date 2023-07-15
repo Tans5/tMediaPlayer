@@ -3,10 +3,15 @@ package com.tans.tmediaplayer
 import android.graphics.Bitmap
 import androidx.annotation.Keep
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer {
+
+    private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
+        AtomicReference(null)
+    }
 
     fun prepare(file: String): OptResult {
         val nativePlayer = createPlayerNative()
@@ -18,8 +23,11 @@ class tMediaPlayer {
                 while (true) {
                     val nativeBuffer = allocDecodeDataNative(nativePlayer)
                     val decodeResult = decodeNative(nativePlayer, nativeBuffer)
-//                    if (decodeResult == 0 && isVideoBufferNative(nativeBuffer)) {
-//                        val bytes = getVideoFrameBytesNative(nativeBuffer)
+                    if (decodeResult == 0 && isVideoBufferNative(nativeBuffer)) {
+                        val view = playerView.get()
+                        if (view != null) {
+                            val bytes = getVideoFrameBytesNative(nativeBuffer)
+                            view.requestRenderFrame(getVideoWidthNative(nativeBuffer), getVideoHeightNative(nativeBuffer), bytes)
 //                        val bitmap = Bitmap.createBitmap(
 //                            getVideoWidthNative(nativeBuffer),
 //                            getVideoHeightNative(nativeBuffer),
@@ -27,7 +35,9 @@ class tMediaPlayer {
 //                        )
 //                        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bytes))
 //                        println(bitmap)
-//                    }
+                        }
+
+                    }
 //                    if (decodeResult == 0 && !isVideoBufferNative(nativeBuffer)) {
 //                        val audioPts = getAudioPtsNative(nativeBuffer)
 //                        val audioPcmBytes = getAudioFrameBytesNative(nativeBuffer)
@@ -48,8 +58,17 @@ class tMediaPlayer {
         return result
     }
 
-    fun release() {
 
+    fun attachPlayerView(view: tMediaPlayerView) {
+        playerView.set(view)
+    }
+
+    fun detachPlayerView() {
+        playerView.set(null)
+    }
+
+    fun release() {
+        playerView.set(null)
     }
 
     private fun getMediaInfo(nativePlayer: Long): MediaInfo {
