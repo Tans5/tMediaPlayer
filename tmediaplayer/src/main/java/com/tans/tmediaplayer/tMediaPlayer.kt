@@ -126,6 +126,8 @@ class tMediaPlayer {
 
     private external fun freeDecodeDataNative(nativePlayer: Long, nativeBuffer: Long)
 
+    private external fun resetNative(nativePlayer: Long): Int
+
     private external fun decodeNative(nativePlayer: Long, nativeBuffer: Long): Int
 
     private external fun releaseNative(nativePlayer: Long)

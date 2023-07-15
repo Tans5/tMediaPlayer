@@ -2,7 +2,7 @@ package com.tans.tmediaplayer
 
 import android.util.Log
 
-object MediaLog {
+internal object MediaLog {
 
     fun d(tag: String, msg: String) {
         Log.d(tag, msg)

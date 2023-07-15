@@ -100,6 +100,8 @@ typedef struct tMediaPlayerContext {
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
 
+    tMediaOptResult resetDecodeProgress();
+
     tMediaDecodeResult decode(tMediaDecodeBuffer *buffer);
 
     tMediaDecodeBuffer* allocDecodeBuffer();
