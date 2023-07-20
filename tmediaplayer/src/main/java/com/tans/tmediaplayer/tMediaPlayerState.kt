@@ -3,13 +3,9 @@ package com.tans.tmediaplayer
 @Suppress("ClassName")
 sealed class tMediaPlayerState {
 
-    object NoInit : tMediaPlayerState() {
-        fun prepared(mediaInfo: MediaInfo): Prepared = Prepared(mediaInfo)
-    }
+    object NoInit : tMediaPlayerState()
 
-    data class Error(val msg: String) : tMediaPlayerState() {
-        fun prepared(mediaInfo: MediaInfo): Prepared = Prepared(mediaInfo)
-    }
+    data class Error(val msg: String) : tMediaPlayerState()
 
     data class Prepared(val mediaInfo: MediaInfo) : tMediaPlayerState() {
         fun play(): Playing = Playing(mediaInfo)

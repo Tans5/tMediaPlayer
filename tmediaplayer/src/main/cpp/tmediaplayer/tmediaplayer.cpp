@@ -390,7 +390,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
     }
 }
 
-tMediaDecodeBuffer * tMediaPlayerContext::allocDecodeBuffer() {
+tMediaDecodeBuffer * allocDecodeBuffer() {
     auto buffer = new tMediaDecodeBuffer;
     auto audioBuffer = new tMediaAudioBuffer;
     buffer->audioBuffer = audioBuffer;
@@ -400,7 +400,7 @@ tMediaDecodeBuffer * tMediaPlayerContext::allocDecodeBuffer() {
     return buffer;
 }
 
-void tMediaPlayerContext::freeDecodeBuffer(tMediaDecodeBuffer *b) {
+void freeDecodeBuffer(tMediaDecodeBuffer *b) {
     auto audioBuffer = b->audioBuffer;
     if (audioBuffer != nullptr) {
         if (audioBuffer->pcmBuffer != nullptr) {

@@ -104,11 +104,11 @@ typedef struct tMediaPlayerContext {
 
     tMediaDecodeResult decode(tMediaDecodeBuffer *buffer);
 
-    tMediaDecodeBuffer* allocDecodeBuffer();
-
-    void freeDecodeBuffer(tMediaDecodeBuffer *b);
-
     void release();
 } tMediaPlayerContext;
+
+tMediaDecodeBuffer* allocDecodeBuffer();
+
+void freeDecodeBuffer(tMediaDecodeBuffer *b);
 
 #endif //TMEDIAPLAYER_TMEDIAPLAYER_H

@@ -124,10 +124,8 @@ Java_com_tans_tmediaplayer_tMediaPlayer_audioDurationNative(
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_allocDecodeDataNative(
         JNIEnv * env,
-        jobject j_player,
-        jlong player_l) {
-    auto player = reinterpret_cast<tMediaPlayerContext *>(player_l);
-    auto buffer = player->allocDecodeBuffer();
+        jobject j_player) {
+    auto buffer = allocDecodeBuffer();
     return reinterpret_cast<jlong>(buffer);
 }
 
@@ -230,9 +228,8 @@ Java_com_tans_tmediaplayer_tMediaPlayer_freeDecodeDataNative(
         jobject j_player,
         jlong player_l,
         jlong buffer_l) {
-    auto player = reinterpret_cast<tMediaPlayerContext *>(player_l);
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    player->freeDecodeBuffer(buffer);
+    freeDecodeBuffer(buffer);
 }
 
 extern "C" JNIEXPORT jint JNICALL
