@@ -29,4 +29,6 @@ sealed class tMediaPlayerState {
     data class Stopped(val mediaInfo: MediaInfo) : tMediaPlayerState() {
         fun play(): Playing = Playing(mediaInfo)
     }
+
+    object Released : tMediaPlayerState()
 }

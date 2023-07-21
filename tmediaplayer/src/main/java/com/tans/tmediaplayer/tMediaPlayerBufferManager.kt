@@ -29,6 +29,15 @@ internal class tMediaPlayerBufferManager(
         isReleased.set(false)
     }
 
+    fun clearRenderData() {
+        while (renderBufferDeque.isNotEmpty()) {
+            val b = renderBufferDeque.pollFirst()
+            if (b != null) {
+                decodeBufferDeque.add(b)
+            }
+        }
+    }
+
     fun requestDecodeBuffer(): Long? {
         return if (!isReleased.get()) {
             decodeBufferDeque.pollFirst()
@@ -70,8 +79,10 @@ internal class tMediaPlayerBufferManager(
         for (b in decodeBufferDeque) {
             player.freeDecodeDataNativeInternal(b)
         }
+        decodeBufferDeque.clear()
         for (b in renderBufferDeque) {
             player.freeDecodeDataNativeInternal(b)
         }
+        renderBufferDeque.clear()
     }
 }

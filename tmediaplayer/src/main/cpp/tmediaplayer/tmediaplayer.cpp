@@ -247,12 +247,15 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
         frame != nullptr &&
         format_ctx != nullptr &&
         buffer != nullptr) {
+        buffer->is_last_frame = false;
+        buffer->is_video = false;
         long start_time = get_time_millis();
         int result;
         if (!skipPktRead) {
             av_packet_unref(pkt);
             result = av_read_frame(format_ctx, pkt);
             if (result < 0) {
+                buffer->is_last_frame = true;
                 LOGD("Decode media end.");
                 return DecodeEnd;
             }

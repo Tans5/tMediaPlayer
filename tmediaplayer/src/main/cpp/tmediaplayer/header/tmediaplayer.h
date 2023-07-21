@@ -37,6 +37,7 @@ typedef struct tMediaAudioBuffer {
 
 typedef struct tMediaDecodeBuffer {
     bool is_video = false;
+    bool is_last_frame = false;
     tMediaVideoBuffer *videoBuffer = nullptr;
     tMediaAudioBuffer *audioBuffer = nullptr;
 } tMediaDecodeBuffer;

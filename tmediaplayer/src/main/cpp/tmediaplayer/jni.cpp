@@ -138,6 +138,15 @@ Java_com_tans_tmediaplayer_tMediaPlayer_isVideoBufferNative(
     return buffer->is_video;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_isLastFrameBufferNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    return buffer->is_last_frame;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_getVideoWidthNative(
         JNIEnv * env,

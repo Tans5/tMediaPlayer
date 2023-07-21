@@ -25,54 +25,33 @@ class tMediaPlayer {
         tMediaPlayerBufferManager(this, 15)
     }
 
+    private val decoder: tMediaPlayerDecoder by lazy {
+        tMediaPlayerDecoder(this, bufferManager)
+    }
+
     fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
     fun prepare(file: String): OptResult {
+        val lastState = getState()
+        if (lastState == tMediaPlayerState.Released) {
+            MediaLog.e(TAG, "Prepare fail, player has released.")
+            return OptResult.Fail
+        }
         val lastMediaInfo = getMediaInfo()
         if (lastMediaInfo != null) {
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
         bufferManager.prepare()
+        bufferManager.clearRenderData()
+        decoder.prepare()
         val nativePlayer = createPlayerNative()
         val result = prepareNative(nativePlayer, file, true, 2).toOptResult()
         if (result == OptResult.Success) {
             val mediaInfo = getMediaInfo(nativePlayer)
             MediaLog.d(TAG, "Prepare player success: $mediaInfo")
             dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
-//            Thread {
-//                while (true) {
-//                    val nativeBuffer = allocDecodeDataNative(nativePlayer)
-//                    val decodeResult = decodeNative(nativePlayer, nativeBuffer)
-//                    if (decodeResult == 0 && isVideoBufferNative(nativeBuffer)) {
-//                        val view = playerView.get()
-//                        if (view != null) {
-//                            val bytes = getVideoFrameBytesNative(nativeBuffer)
-//                            view.requestRenderFrame(getVideoWidthNative(nativeBuffer), getVideoHeightNative(nativeBuffer), bytes)
-////                        val bitmap = Bitmap.createBitmap(
-////                            getVideoWidthNative(nativeBuffer),
-////                            getVideoHeightNative(nativeBuffer),
-////                            Bitmap.Config.ARGB_8888
-////                        )
-////                        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bytes))
-////                        println(bitmap)
-//                        }
-//
-//                    }
-////                    if (decodeResult == 0 && !isVideoBufferNative(nativeBuffer)) {
-////                        val audioPts = getAudioPtsNative(nativeBuffer)
-////                        val audioPcmBytes = getAudioFrameBytesNative(nativeBuffer)
-////                        println(audioPcmBytes)
-////                    }
-//                    MediaLog.d(TAG, "Decode result: $decodeResult")
-//                    if (decodeResult == 1) {
-//                        break
-//                    }
-//                    freeDecodeDataNative(nativePlayer, nativeBuffer)
-//                }
-//                releaseNative(nativePlayer)
-//            }.start()
         } else {
             releaseNative(nativePlayer)
             MediaLog.e(TAG, "Prepare player fail.")
@@ -82,7 +61,7 @@ class tMediaPlayer {
     }
 
     @Synchronized
-    fun play() {
+    fun play(): OptResult {
         val state = getState()
         val playingState = when (state) {
             tMediaPlayerState.NoInit -> null
@@ -90,25 +69,33 @@ class tMediaPlayer {
             is tMediaPlayerState.Paused -> state.play()
             is tMediaPlayerState.PlayEnd -> {
                 resetNative(state.mediaInfo.nativePlayer)
+                bufferManager.clearRenderData()
                 state.play()
             }
             is tMediaPlayerState.Playing -> null
             is tMediaPlayerState.Prepared -> state.play()
             is tMediaPlayerState.Stopped -> {
                 resetNative(state.mediaInfo.nativePlayer)
+                bufferManager.clearRenderData()
                 state.play()
             }
+            tMediaPlayerState.Released -> {
+                null
+            }
         }
-        if (playingState != null) {
+        return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
+            decoder.decode()
             dispatchNewState(playingState)
+            OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for play() method.")
+            OptResult.Fail
         }
     }
 
     @Synchronized
-    fun pause() {
+    fun pause(): OptResult {
         val state = getState()
         val pauseState = when (state) {
             is tMediaPlayerState.Error -> null
@@ -118,17 +105,21 @@ class tMediaPlayer {
             is tMediaPlayerState.Playing -> state.pause()
             is tMediaPlayerState.Prepared -> null
             is tMediaPlayerState.Stopped -> null
+            tMediaPlayerState.Released -> null
         }
-        if (pauseState != null) {
+        return if (pauseState != null) {
             MediaLog.d(TAG, "Request pause.")
             dispatchNewState(pauseState)
+            decoder.pause()
+            OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for pause() method.")
+            OptResult.Fail
         }
     }
 
     @Synchronized
-    fun stop() {
+    fun stop(): OptResult {
         val state = getState()
         val stopState = when (state) {
             is tMediaPlayerState.Error -> null
@@ -138,12 +129,16 @@ class tMediaPlayer {
             is tMediaPlayerState.Playing -> state.stop()
             is tMediaPlayerState.Prepared -> null
             is tMediaPlayerState.Stopped -> null
+            tMediaPlayerState.Released -> null
         }
-        if (stopState != null) {
+        return if (stopState != null) {
             MediaLog.d(TAG, "Request stop.")
             dispatchNewState(stopState)
+            decoder.pause()
+            OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for stop() method.")
+            OptResult.Fail
         }
     }
 
@@ -155,6 +150,7 @@ class tMediaPlayer {
         return when (val state = getState()) {
             tMediaPlayerState.NoInit -> null
             is tMediaPlayerState.Error -> null
+            is tMediaPlayerState.Released -> null
             is tMediaPlayerState.Paused -> state.mediaInfo
             is tMediaPlayerState.PlayEnd -> state.mediaInfo
             is tMediaPlayerState.Playing -> state.mediaInfo
@@ -169,14 +165,20 @@ class tMediaPlayer {
     }
 
     @Synchronized
-    fun release() {
+    fun release(): OptResult {
+        val lastState = getState()
+        if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
+            return OptResult.Fail
+        }
         playerView.set(null)
         bufferManager.release()
+        decoder.release()
         val mediaInfo = getMediaInfo()
         if (mediaInfo != null) {
             releaseNative(mediaInfo.nativePlayer)
         }
-        dispatchNewState(tMediaPlayerState.NoInit)
+        dispatchNewState(tMediaPlayerState.Released)
+        return OptResult.Success
     }
 
     private fun getMediaInfo(nativePlayer: Long): MediaInfo {
@@ -232,6 +234,8 @@ class tMediaPlayer {
 
     private external fun isVideoBufferNative(nativeBuffer: Long): Boolean
 
+    private external fun isLastFrameBufferNative(nativeBuffer: Long): Boolean
+
     private external fun getVideoWidthNative(nativeBuffer: Long): Int
 
     private external fun getVideoHeightNative(nativeBuffer: Long): Int
@@ -252,8 +256,8 @@ class tMediaPlayer {
 
     private external fun resetNative(nativePlayer: Long): Int
 
-    internal fun decodeNativeInternal(nativePlayer: Long, nativeBuffer: Long) {
-        decodeNative(nativePlayer, nativeBuffer)
+    internal fun decodeNativeInternal(nativePlayer: Long, nativeBuffer: Long): Int {
+        return decodeNative(nativePlayer, nativeBuffer)
     }
 
     private external fun decodeNative(nativePlayer: Long, nativeBuffer: Long): Int
