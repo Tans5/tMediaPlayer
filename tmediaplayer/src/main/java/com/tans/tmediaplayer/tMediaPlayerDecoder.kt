@@ -25,7 +25,7 @@ internal class tMediaPlayerDecoder(
 
     private val decoderHandler: Handler by lazy {
         while (!isLooperPrepared.get()) {}
-        object : Handler(decoderHandler.looper) {
+        object : Handler(decoderThread.looper) {
             override fun dispatchMessage(msg: Message) {
                 super.dispatchMessage(msg)
                 val mediaInfo = player.getMediaInfo()

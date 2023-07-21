@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             mediaPlayer.prepare(testVideoFile.absolutePath)
+            mediaPlayer.play()
         }
 
         mediaPlayer.attachPlayerView(playerView)
