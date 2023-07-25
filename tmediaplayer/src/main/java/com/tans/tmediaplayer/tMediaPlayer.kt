@@ -1,17 +1,14 @@
 package com.tans.tmediaplayer
 
-import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.annotation.Keep
-import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
 
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer {
-
-    private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
-        AtomicReference(null)
-    }
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
         AtomicReference(null)
@@ -27,6 +24,18 @@ class tMediaPlayer {
 
     private val decoder: tMediaPlayerDecoder by lazy {
         tMediaPlayerDecoder(this, bufferManager)
+    }
+
+    private val render: tMediaPlayerRender by lazy {
+        tMediaPlayerRender(this, bufferManager)
+    }
+
+    private val progress: AtomicLong by lazy {
+        AtomicLong(0)
+    }
+
+    private val ptsBaseTime: AtomicLong by lazy {
+        AtomicLong(0)
     }
 
     fun getState(): tMediaPlayerState = state.get()
@@ -46,8 +55,10 @@ class tMediaPlayer {
         bufferManager.prepare()
         bufferManager.clearRenderData()
         decoder.prepare()
+        render.prepare()
         val nativePlayer = createPlayerNative()
         val result = prepareNative(nativePlayer, file, true, 2).toOptResult()
+        dispatchProgress(0L)
         if (result == OptResult.Success) {
             val mediaInfo = getMediaInfo(nativePlayer)
             MediaLog.d(TAG, "Prepare player success: $mediaInfo")
@@ -86,6 +97,8 @@ class tMediaPlayer {
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
             decoder.decode()
+            render.render()
+            ptsBaseTime.set(SystemClock.uptimeMillis())
             dispatchNewState(playingState)
             OptResult.Success
         } else {
@@ -111,6 +124,7 @@ class tMediaPlayer {
             MediaLog.d(TAG, "Request pause.")
             dispatchNewState(pauseState)
             decoder.pause()
+            render.pause()
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for pause() method.")
@@ -135,6 +149,9 @@ class tMediaPlayer {
             MediaLog.d(TAG, "Request stop.")
             dispatchNewState(stopState)
             decoder.pause()
+            render.pause()
+            ptsBaseTime.set(0)
+            progress.set(0)
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for stop() method.")
@@ -143,7 +160,7 @@ class tMediaPlayer {
     }
 
     fun attachPlayerView(view: tMediaPlayerView?) {
-        playerView.set(view)
+        render.attachPlayerView(view)
     }
 
     fun getMediaInfo(): MediaInfo? {
@@ -170,9 +187,11 @@ class tMediaPlayer {
         if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
             return OptResult.Fail
         }
-        playerView.set(null)
         bufferManager.release()
         decoder.release()
+        render.release()
+        ptsBaseTime.set(0L)
+        progress.set(0L)
         val mediaInfo = getMediaInfo()
         if (mediaInfo != null) {
             releaseNative(mediaInfo.nativePlayer)
@@ -180,6 +199,8 @@ class tMediaPlayer {
         dispatchNewState(tMediaPlayerState.Released)
         return OptResult.Success
     }
+
+    fun getProgress(): Long = progress.get()
 
     private fun getMediaInfo(nativePlayer: Long): MediaInfo {
         return MediaInfo(
@@ -194,6 +215,32 @@ class tMediaPlayer {
             audioPreSampleBytes = audioPreSampleBytesNative(nativePlayer),
             audioDuration = audioDurationNative(nativePlayer)
         )
+    }
+
+    internal fun dispatchPlayEnd() {
+        val s = getState()
+        if (s is tMediaPlayerState.Playing) {
+            dispatchNewState(s.playEnd())
+        }
+    }
+
+    internal fun calculateRenderDelay(pts: Long): Long {
+        val ptsLen = pts - getProgress()
+        val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
+        return max(0, ptsLen - timeLen)
+    }
+
+    internal fun dispatchProgress(progress: Long) {
+        val info = getMediaInfo()
+        if (info != null) {
+            this.progress.set(progress)
+            listener.get()?.onProgressUpdate(progress, info.duration)
+            decoder.checkDecoderBufferIfWaiting()
+        }
+    }
+
+    internal fun decodeSuccess() {
+        render.checkRenderBufferIfWaiting()
     }
 
     private fun dispatchNewState(s: tMediaPlayerState) {
@@ -232,19 +279,35 @@ class tMediaPlayer {
 
     private external fun allocDecodeDataNative(): Long
 
+    internal fun isVideoBufferNativeInternal(nativeBuffer: Long): Boolean = isVideoBufferNative(nativeBuffer)
+
     private external fun isVideoBufferNative(nativeBuffer: Long): Boolean
+
+    internal fun isLastFrameBufferNativeInternal(nativeBuffer: Long): Boolean = isLastFrameBufferNative(nativeBuffer)
 
     private external fun isLastFrameBufferNative(nativeBuffer: Long): Boolean
 
+    internal fun getVideoWidthNativeInternal(nativeBuffer: Long): Int = getVideoWidthNative(nativeBuffer)
+
     private external fun getVideoWidthNative(nativeBuffer: Long): Int
+
+    internal fun getVideoHeightNativeInternal(nativeBuffer: Long): Int = getVideoHeightNative(nativeBuffer)
 
     private external fun getVideoHeightNative(nativeBuffer: Long): Int
 
+    internal fun getVideoPtsNativeInternal(nativeBuffer: Long): Long = getVideoPtsNative(nativeBuffer)
+
     private external fun getVideoPtsNative(nativeBuffer: Long): Long
+
+    internal fun getVideoFrameBytesNativeInternal(nativeBuffer: Long): ByteArray = getVideoFrameBytesNative(nativeBuffer)
 
     private external fun getVideoFrameBytesNative(nativeBuffer: Long): ByteArray
 
+    internal fun getAudioPtsNativeInternal(nativeBuffer: Long): Long = getAudioPtsNative(nativeBuffer)
+
     private external fun getAudioPtsNative(nativeBuffer: Long): Long
+
+    internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long): ByteArray = getAudioFrameBytesNative(nativeBuffer)
 
     private external fun getAudioFrameBytesNative(nativeBuffer: Long): ByteArray
 

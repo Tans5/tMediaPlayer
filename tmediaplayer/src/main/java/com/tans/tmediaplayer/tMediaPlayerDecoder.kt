@@ -32,6 +32,7 @@ internal class tMediaPlayerDecoder(
                     val mediaInfo = player.getMediaInfo()
                     if (mediaInfo == null) {
                         MediaLog.e(TAG, "DecoderHandler decode error media info is null.")
+                        return
                     }
                     val state = getState()
                     if (state == tMediaPlayerDecoderState.Released || state == tMediaPlayerDecoderState.NotInit) {
@@ -48,12 +49,14 @@ internal class tMediaPlayerDecoder(
                                         when (player.decodeNativeInternal(nativePlayer, buffer).toDecodeResult()) {
                                             DecodeResult.Success -> {
                                                 bufferManager.enqueueRenderBuffer(buffer)
+                                                player.decodeSuccess()
                                                 this.sendEmptyMessage(DECODE_MEDIA_FRAME)
                                             }
                                             DecodeResult.DecodeEnd -> {
                                                 MediaLog.d(TAG, "Decode end.")
                                                 bufferManager.enqueueRenderBuffer(buffer)
                                                 this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.DecodingEnd)
+                                                player.decodeSuccess()
                                             }
                                             DecodeResult.Fail -> {
                                                 bufferManager.enqueueDecodeBuffer(buffer)
