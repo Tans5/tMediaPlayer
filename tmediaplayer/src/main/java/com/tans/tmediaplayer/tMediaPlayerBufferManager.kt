@@ -25,10 +25,16 @@ internal class tMediaPlayerBufferManager(
         LinkedBlockingDeque()
     }
 
+    private val allBuffers: LinkedBlockingDeque<Long> by lazy {
+        LinkedBlockingDeque()
+    }
+
+    @Synchronized
     fun prepare() {
         isReleased.set(false)
     }
 
+    @Synchronized
     fun clearRenderData() {
         while (renderBufferDeque.isNotEmpty()) {
             val b = renderBufferDeque.pollFirst()
@@ -38,6 +44,7 @@ internal class tMediaPlayerBufferManager(
         }
     }
 
+    @Synchronized
     fun requestDecodeBuffer(): Long? {
         return if (!isReleased.get()) {
             decodeBufferDeque.pollFirst()
@@ -45,44 +52,45 @@ internal class tMediaPlayerBufferManager(
                     null
                 } else {
                     hasAllocBufferSize.addAndGet(1)
-                    player.allocDecodeDataNativeInternal()
+                    val result = player.allocDecodeDataNativeInternal()
+                    allBuffers.add(result)
+                    result
                 }
         } else {
             null
         }
     }
 
+    @Synchronized
     fun requestRenderBuffer(): Long? = if (isReleased.get()) {
         null
     } else {
         renderBufferDeque.pollFirst()
     }
 
+    @Synchronized
     fun enqueueRenderBuffer(buffer: Long) {
-        if (isReleased.get()) {
-            player.freeDecodeDataNativeInternal(buffer)
-        } else {
+        if (!isReleased.get()) {
             renderBufferDeque.add(buffer)
         }
     }
 
+    @Synchronized
     fun enqueueDecodeBuffer(buffer: Long) {
-        if (isReleased.get()) {
-            player.freeDecodeDataNativeInternal(buffer)
-        } else {
+        if (!isReleased.get()) {
             decodeBufferDeque.add(buffer)
         }
     }
 
+
+    @Synchronized
     fun release() {
         isReleased.set(true)
-        for (b in decodeBufferDeque) {
-            player.freeDecodeDataNativeInternal(b)
-        }
         decodeBufferDeque.clear()
-        for (b in renderBufferDeque) {
+        renderBufferDeque.clear()
+        for (b in allBuffers) {
             player.freeDecodeDataNativeInternal(b)
         }
-        renderBufferDeque.clear()
+        allBuffers.clear()
     }
 }
