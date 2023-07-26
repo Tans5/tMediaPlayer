@@ -45,7 +45,7 @@ class tMediaPlayer {
     fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
-    fun prepare(file: String): OptResult {
+    fun prepare(file: String, requestHw: Boolean = true): OptResult {
         val lastState = getState()
         if (lastState == tMediaPlayerState.Released) {
             MediaLog.e(TAG, "Prepare fail, player has released.")
@@ -56,14 +56,13 @@ class tMediaPlayer {
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
-        ptsBaseTime.set(0)
-        basePts.set(0)
+        resetProgressAndBaseTime()
         bufferManager.prepare()
         bufferManager.clearRenderData()
         decoder.prepare()
         render.prepare()
         val nativePlayer = createPlayerNative()
-        val result = prepareNative(nativePlayer, file, true, 2).toOptResult()
+        val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
         dispatchProgress(0L)
         if (result == OptResult.Success) {
             val mediaInfo = getMediaInfo(nativePlayer)
@@ -157,9 +156,7 @@ class tMediaPlayer {
             dispatchNewState(stopState)
             decoder.pause()
             render.pause()
-            ptsBaseTime.set(0)
-            basePts.set(0)
-            progress.set(0)
+            resetProgressAndBaseTime()
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for stop() method.")
@@ -198,8 +195,7 @@ class tMediaPlayer {
         decoder.release()
         render.release()
         bufferManager.release()
-        ptsBaseTime.set(0L)
-        progress.set(0L)
+        resetProgressAndBaseTime()
         val mediaInfo = getMediaInfo()
         if (mediaInfo != null) {
             releaseNative(mediaInfo.nativePlayer)
@@ -231,6 +227,7 @@ class tMediaPlayer {
         if (s is tMediaPlayerState.Playing) {
             dispatchNewState(s.playEnd())
         }
+        resetProgressAndBaseTime()
     }
 
     internal fun calculateRenderDelay(pts: Long): Long {
@@ -241,7 +238,8 @@ class tMediaPlayer {
 
     internal fun dispatchProgress(progress: Long) {
         val info = getMediaInfo()
-        if (info != null) {
+        val lastProgress = this.progress.get()
+        if (info != null && progress > lastProgress) {
             this.progress.set(progress)
             listener.get()?.onProgressUpdate(progress, info.duration)
             decoder.checkDecoderBufferIfWaiting()
@@ -258,6 +256,12 @@ class tMediaPlayer {
             state.set(s)
             listener.get()?.onPlayerState(s)
         }
+    }
+
+    private fun resetProgressAndBaseTime() {
+        progress.set(0)
+        basePts.set(0L)
+        ptsBaseTime.set(0L)
     }
 
     private external fun createPlayerNative(): Long
