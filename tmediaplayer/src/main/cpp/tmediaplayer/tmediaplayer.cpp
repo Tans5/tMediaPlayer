@@ -220,24 +220,26 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
         if (video_stream == nullptr && audio_stream == nullptr) {
             return OptFail;
         } else {
-            int result = 0;
+            int video_reset_result = -1, audio_reset_result = -1;
             if (video_stream != nullptr) {
-                result = av_seek_frame(format_ctx, video_stream->index, 0, AVSEEK_FLAG_BACKWARD);
-                if (result < 0) {
-                    LOGE("Reset video progress fail: %d", result);
-                    return OptFail;
+                video_reset_result = av_seek_frame(format_ctx, video_stream->index, 0, AVSEEK_FLAG_BACKWARD);
+                if (video_reset_result < 0) {
+                    LOGE("Reset video progress fail: %d", video_reset_result);
                 }
                 avcodec_flush_buffers(video_decoder_ctx);
             }
             if (audio_stream != nullptr) {
-                result = av_seek_frame(format_ctx, audio_stream->index, 0, AVSEEK_FLAG_BACKWARD);
-                if (result < 0) {
-                    LOGE("Reset audio progress fail: %d", result);
-                    return OptFail;
+                audio_reset_result = av_seek_frame(format_ctx, audio_stream->index, 0, AVSEEK_FLAG_BACKWARD);
+                if (audio_reset_result < 0) {
+                    LOGE("Reset audio progress fail: %d", audio_reset_result);
                 }
                 avcodec_flush_buffers(audio_decoder_ctx);
             }
-            return OptSuccess;
+            if (video_reset_result >=0 || audio_reset_result >= 0) {
+                return OptSuccess;
+            } else {
+                return OptFail;
+            }
         }
     } else {
         return OptFail;
