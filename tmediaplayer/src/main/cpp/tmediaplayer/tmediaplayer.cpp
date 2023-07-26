@@ -41,12 +41,12 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             case AVMEDIA_TYPE_VIDEO:
                 LOGD("Find video stream.");
                 this->video_stream = s;
-                this->video_duration = (long) (s->duration / s->time_base.den * 1000L);
+                this->video_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
                 break;
             case AVMEDIA_TYPE_AUDIO:
                 LOGD("Find audio stream.");
                 this->audio_stream = s;
-                this->audio_duration = (long) (s->duration / s->time_base.den * 1000L);
+                this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
                 break;
             default:
                 break;
@@ -338,7 +338,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 LOGE("Decode video sws scale fail: %d", result);
                 return DecodeFail;
             }
-            videoBuffer->pts = (long) (frame->pts * 1000L / video_stream->time_base.den);
+            videoBuffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
             LOGD("Decode video success: %ld, buffer size: %d, cost: %ld ms", videoBuffer->pts, videoBuffer->size, get_time_millis() - start_time);
             return DecodeSuccess;
         }
@@ -375,7 +375,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(output_audio_buffer_size));
             }
             audioBuffer->size = output_audio_buffer_size;
-            audioBuffer->pts = (long) frame->pts / audio_stream->time_base.den * 1000L;
+            audioBuffer->pts = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
             result = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), output_nb_samples,(const uint8_t **)(frame->data), frame->nb_samples);
             if (result < 0) {
                 LOGE("Decode audio swr convert fail: %d", result);
