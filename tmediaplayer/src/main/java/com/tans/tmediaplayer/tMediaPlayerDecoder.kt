@@ -93,7 +93,7 @@ internal class tMediaPlayerDecoder(
                         }
                     }
                     REQUEST_PAUSE -> {
-                        if (state == tMediaPlayerDecoderState.Decoding) {
+                        if (state == tMediaPlayerDecoderState.Decoding || state == tMediaPlayerDecoderState.WaitingRender) {
                             this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.Paused)
                         } else {
                             MediaLog.d(TAG, "Skip request pause, because of state: $state")

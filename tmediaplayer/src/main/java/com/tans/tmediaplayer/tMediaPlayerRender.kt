@@ -97,7 +97,7 @@ internal class tMediaPlayerRender(
                         }
                     }
                     REQUEST_PAUSE -> {
-                        if (state == tMediaPlayerRenderState.Rendering) {
+                        if (state == tMediaPlayerRenderState.Rendering || state == tMediaPlayerRenderState.WaitingDecoder) {
                             this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.Paused)
                         } else {
                             MediaLog.d(TAG, "Skip request pause, because of state: $state")
