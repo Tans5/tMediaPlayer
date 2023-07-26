@@ -103,11 +103,11 @@ class tMediaPlayerView : GLSurfaceView {
         }
 
         override fun onDrawFrame(gl: GL10) {
-            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
             val rendererData = this.glRendererData
             val screenSize = sizeCache
             val imageData = this@tMediaPlayerView.nextRenderFrame.get()
             if (rendererData != null && screenSize != null && imageData != null) {
+                GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
                 GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, rendererData.textureId)
                 GLES30.glTexImage2D(
                     GLES30.GL_TEXTURE_2D,

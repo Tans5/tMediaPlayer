@@ -243,12 +243,12 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
 }
 
 tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
+    buffer->is_last_frame = false;
+    buffer->type = BufferTypeNone;
     if (pkt != nullptr &&
         frame != nullptr &&
         format_ctx != nullptr &&
         buffer != nullptr) {
-        buffer->is_last_frame = false;
-        buffer->is_video = false;
         long start_time = get_time_millis();
         int result;
         if (!skipPktRead) {
@@ -332,7 +332,6 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                                      AV_PIX_FMT_RGBA, w, h, 1);
             }
-            buffer->is_video = true;
             result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
             if (result < 0) {
                 LOGE("Decode video sws scale fail: %d", result);
@@ -340,6 +339,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             }
             videoBuffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
             LOGD("Decode video success: %ld, buffer size: %d, cost: %ld ms", videoBuffer->pts, videoBuffer->size, get_time_millis() - start_time);
+            buffer->type = BufferTypeVideo;
             return DecodeSuccess;
         }
         if (audio_stream != nullptr &&
@@ -381,7 +381,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 LOGE("Decode audio swr convert fail: %d", result);
                 return DecodeFail;
             }
-            buffer->is_video = false;
+            buffer->type = BufferTypeAudio;
             LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", audioBuffer->pts, output_audio_buffer_size, get_time_millis() - start_time);
             return DecodeSuccess;
         }

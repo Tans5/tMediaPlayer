@@ -135,7 +135,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_isVideoBufferNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    return buffer->is_video;
+    return buffer->type == BufferTypeVideo;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -153,7 +153,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoWidthNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (buffer->is_video) {
+    if (buffer->type == BufferTypeVideo) {
         return buffer->videoBuffer->width;
     } else {
         return 0;
@@ -166,7 +166,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoHeightNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (buffer->is_video) {
+    if (buffer->type == BufferTypeVideo) {
         return buffer->videoBuffer->height;
     } else {
         return 0;
@@ -179,7 +179,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoPtsNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (buffer->is_video) {
+    if (buffer->type == BufferTypeVideo) {
         return buffer->videoBuffer->pts;
     } else {
         return 0L;
@@ -192,7 +192,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameBytesNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (buffer->is_video) {
+    if (buffer->type == BufferTypeVideo) {
         auto jbyteArray = env->NewByteArray(buffer->videoBuffer->size);
         env->SetByteArrayRegion(jbyteArray, 0, buffer->videoBuffer->size,
                                 reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
@@ -208,7 +208,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getAudioPtsNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (!buffer->is_video) {
+    if (buffer->type == BufferTypeAudio) {
         return buffer->audioBuffer->pts;
     } else {
         return 0L;
@@ -221,7 +221,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameBytesNative(
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (!buffer->is_video) {
+    if (buffer->type == BufferTypeAudio) {
         auto jbyteArray = env->NewByteArray(buffer->audioBuffer->size);
         env->SetByteArrayRegion(jbyteArray, 0, buffer->audioBuffer->size,
                                 reinterpret_cast<const jbyte *>(buffer->audioBuffer->pcmBuffer));

@@ -35,8 +35,14 @@ typedef struct tMediaAudioBuffer {
     uint8_t  *pcmBuffer = nullptr;
 } tMediaAudioBuffer;
 
+enum tMediaDecodeBufferType {
+    BufferTypeNone,
+    BufferTypeVideo,
+    BufferTypeAudio
+};
+
 typedef struct tMediaDecodeBuffer {
-    bool is_video = false;
+    tMediaDecodeBufferType type = BufferTypeNone;
     bool is_last_frame = false;
     tMediaVideoBuffer *videoBuffer = nullptr;
     tMediaAudioBuffer *audioBuffer = nullptr;
