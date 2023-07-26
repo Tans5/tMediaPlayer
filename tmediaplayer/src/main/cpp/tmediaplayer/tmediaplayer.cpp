@@ -222,14 +222,14 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
         } else {
             int result = 0;
             if (video_stream != nullptr) {
-                result = av_seek_frame(format_ctx, video_stream->index, 0, AVSEEK_FLAG_BACKWARD);
+                result = av_seek_frame(format_ctx, video_stream->index, 0, AVSEEK_FLAG_ANY);
                 if (result < 0) {
                     LOGE("Reset video progress fail: %d", result);
                     return OptFail;
                 }
             }
             if (audio_stream != nullptr) {
-                result = av_seek_frame(format_ctx, audio_stream->index, 0, AVSEEK_FLAG_BACKWARD);
+                result = av_seek_frame(format_ctx, audio_stream->index, 0, AVSEEK_FLAG_ANY);
                 if (result < 0) {
                     LOGE("Reset audio progress fail: %d", result);
                     return OptFail;
