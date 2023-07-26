@@ -222,18 +222,20 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
         } else {
             int result = 0;
             if (video_stream != nullptr) {
-                result = av_seek_frame(format_ctx, video_stream->index, 0, AVSEEK_FLAG_ANY);
+                result = av_seek_frame(format_ctx, video_stream->index, 0, AVSEEK_FLAG_BACKWARD);
                 if (result < 0) {
                     LOGE("Reset video progress fail: %d", result);
                     return OptFail;
                 }
+                avcodec_flush_buffers(video_decoder_ctx);
             }
             if (audio_stream != nullptr) {
-                result = av_seek_frame(format_ctx, audio_stream->index, 0, AVSEEK_FLAG_ANY);
+                result = av_seek_frame(format_ctx, audio_stream->index, 0, AVSEEK_FLAG_BACKWARD);
                 if (result < 0) {
                     LOGE("Reset audio progress fail: %d", result);
                     return OptFail;
                 }
+                avcodec_flush_buffers(audio_decoder_ctx);
             }
             return OptSuccess;
         }
@@ -243,12 +245,12 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
 }
 
 tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
-    buffer->is_last_frame = false;
-    buffer->type = BufferTypeNone;
     if (pkt != nullptr &&
         frame != nullptr &&
         format_ctx != nullptr &&
         buffer != nullptr) {
+        buffer->is_last_frame = false;
+        buffer->type = BufferTypeNone;
         long start_time = get_time_millis();
         int result;
         if (!skipPktRead) {
