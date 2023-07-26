@@ -38,6 +38,10 @@ class tMediaPlayer {
         AtomicLong(0)
     }
 
+    private val basePts: AtomicLong by lazy {
+        AtomicLong(0)
+    }
+
     fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
@@ -52,6 +56,8 @@ class tMediaPlayer {
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
+        ptsBaseTime.set(0)
+        basePts.set(0)
         bufferManager.prepare()
         bufferManager.clearRenderData()
         decoder.prepare()
@@ -99,6 +105,7 @@ class tMediaPlayer {
             decoder.decode()
             render.render()
             ptsBaseTime.set(SystemClock.uptimeMillis())
+            basePts.set(getProgress())
             dispatchNewState(playingState)
             OptResult.Success
         } else {
@@ -151,6 +158,7 @@ class tMediaPlayer {
             decoder.pause()
             render.pause()
             ptsBaseTime.set(0)
+            basePts.set(0)
             progress.set(0)
             OptResult.Success
         } else {
@@ -187,9 +195,9 @@ class tMediaPlayer {
         if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
             return OptResult.Fail
         }
-        bufferManager.release()
         decoder.release()
         render.release()
+        bufferManager.release()
         ptsBaseTime.set(0L)
         progress.set(0L)
         val mediaInfo = getMediaInfo()
@@ -197,6 +205,7 @@ class tMediaPlayer {
             releaseNative(mediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.Released)
+        listener.set(null)
         return OptResult.Success
     }
 
@@ -225,7 +234,7 @@ class tMediaPlayer {
     }
 
     internal fun calculateRenderDelay(pts: Long): Long {
-        val ptsLen = pts - getProgress()
+        val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
         return max(0, ptsLen - timeLen)
     }

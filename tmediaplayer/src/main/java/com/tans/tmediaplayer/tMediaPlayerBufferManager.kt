@@ -17,15 +17,15 @@ internal class tMediaPlayerBufferManager(
         AtomicInteger(0)
     }
 
-    private val decodeBufferDeque: LinkedBlockingDeque<Long> by lazy {
+    private val decodeBufferDeque: LinkedBlockingDeque<MediaBuffer> by lazy {
         LinkedBlockingDeque()
     }
 
-    private val renderBufferDeque: LinkedBlockingDeque<Long> by lazy {
+    private val renderBufferDeque: LinkedBlockingDeque<MediaBuffer> by lazy {
         LinkedBlockingDeque()
     }
 
-    private val allBuffers: LinkedBlockingDeque<Long> by lazy {
+    private val allBuffers: LinkedBlockingDeque<MediaBuffer> by lazy {
         LinkedBlockingDeque()
     }
 
@@ -34,7 +34,6 @@ internal class tMediaPlayerBufferManager(
         isReleased.set(false)
     }
 
-    @Synchronized
     fun clearRenderData() {
         while (renderBufferDeque.isNotEmpty()) {
             val b = renderBufferDeque.pollFirst()
@@ -44,15 +43,14 @@ internal class tMediaPlayerBufferManager(
         }
     }
 
-    @Synchronized
-    fun requestDecodeBuffer(): Long? {
+    fun requestDecodeBuffer(): MediaBuffer? {
         return if (!isReleased.get()) {
             decodeBufferDeque.pollFirst()
                 ?: if (hasAllocBufferSize.get() >= maxBufferSize) {
                     null
                 } else {
                     hasAllocBufferSize.addAndGet(1)
-                    val result = player.allocDecodeDataNativeInternal()
+                    val result = MediaBuffer(player.allocDecodeDataNativeInternal())
                     allBuffers.add(result)
                     result
                 }
@@ -61,36 +59,41 @@ internal class tMediaPlayerBufferManager(
         }
     }
 
-    @Synchronized
-    fun requestRenderBuffer(): Long? = if (isReleased.get()) {
+    fun requestRenderBuffer(): MediaBuffer? = if (isReleased.get()) {
         null
     } else {
         renderBufferDeque.pollFirst()
     }
 
-    @Synchronized
-    fun enqueueRenderBuffer(buffer: Long) {
+    fun enqueueRenderBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
             renderBufferDeque.add(buffer)
         }
     }
 
-    @Synchronized
-    fun enqueueDecodeBuffer(buffer: Long) {
+    fun enqueueDecodeBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
             decodeBufferDeque.add(buffer)
         }
     }
 
 
-    @Synchronized
     fun release() {
         isReleased.set(true)
         decodeBufferDeque.clear()
         renderBufferDeque.clear()
         for (b in allBuffers) {
-            player.freeDecodeDataNativeInternal(b)
+            synchronized(b) {
+                player.freeDecodeDataNativeInternal(b.nativeBuffer)
+            }
         }
         allBuffers.clear()
+    }
+
+
+    companion object {
+        data class MediaBuffer(
+            val nativeBuffer: Long
+        )
     }
 }

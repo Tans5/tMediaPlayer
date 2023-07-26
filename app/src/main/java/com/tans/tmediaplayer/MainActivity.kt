@@ -2,6 +2,7 @@ package com.tans.tmediaplayer
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.TextureView
 import java.io.File
 import java.io.FileOutputStream
@@ -51,21 +52,35 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer.prepare(testVideoFile.absolutePath)
             mediaPlayer.play()
         }
-
         mediaPlayer.attachPlayerView(playerView)
 
+        mediaPlayer.setListener(object : tMediaPlayerListener {
+            override fun onPlayerState(state: tMediaPlayerState) {
+                Log.d(TAG, "Player State: $state")
+            }
+
+            override fun onProgressUpdate(progress: Long, duration: Long) {
+                Log.d(TAG, "Player progress: ${progress/1000} s")
+            }
+        })
     }
 
     override fun onResume() {
         super.onResume()
+        mediaPlayer.play()
     }
 
     override fun onPause() {
         super.onPause()
+        mediaPlayer.pause()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         mediaPlayer.release()
+    }
+
+    companion object {
+        const val TAG = "MainActivity"
     }
 }

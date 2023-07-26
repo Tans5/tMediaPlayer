@@ -34,37 +34,38 @@ internal class tMediaPlayerRender(
         object : Handler(renderThread.looper) {
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
-                synchronized(player) {
-                    val mediaInfo = player.getMediaInfo()
-                    if (mediaInfo == null) {
-                        MediaLog.e(TAG, "RenderHandler render error, media info is null.")
-                        return
-                    }
-                    val state = getState()
-                    if (state == tMediaPlayerRenderState.Released || state == tMediaPlayerRenderState.NotInit) {
-                        MediaLog.e(TAG, "RenderHandler wrong state: $state")
-                        return
-                    }
-                    when (msg.what) {
-                        CALCULATE_RENDER_MEDIA_FRAME -> {
-                            if (state == tMediaPlayerRenderState.Rendering) {
-                                val buffer = bufferManager.requestRenderBuffer()
-                                if (buffer != null) {
-                                    if (player.isLastFrameBufferNativeInternal(buffer)) {
+                val mediaInfo = player.getMediaInfo()
+                if (mediaInfo == null) {
+                    MediaLog.e(TAG, "RenderHandler render error, media info is null.")
+                    return
+                }
+                val state = getState()
+                if (state == tMediaPlayerRenderState.Released || state == tMediaPlayerRenderState.NotInit) {
+                    MediaLog.e(TAG, "RenderHandler wrong state: $state")
+                    return
+                }
+                when (msg.what) {
+                    CALCULATE_RENDER_MEDIA_FRAME -> {
+                        if (state == tMediaPlayerRenderState.Rendering) {
+                            val buffer = bufferManager.requestRenderBuffer()
+                            if (buffer != null) {
+                                synchronized(buffer) {
+                                    if (getState() == tMediaPlayerRenderState.Released) { return@synchronized }
+                                    if (player.isLastFrameBufferNativeInternal(buffer.nativeBuffer)) {
                                         player.dispatchPlayEnd()
                                         bufferManager.enqueueDecodeBuffer(buffer)
                                         this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.RenderEnd)
                                     } else {
-                                        if (player.isVideoBufferNativeInternal(buffer)) {
+                                        if (player.isVideoBufferNativeInternal(buffer.nativeBuffer)) {
                                             // VIDEO
-                                            val delay = player.calculateRenderDelay(player.getVideoPtsNativeInternal(buffer))
+                                            val delay = player.calculateRenderDelay(player.getVideoPtsNativeInternal(buffer.nativeBuffer))
                                             val m = Message.obtain()
                                             m.what = RENDER_VIDEO
                                             m.obj = buffer
                                             this.sendMessageDelayed(m, delay)
                                         } else {
                                             // AUDIO
-                                            val delay = player.calculateRenderDelay(player.getAudioPtsNativeInternal(buffer))
+                                            val delay = player.calculateRenderDelay(player.getAudioPtsNativeInternal(buffer.nativeBuffer))
                                             val m = Message.obtain()
                                             m.what = RENDER_AUDIO
                                             m.obj = buffer
@@ -72,68 +73,73 @@ internal class tMediaPlayerRender(
                                         }
                                         this.sendEmptyMessage(CALCULATE_RENDER_MEDIA_FRAME)
                                     }
-                                } else {
-                                    this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.WaitingDecoder)
-                                    MediaLog.d(TAG, "Waiting decoder buffer.")
                                 }
                             } else {
-                                MediaLog.d(TAG, "Skip render frame, because of state: $state")
+                                this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.WaitingDecoder)
+                                MediaLog.d(TAG, "Waiting decoder buffer.")
                             }
+                        } else {
+                            MediaLog.d(TAG, "Skip render frame, because of state: $state")
                         }
-                        REQUEST_RENDER -> {
-                            if (state in listOf(
-                                    tMediaPlayerRenderState.RenderEnd,
-                                    tMediaPlayerRenderState.WaitingDecoder,
-                                    tMediaPlayerRenderState.Paused,
-                                    tMediaPlayerRenderState.Prepared
-                                )
-                            ) {
-                                this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.Rendering)
-                                this.sendEmptyMessage(CALCULATE_RENDER_MEDIA_FRAME)
-                            } else {
-                                MediaLog.d(TAG, "Skip request render, because of state: $state")
-                            }
+                    }
+                    REQUEST_RENDER -> {
+                        if (state in listOf(
+                                tMediaPlayerRenderState.RenderEnd,
+                                tMediaPlayerRenderState.WaitingDecoder,
+                                tMediaPlayerRenderState.Paused,
+                                tMediaPlayerRenderState.Prepared
+                            )
+                        ) {
+                            this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.Rendering)
+                            this.sendEmptyMessage(CALCULATE_RENDER_MEDIA_FRAME)
+                        } else {
+                            MediaLog.d(TAG, "Skip request render, because of state: $state")
                         }
-                        REQUEST_PAUSE -> {
-                            if (state == tMediaPlayerRenderState.Rendering) {
-                                this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.Paused)
-                            } else {
-                                MediaLog.d(TAG, "Skip request pause, because of state: $state")
-                            }
+                    }
+                    REQUEST_PAUSE -> {
+                        if (state == tMediaPlayerRenderState.Rendering) {
+                            this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.Paused)
+                        } else {
+                            MediaLog.d(TAG, "Skip request pause, because of state: $state")
                         }
-                        RENDER_VIDEO -> {
-                            val buffer = msg.obj as? Long
-                            if (buffer != null) {
-                                val progress = player.getVideoPtsNativeInternal(buffer)
+                    }
+                    RENDER_VIDEO -> {
+                        val buffer = msg.obj as? tMediaPlayerBufferManager.Companion.MediaBuffer
+                        if (buffer != null) {
+                            synchronized(buffer) {
+                                if (getState() == tMediaPlayerRenderState.Released) { return }
+                                val progress = player.getVideoPtsNativeInternal(buffer.nativeBuffer)
                                 player.dispatchProgress(progress)
                                 val view = playerView.get()
                                 view?.requestRenderFrame(
-                                    width = player.getVideoWidthNativeInternal(buffer),
-                                    height = player.getVideoHeightNativeInternal(buffer),
-                                    imageBytes = player.getVideoFrameBytesNativeInternal(buffer)
+                                    width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
+                                    height = player.getVideoHeightNativeInternal(buffer.nativeBuffer),
+                                    imageBytes = player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer)
                                 )
                                 bufferManager.enqueueDecodeBuffer(buffer)
                             }
-                            Unit
                         }
-                        RENDER_AUDIO -> {
-                            val buffer = msg.obj as? Long
-                            if (buffer != null) {
-                                val progress = player.getAudioPtsNativeInternal(buffer)
+                        Unit
+                    }
+                    RENDER_AUDIO -> {
+                        val buffer = msg.obj as? tMediaPlayerBufferManager.Companion.MediaBuffer
+                        if (buffer != null) {
+                            synchronized(buffer) {
+                                if (getState() == tMediaPlayerRenderState.Released) { return }
+                                val progress = player.getAudioPtsNativeInternal(buffer.nativeBuffer)
                                 player.dispatchProgress(progress)
                                 // TODO: RENDER AUDIO
                                 bufferManager.enqueueDecodeBuffer(buffer)
                             }
-                            Unit
                         }
-                        else -> {}
+                        Unit
                     }
+                    else -> {}
                 }
             }
         }
     }
 
-    @Synchronized
     fun prepare() {
         val lastState = getState()
         if (lastState == tMediaPlayerRenderState.Released) {
@@ -150,7 +156,6 @@ internal class tMediaPlayerRender(
         state.set(tMediaPlayerRenderState.Prepared)
     }
 
-    @Synchronized
     fun render() {
         val state = getState()
         if (state != tMediaPlayerRenderState.Released && state != tMediaPlayerRenderState.NotInit) {
@@ -158,7 +163,6 @@ internal class tMediaPlayerRender(
         }
     }
 
-    @Synchronized
     fun pause() {
         val state = getState()
         if (state != tMediaPlayerRenderState.Released && state != tMediaPlayerRenderState.NotInit) {
@@ -166,14 +170,12 @@ internal class tMediaPlayerRender(
         }
     }
 
-    @Synchronized
     fun checkRenderBufferIfWaiting() {
         if (getState() == tMediaPlayerRenderState.WaitingDecoder) {
             render()
         }
     }
 
-    @Synchronized
     fun release() {
         renderHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
         renderHandler.removeMessages(REQUEST_RENDER)
