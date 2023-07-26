@@ -65,8 +65,8 @@
 
         <FrameLayout
             android:id="@+id/play_pause_layout"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
             android:layout_marginTop="10dp"
             android:layout_marginBottom="20dp"
             app:layout_constraintBottom_toBottomOf="parent"

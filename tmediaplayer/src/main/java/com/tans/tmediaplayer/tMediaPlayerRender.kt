@@ -203,7 +203,7 @@ internal class tMediaPlayerRender(
         }
         renderThread
         renderHandler
-        audioTrack.play()
+        audioTrack
         renderHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
         renderHandler.removeMessages(REQUEST_RENDER)
         renderHandler.removeMessages(REQUEST_PAUSE)
@@ -212,6 +212,26 @@ internal class tMediaPlayerRender(
         renderHandler.removeMessages(RENDER_END)
         lastRequestRenderPts.set(0L)
         state.set(tMediaPlayerRenderState.Prepared)
+    }
+
+    fun audioTrackPlay() {
+        try {
+            if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                audioTrack.play()
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+    }
+
+    fun audioTrackPause() {
+        try {
+            if (audioTrack.playState == AudioTrack.PLAYSTATE_PAUSED) {
+                audioTrack.pause()
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 
     fun render() {

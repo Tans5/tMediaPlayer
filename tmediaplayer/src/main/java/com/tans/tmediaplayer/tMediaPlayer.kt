@@ -93,6 +93,7 @@ class tMediaPlayer {
             MediaLog.d(TAG, "Request play.")
             decoder.decode()
             render.render()
+            render.audioTrackPlay()
             ptsBaseTime.set(SystemClock.uptimeMillis())
             basePts.set(getProgress())
             dispatchNewState(playingState)
@@ -121,6 +122,7 @@ class tMediaPlayer {
             dispatchNewState(pauseState)
             decoder.pause()
             render.pause()
+            render.audioTrackPause()
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for pause() method.")
