@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.player_sb)
     }
 
-    private val fileName = "gokuraku.mp4"
+    private val fileName = "sekiro.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir

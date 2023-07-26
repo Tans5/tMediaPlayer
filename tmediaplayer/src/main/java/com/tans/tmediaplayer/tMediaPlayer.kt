@@ -239,8 +239,11 @@ class tMediaPlayer {
         if (info != null && progress > lastProgress) {
             this.progress.set(progress)
             listener.get()?.onProgressUpdate(progress, info.duration)
-            decoder.checkDecoderBufferIfWaiting()
         }
+    }
+
+    internal fun renderSuccess() {
+        decoder.checkDecoderBufferIfWaiting()
     }
 
     internal fun decodeSuccess() {

@@ -119,7 +119,10 @@ internal class tMediaPlayerRender(
                                 MediaLog.d(TAG, "Render Video.")
                                 if (getState() == tMediaPlayerRenderState.Released) { return }
                                 val progress = player.getVideoPtsNativeInternal(buffer.nativeBuffer)
-                                player.dispatchProgress(progress)
+                                if (getState() == tMediaPlayerRenderState.Rendering) {
+                                    player.dispatchProgress(progress)
+                                }
+                                player.renderSuccess()
                                 val view = playerView.get()
                                 view?.requestRenderFrame(
                                     width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
@@ -138,7 +141,10 @@ internal class tMediaPlayerRender(
                             synchronized(buffer) {
                                 if (getState() == tMediaPlayerRenderState.Released) { return }
                                 val progress = player.getAudioPtsNativeInternal(buffer.nativeBuffer)
-                                player.dispatchProgress(progress)
+                                if (getState() == tMediaPlayerRenderState.Rendering) {
+                                    player.dispatchProgress(progress)
+                                }
+                                player.renderSuccess()
                                 // TODO: RENDER AUDIO
                                 bufferManager.enqueueDecodeBuffer(buffer)
                             }
