@@ -100,7 +100,7 @@ typedef struct tMediaPlayerContext {
     int audio_simple_rate;
     long audio_duration;
     long audio_output_sample_rate = 44100;
-    AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
+    AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
     int audio_output_ch_layout;
     int audio_output_channels;
 

@@ -1,5 +1,9 @@
 package com.tans.tmediaplayer
 
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
@@ -15,6 +19,23 @@ internal class tMediaPlayerRender(
 
     private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
         AtomicReference(null)
+    }
+
+    private val audioTrack: AudioTrack by lazy {
+        val bufferSize = AudioTrack.getMinBufferSize(44100, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
+        AudioTrack(
+            AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build(),
+            AudioFormat.Builder()
+                .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                .setSampleRate(44100)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build(),
+            bufferSize,
+            AudioTrack.MODE_STREAM,
+            AudioManager.AUDIO_SESSION_ID_GENERATE
+        )
     }
 
     private val isLooperPrepared: AtomicBoolean by lazy { AtomicBoolean(false) }
@@ -145,7 +166,8 @@ internal class tMediaPlayerRender(
                                     player.dispatchProgress(progress)
                                 }
                                 player.renderSuccess()
-                                // TODO: RENDER AUDIO
+                                val bytes = player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer)
+                                audioTrack.write(bytes, 0, bytes.size)
                                 bufferManager.enqueueDecodeBuffer(buffer)
                             }
                         }
@@ -170,6 +192,7 @@ internal class tMediaPlayerRender(
         }
         renderThread
         renderHandler
+        audioTrack.play()
         renderHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
         renderHandler.removeMessages(REQUEST_RENDER)
         renderHandler.removeMessages(REQUEST_PAUSE)
@@ -209,6 +232,7 @@ internal class tMediaPlayerRender(
         renderHandler.removeMessages(RENDER_END)
         renderThread.quit()
         renderThread.quitSafely()
+        audioTrack.release()
         this.state.set(tMediaPlayerRenderState.Released)
         lastRequestRenderPts.set(0L)
         playerView.set(null)
