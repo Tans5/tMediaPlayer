@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
@@ -29,6 +30,10 @@ internal class tMediaPlayerRender(
 
     private val state: AtomicReference<tMediaPlayerRenderState> by lazy { AtomicReference(tMediaPlayerRenderState.NotInit) }
 
+    private val lastRequestRenderPts: AtomicLong by lazy {
+        AtomicLong(0)
+    }
+
     private val renderHandler: Handler by lazy {
         while (!isLooperPrepared.get()) {}
         object : Handler(renderThread.looper) {
@@ -52,23 +57,27 @@ internal class tMediaPlayerRender(
                                 synchronized(buffer) {
                                     if (getState() == tMediaPlayerRenderState.Released) { return@synchronized }
                                     if (player.isLastFrameBufferNativeInternal(buffer.nativeBuffer)) {
-                                        player.dispatchPlayEnd()
                                         bufferManager.enqueueDecodeBuffer(buffer)
-                                        this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.RenderEnd)
+                                        val pts = lastRequestRenderPts.get() + 10
+                                        this.sendEmptyMessageDelayed(RENDER_END, player.calculateRenderDelay(pts))
                                     } else {
                                         if (player.isVideoBufferNativeInternal(buffer.nativeBuffer)) {
                                             // VIDEO
-                                            val delay = player.calculateRenderDelay(player.getVideoPtsNativeInternal(buffer.nativeBuffer))
+                                            val pts = player.getVideoPtsNativeInternal(buffer.nativeBuffer)
+                                            val delay = player.calculateRenderDelay(pts)
                                             val m = Message.obtain()
                                             m.what = RENDER_VIDEO
                                             m.obj = buffer
+                                            lastRequestRenderPts.set(pts)
                                             this.sendMessageDelayed(m, delay)
                                         } else {
                                             // AUDIO
-                                            val delay = player.calculateRenderDelay(player.getAudioPtsNativeInternal(buffer.nativeBuffer))
+                                            val pts = player.getAudioPtsNativeInternal(buffer.nativeBuffer)
+                                            val delay = player.calculateRenderDelay(pts)
                                             val m = Message.obtain()
                                             m.what = RENDER_AUDIO
                                             m.obj = buffer
+                                            lastRequestRenderPts.set(pts)
                                             this.sendMessageDelayed(m, delay)
                                         }
                                         this.sendEmptyMessage(CALCULATE_RENDER_MEDIA_FRAME)
@@ -107,6 +116,7 @@ internal class tMediaPlayerRender(
                         val buffer = msg.obj as? tMediaPlayerBufferManager.Companion.MediaBuffer
                         if (buffer != null) {
                             synchronized(buffer) {
+                                MediaLog.d(TAG, "Render Video.")
                                 if (getState() == tMediaPlayerRenderState.Released) { return }
                                 val progress = player.getVideoPtsNativeInternal(buffer.nativeBuffer)
                                 player.dispatchProgress(progress)
@@ -124,6 +134,7 @@ internal class tMediaPlayerRender(
                     RENDER_AUDIO -> {
                         val buffer = msg.obj as? tMediaPlayerBufferManager.Companion.MediaBuffer
                         if (buffer != null) {
+                            MediaLog.d(TAG, "Render Audio.")
                             synchronized(buffer) {
                                 if (getState() == tMediaPlayerRenderState.Released) { return }
                                 val progress = player.getAudioPtsNativeInternal(buffer.nativeBuffer)
@@ -133,6 +144,11 @@ internal class tMediaPlayerRender(
                             }
                         }
                         Unit
+                    }
+                    RENDER_END -> {
+                        player.dispatchPlayEnd()
+                        this@tMediaPlayerRender.state.set(tMediaPlayerRenderState.RenderEnd)
+                        MediaLog.d(TAG, "Render end.")
                     }
                     else -> {}
                 }
@@ -153,6 +169,8 @@ internal class tMediaPlayerRender(
         renderHandler.removeMessages(REQUEST_PAUSE)
         renderHandler.removeMessages(RENDER_VIDEO)
         renderHandler.removeMessages(RENDER_AUDIO)
+        renderHandler.removeMessages(RENDER_END)
+        lastRequestRenderPts.set(0L)
         state.set(tMediaPlayerRenderState.Prepared)
     }
 
@@ -182,9 +200,11 @@ internal class tMediaPlayerRender(
         renderHandler.removeMessages(REQUEST_PAUSE)
         renderHandler.removeMessages(RENDER_VIDEO)
         renderHandler.removeMessages(RENDER_AUDIO)
+        renderHandler.removeMessages(RENDER_END)
         renderThread.quit()
         renderThread.quitSafely()
         this.state.set(tMediaPlayerRenderState.Released)
+        lastRequestRenderPts.set(0L)
         playerView.set(null)
     }
 
@@ -200,6 +220,7 @@ internal class tMediaPlayerRender(
         private const val REQUEST_PAUSE = 2
         private const val RENDER_VIDEO = 3
         private const val RENDER_AUDIO = 4
+        private const val RENDER_END = 5
         private const val TAG = "tMediaPlayerRender"
     }
 

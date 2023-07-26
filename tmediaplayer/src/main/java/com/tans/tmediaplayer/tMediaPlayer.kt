@@ -83,21 +83,11 @@ class tMediaPlayer {
             tMediaPlayerState.NoInit -> null
             is tMediaPlayerState.Error -> null
             is tMediaPlayerState.Paused -> state.play()
-            is tMediaPlayerState.PlayEnd -> {
-                resetNative(state.mediaInfo.nativePlayer)
-                bufferManager.clearRenderData()
-                state.play()
-            }
+            is tMediaPlayerState.PlayEnd -> state.play()
             is tMediaPlayerState.Playing -> null
             is tMediaPlayerState.Prepared -> state.play()
-            is tMediaPlayerState.Stopped -> {
-                resetNative(state.mediaInfo.nativePlayer)
-                bufferManager.clearRenderData()
-                state.play()
-            }
-            tMediaPlayerState.Released -> {
-                null
-            }
+            is tMediaPlayerState.Stopped -> state.play()
+            tMediaPlayerState.Released -> null
         }
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
@@ -157,6 +147,8 @@ class tMediaPlayer {
             decoder.pause()
             render.pause()
             resetProgressAndBaseTime()
+            bufferManager.clearRenderData()
+            resetNative(stopState.mediaInfo.nativePlayer)
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for stop() method.")
@@ -228,6 +220,11 @@ class tMediaPlayer {
             dispatchNewState(s.playEnd())
         }
         resetProgressAndBaseTime()
+        bufferManager.clearRenderData()
+        val np = getMediaInfo()?.nativePlayer
+        if (np != null) {
+            resetNative(np)
+        }
     }
 
     internal fun calculateRenderDelay(pts: Long): Long {

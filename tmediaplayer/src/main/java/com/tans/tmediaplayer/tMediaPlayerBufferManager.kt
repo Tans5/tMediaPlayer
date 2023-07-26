@@ -35,12 +35,9 @@ internal class tMediaPlayerBufferManager(
     }
 
     fun clearRenderData() {
-        while (renderBufferDeque.isNotEmpty()) {
-            val b = renderBufferDeque.pollFirst()
-            if (b != null) {
-                decodeBufferDeque.add(b)
-            }
-        }
+        renderBufferDeque.clear()
+        decodeBufferDeque.clear()
+        renderBufferDeque.addAll(allBuffers)
     }
 
     fun requestDecodeBuffer(): MediaBuffer? {
