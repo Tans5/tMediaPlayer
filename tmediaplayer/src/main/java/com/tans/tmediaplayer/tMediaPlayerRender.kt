@@ -7,6 +7,9 @@ import android.media.AudioTrack
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -167,7 +170,13 @@ internal class tMediaPlayerRender(
                                 }
                                 player.renderSuccess()
                                 val bytes = player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer)
-                                audioTrack.write(bytes, 0, bytes.size)
+                                audioTrackExecutor.execute {
+                                    try {
+                                        audioTrack.write(bytes, 0, bytes.size)
+                                    } catch (e: Throwable) {
+                                        e.printStackTrace()
+                                    }
+                                }
                                 bufferManager.enqueueDecodeBuffer(buffer)
                             }
                         }
@@ -252,6 +261,12 @@ internal class tMediaPlayerRender(
         private const val RENDER_AUDIO = 4
         private const val RENDER_END = 5
         private const val TAG = "tMediaPlayerRender"
+
+        private val audioTrackExecutor: Executor by lazy {
+            Executors.newSingleThreadExecutor(ThreadFactory {
+                Thread(it, "audio-track")
+            })
+        }
     }
 
 }
