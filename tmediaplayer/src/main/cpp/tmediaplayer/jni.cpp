@@ -241,6 +241,21 @@ Java_com_tans_tmediaplayer_tMediaPlayer_freeDecodeDataNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_seekToNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong player_l,
+        jlong buffer_l,
+        jlong targetPtsInMillis) {
+    auto player = reinterpret_cast<tMediaPlayerContext *>(player_l);
+    tMediaDecodeBuffer* buffer = nullptr;
+    if (buffer_l != 0) {
+        buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    }
+    return player->seekTo((long) targetPtsInMillis, buffer, true);
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_decodeNative(
         JNIEnv * env,
         jobject j_player,

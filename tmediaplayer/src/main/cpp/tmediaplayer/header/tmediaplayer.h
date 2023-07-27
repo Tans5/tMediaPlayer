@@ -109,6 +109,10 @@ typedef struct tMediaPlayerContext {
 
     tMediaOptResult resetDecodeProgress();
 
+    tMediaOptResult seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, bool needDecode);
+
+    tMediaOptResult decodeForSeek(long targetPtsMillis, tMediaDecodeBuffer* videoDecodeBuffer, double minStepInMillis);
+
     tMediaDecodeResult decode(tMediaDecodeBuffer *buffer);
 
     void release();

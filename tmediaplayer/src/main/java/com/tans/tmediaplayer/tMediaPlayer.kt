@@ -340,6 +340,10 @@ class tMediaPlayer {
 
     private external fun decodeNative(nativePlayer: Long, nativeBuffer: Long): Int
 
+    internal fun seekToNativeInternal(nativeBuffer: Long, videoNativeBuffer: Long, targetPtsInMillis: Long): Int = seekToNative(nativeBuffer, videoNativeBuffer, targetPtsInMillis)
+
+    private external fun seekToNative(nativePlayer: Long, videoNativeBuffer: Long, targetPtsInMillis: Long): Int
+
     private external fun releaseNative(nativePlayer: Long)
 
     companion object {
