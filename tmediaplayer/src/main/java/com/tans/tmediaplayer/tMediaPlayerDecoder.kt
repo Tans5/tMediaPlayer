@@ -99,6 +99,12 @@ internal class tMediaPlayerDecoder(
                             MediaLog.d(TAG, "Skip request pause, because of state: $state")
                         }
                     }
+                    SEEK_TO -> {
+                        val position = msg.obj as? Long
+                        if (position != null) {
+                            // TODO: Seek.
+                        }
+                    }
                     else -> {}
                 }
             }
@@ -135,6 +141,13 @@ internal class tMediaPlayerDecoder(
         }
     }
 
+    fun seekTo(position: Long) {
+        val msg = Message.obtain()
+        msg.what = SEEK_TO
+        msg.obj = position
+        decoderHandler.sendMessage(msg)
+    }
+
     fun checkDecoderBufferIfWaiting() {
         if (getState() == tMediaPlayerDecoderState.WaitingRender) {
             decode()
@@ -152,21 +165,12 @@ internal class tMediaPlayerDecoder(
 
     fun getState(): tMediaPlayerDecoderState = state.get()
 
-    private fun Int.toDecodeResult(): DecodeResult {
-        return when (this) {
-            DecodeResult.Success.ordinal -> DecodeResult.Success
-            DecodeResult.DecodeEnd.ordinal -> DecodeResult.DecodeEnd
-            else -> DecodeResult.Fail
-        }
-    }
-
     companion object {
-
-        enum class DecodeResult { Success, DecodeEnd, Fail }
 
         private const val DECODE_MEDIA_FRAME = 0
         private const val REQUEST_DECODE = 1
         private const val REQUEST_PAUSE = 2
+        private const val SEEK_TO = 3
         private const val TAG = "tMediaPlayerDecoder"
     }
 }

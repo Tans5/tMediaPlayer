@@ -131,6 +131,36 @@ class tMediaPlayer {
     }
 
     @Synchronized
+    fun seekTo(position: Long): OptResult {
+        val state = getState()
+        val mediaInfo = when (state) {
+            is tMediaPlayerState.Error -> null
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Paused -> state.mediaInfo
+            is tMediaPlayerState.PlayEnd -> state.mediaInfo
+            is tMediaPlayerState.Playing -> state.mediaInfo
+            is tMediaPlayerState.Prepared -> state.mediaInfo
+            is tMediaPlayerState.Stopped -> state.mediaInfo
+            tMediaPlayerState.Released -> null
+        }
+        return if (mediaInfo != null) {
+            if (position !in 0 .. mediaInfo.duration) {
+                MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
+                OptResult.Fail
+            } else {
+                if (state is tMediaPlayerState.Playing) {
+                    pause()
+                }
+                decoder.seekTo(position)
+                OptResult.Success
+            }
+        } else {
+            MediaLog.e(TAG, "Wrong state: $state for seekTo() method.")
+            OptResult.Fail
+        }
+    }
+
+    @Synchronized
     fun stop(): OptResult {
         val state = getState()
         val stopState = when (state) {
@@ -351,14 +381,5 @@ class tMediaPlayer {
             System.loadLibrary("tmediaplayer")
         }
         const val TAG = "tMediaPlayer"
-        enum class OptResult { Success, Fail }
-
-        private fun Int.toOptResult(): OptResult {
-            return if (OptResult.Success.ordinal == this) {
-                OptResult.Success
-            } else {
-                OptResult.Fail
-            }
-        }
     }
 }
