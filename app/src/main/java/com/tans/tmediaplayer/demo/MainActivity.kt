@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.demo
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -8,6 +8,10 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import com.tans.tmediaplayer.tMediaPlayer
+import com.tans.tmediaplayer.tMediaPlayerListener
+import com.tans.tmediaplayer.tMediaPlayerState
+import com.tans.tmediaplayer.tMediaPlayerView
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executor
@@ -46,6 +50,10 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.pause_iv)
     }
 
+    private val replayIv: ImageView by lazy {
+        findViewById(R.id.replay_iv)
+    }
+
     private val rootView: View by lazy {
         findViewById(R.id.root_layout)
     }
@@ -54,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.player_sb)
     }
 
-    private val fileName = "gokuraku3.mp4"
+    private val fileName = "gokuraku2.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir
@@ -107,6 +115,10 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer.pause()
         }
 
+        replayIv.setOnClickListener {
+            mediaPlayer.play()
+        }
+
         mediaPlayer.setListener(object : tMediaPlayerListener {
 
             override fun onPlayerState(state: tMediaPlayerState) {
@@ -116,13 +128,20 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         pauseIv.visibility = View.GONE
                     }
+
                     if (state is tMediaPlayerState.Prepared ||
                             state is tMediaPlayerState.Paused ||
-                            state is tMediaPlayerState.Stopped ||
-                            state is tMediaPlayerState.PlayEnd) {
+                            state is tMediaPlayerState.Stopped
+                    ) {
                         playIv.visibility = View.VISIBLE
                     } else {
                         playIv.visibility = View.GONE
+                    }
+
+                    if (state is tMediaPlayerState.PlayEnd) {
+                        replayIv.visibility = View.VISIBLE
+                    } else {
+                        replayIv.visibility = View.GONE
                     }
                 }
             }
