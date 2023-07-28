@@ -230,20 +230,20 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
             }
             int video_reset_result = -1, audio_reset_result = -1;
             if (video_stream != nullptr) {
+                avcodec_flush_buffers(video_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
-                video_reset_result = av_seek_frame(format_ctx, video_stream->index, seekTimestamp, AVSEEK_FLAG_BACKWARD);
+                video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME);
                 if (video_reset_result < 0) {
                     LOGE("Seek video progress fail: %d", video_reset_result);
                 }
-                avcodec_flush_buffers(video_decoder_ctx);
             }
             if (audio_stream != nullptr) {
+                avcodec_flush_buffers(audio_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, audio_stream->time_base);
-                audio_reset_result = av_seek_frame(format_ctx, audio_stream->index, seekTimestamp, AVSEEK_FLAG_BACKWARD);
+                audio_reset_result = avformat_seek_file(format_ctx, audio_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME);
                 if (audio_reset_result < 0) {
                     LOGE("Seek audio progress fail: %d", audio_reset_result);
                 }
-                avcodec_flush_buffers(audio_decoder_ctx);
             }
             if (video_reset_result >=0 || audio_reset_result >= 0) {
                 if (!needDecode) {

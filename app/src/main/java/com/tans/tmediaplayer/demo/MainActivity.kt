@@ -74,7 +74,6 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.activity_main)
-        playerSb.setOnTouchListener { _, _ -> true }
         rootView.setOnClickListener {
             if (actionLayout.visibility == View.VISIBLE) {
                 actionLayout.visibility = View.GONE
@@ -100,7 +99,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             mediaPlayer.prepare(testVideoFile.absolutePath)
-            mediaPlayer.seekTo(1000 * 60)
             runOnUiThread {
                 durationTv.text = mediaPlayer.getMediaInfo()?.duration?.formatDuration() ?: ""
             }
@@ -119,6 +117,21 @@ class MainActivity : AppCompatActivity() {
         replayIv.setOnClickListener {
             mediaPlayer.play()
         }
+
+        playerSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                val mediaInfo = mediaPlayer.getMediaInfo()
+                if (seekBar != null && mediaInfo != null) {
+                    val progressF = seekBar.progress.toFloat() / seekBar.max.toFloat()
+                    val requestMediaProgress = (progressF * mediaInfo.duration.toDouble()).toLong()
+                    mediaPlayer.seekTo(requestMediaProgress)
+                }
+            }
+        })
 
         mediaPlayer.setListener(object : tMediaPlayerListener {
 

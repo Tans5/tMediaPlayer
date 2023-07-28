@@ -178,6 +178,8 @@ class tMediaPlayer {
                 OptResult.Fail
             } else {
                 pauseForce()
+                render.removeRenderMessages()
+                bufferManager.clearRenderData()
                 decoder.seekTo(position)
                 OptResult.Success
             }

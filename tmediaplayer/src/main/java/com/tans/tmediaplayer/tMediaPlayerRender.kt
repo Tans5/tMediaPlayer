@@ -290,6 +290,11 @@ internal class tMediaPlayerRender(
         playerView.set(null)
     }
 
+    fun removeRenderMessages() {
+        renderHandler.removeMessages(RENDER_VIDEO)
+        renderHandler.removeMessages(RENDER_AUDIO)
+    }
+
     fun attachPlayerView(view: tMediaPlayerView?) {
         playerView.set(view)
     }
