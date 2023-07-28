@@ -40,6 +40,19 @@ internal class tMediaPlayerBufferManager(
         decodeBufferDeque.addAll(allBuffers)
     }
 
+    fun requestDecodeBufferForce(): MediaBuffer {
+        return requestRenderBuffer().let {
+            if (it == null) {
+                hasAllocBufferSize.addAndGet(1)
+                val result = MediaBuffer(player.allocDecodeDataNativeInternal())
+                allBuffers.add(result)
+                result
+            } else {
+                it
+            }
+        }
+    }
+
     fun requestDecodeBuffer(): MediaBuffer? {
         return if (!isReleased.get()) {
             decodeBufferDeque.pollFirst()

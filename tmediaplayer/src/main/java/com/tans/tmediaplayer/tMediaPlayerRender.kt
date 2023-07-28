@@ -142,11 +142,9 @@ internal class tMediaPlayerRender(
                             synchronized(buffer) {
                                 MediaLog.d(TAG, "Render Video.")
                                 val ls = getState()
-                                if (ls == tMediaPlayerRenderState.Released) { return }
+                                if (ls == tMediaPlayerRenderState.Released || ls == tMediaPlayerRenderState.NotInit) { return }
                                 val progress = player.getVideoPtsNativeInternal(buffer.nativeBuffer)
-                                if (ls == tMediaPlayerRenderState.Rendering || ls == tMediaPlayerRenderState.WaitingDecoder) {
-                                    player.dispatchProgress(progress)
-                                }
+                                player.dispatchProgress(progress)
                                 val view = playerView.get()
                                 view?.requestRenderFrame(
                                     width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
@@ -165,11 +163,9 @@ internal class tMediaPlayerRender(
                             synchronized(buffer) {
                                 MediaLog.d(TAG, "Render Audio.")
                                 val ls = getState()
-                                if (ls == tMediaPlayerRenderState.Released) { return }
+                                if (ls == tMediaPlayerRenderState.Released || ls == tMediaPlayerRenderState.NotInit) { return }
                                 val progress = player.getAudioPtsNativeInternal(buffer.nativeBuffer)
-                                if (ls == tMediaPlayerRenderState.Rendering || ls == tMediaPlayerRenderState.WaitingDecoder) {
-                                    player.dispatchProgress(progress)
-                                }
+                                player.dispatchProgress(progress)
                                 val bytes = player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer)
                                 audioTrackExecutor.execute {
                                     try {
@@ -251,6 +247,31 @@ internal class tMediaPlayerRender(
     fun checkRenderBufferIfWaiting() {
         if (getState() == tMediaPlayerRenderState.WaitingDecoder) {
             render()
+        }
+    }
+
+    fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
+        val state = getState()
+        if (state != tMediaPlayerRenderState.Released && state != tMediaPlayerRenderState.NotInit) {
+            synchronized(b) {
+                if (getState() == tMediaPlayerRenderState.Released) {
+                    return
+                }
+                if (player.isLastFrameBufferNativeInternal(b.nativeBuffer)) {
+                    player.dispatchProgress(player.getMediaInfo()?.duration ?: 0L)
+                    player.dispatchPlayEnd()
+                } else {
+                    if (player.isVideoBufferNativeInternal(b.nativeBuffer)) {
+                        val m = Message.obtain()
+                        m.what = RENDER_VIDEO
+                        m.obj = b
+                        lastRequestRenderPts.set(player.getVideoPtsNativeInternal(b.nativeBuffer))
+                        renderHandler.sendMessage(m)
+                    } else {
+                        bufferManager.enqueueDecodeBuffer(b)
+                    }
+                }
+            }
         }
     }
 

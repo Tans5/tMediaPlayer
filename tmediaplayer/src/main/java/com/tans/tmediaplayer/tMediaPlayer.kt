@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.annotation.Keep
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.math.max
 
 @Suppress("ClassName")
@@ -131,6 +132,30 @@ class tMediaPlayer {
     }
 
     @Synchronized
+    private fun pauseForce() {
+        val state = getState()
+        val pauseState = when (state) {
+            is tMediaPlayerState.Error -> null
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Paused -> null
+            is tMediaPlayerState.PlayEnd -> tMediaPlayerState.Paused(state.mediaInfo)
+            is tMediaPlayerState.Playing -> state.pause()
+            is tMediaPlayerState.Prepared -> tMediaPlayerState.Paused(state.mediaInfo)
+            is tMediaPlayerState.Stopped -> tMediaPlayerState.Paused(state.mediaInfo)
+            tMediaPlayerState.Released -> null
+        }
+       if (pauseState != null) {
+            MediaLog.d(TAG, "Request pause.")
+            dispatchNewState(pauseState)
+            decoder.pause()
+            render.pause()
+            render.audioTrackPause()
+        } else {
+            MediaLog.e(TAG, "Wrong state: $state for pause() method.")
+        }
+    }
+
+    @Synchronized
     fun seekTo(position: Long): OptResult {
         val state = getState()
         val mediaInfo = when (state) {
@@ -148,9 +173,7 @@ class tMediaPlayer {
                 MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
-                if (state is tMediaPlayerState.Playing) {
-                    pause()
-                }
+                pauseForce()
                 decoder.seekTo(position)
                 OptResult.Success
             }
@@ -259,6 +282,10 @@ class tMediaPlayer {
         }
     }
 
+    internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
+        render.handleSeekingBuffer(b)
+    }
+
     internal fun calculateRenderDelay(pts: Long): Long {
         val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
@@ -267,9 +294,8 @@ class tMediaPlayer {
 
     internal fun dispatchProgress(progress: Long) {
         val info = getMediaInfo()
-        val lastProgress = this.progress.get()
-        if (info != null && progress > lastProgress) {
-            this.progress.set(progress)
+        this.progress.set(progress)
+        if (info != null) {
             listener.get()?.onProgressUpdate(progress, info.duration)
         }
     }
@@ -370,7 +396,7 @@ class tMediaPlayer {
 
     private external fun decodeNative(nativePlayer: Long, nativeBuffer: Long): Int
 
-    internal fun seekToNativeInternal(nativeBuffer: Long, videoNativeBuffer: Long, targetPtsInMillis: Long): Int = seekToNative(nativeBuffer, videoNativeBuffer, targetPtsInMillis)
+    internal fun seekToNativeInternal(nativePlayer: Long, videoNativeBuffer: Long, targetPtsInMillis: Long): Int = seekToNative(nativePlayer, videoNativeBuffer, targetPtsInMillis)
 
     private external fun seekToNative(nativePlayer: Long, videoNativeBuffer: Long, targetPtsInMillis: Long): Int
 
