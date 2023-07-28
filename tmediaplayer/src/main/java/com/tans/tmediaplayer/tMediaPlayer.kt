@@ -282,6 +282,8 @@ class tMediaPlayer {
             val s = getState()
             if (s == tMediaPlayerState.Released) { return@synchronized }
             val pts = getPtsNativeInternal(b.nativeBuffer)
+            render.removeRenderMessages()
+            bufferManager.clearRenderData()
             basePts.set(pts)
             ptsBaseTime.set(SystemClock.uptimeMillis())
             dispatchProgress(pts)

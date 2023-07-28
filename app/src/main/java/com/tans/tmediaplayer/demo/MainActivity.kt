@@ -6,6 +6,7 @@ import android.view.View
 import android.view.Window
 import android.view.WindowManager
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import com.tans.tmediaplayer.tMediaPlayer
@@ -60,6 +61,10 @@ class MainActivity : AppCompatActivity() {
 
     private val playerSb: SeekBar by lazy {
         findViewById(R.id.player_sb)
+    }
+
+    private val seekingLoadingPb: ProgressBar by lazy {
+        findViewById(R.id.seeking_loading_pb)
     }
 
     private val fileName = "gokuraku2.mp4"
@@ -118,12 +123,16 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer.play()
         }
 
+        var isPlayerSbInTouching = false
         playerSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                isPlayerSbInTouching = true
+            }
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                isPlayerSbInTouching = false
                 val mediaInfo = mediaPlayer.getMediaInfo()
                 if (seekBar != null && mediaInfo != null) {
                     val progressF = seekBar.progress.toFloat() / seekBar.max.toFloat()
@@ -137,22 +146,32 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPlayerState(state: tMediaPlayerState) {
                 runOnUiThread {
-                    if (state is tMediaPlayerState.Playing) {
+                    if (state is tMediaPlayerState.Seeking) {
+                        seekingLoadingPb.visibility = View.VISIBLE
+                    } else {
+                        seekingLoadingPb.visibility = View.GONE
+                    }
+
+                    val fixedState = when (state) {
+                        is tMediaPlayerState.Seeking -> state.lastState
+                        else -> state
+                    }
+                    if (fixedState is tMediaPlayerState.Playing) {
                         pauseIv.visibility = View.VISIBLE
                     } else {
                         pauseIv.visibility = View.GONE
                     }
 
-                    if (state is tMediaPlayerState.Prepared ||
-                            state is tMediaPlayerState.Paused ||
-                            state is tMediaPlayerState.Stopped
+                    if (fixedState is tMediaPlayerState.Prepared ||
+                            fixedState is tMediaPlayerState.Paused ||
+                            fixedState is tMediaPlayerState.Stopped
                     ) {
                         playIv.visibility = View.VISIBLE
                     } else {
                         playIv.visibility = View.GONE
                     }
 
-                    if (state is tMediaPlayerState.PlayEnd) {
+                    if (fixedState is tMediaPlayerState.PlayEnd) {
                         replayIv.visibility = View.VISIBLE
                     } else {
                         replayIv.visibility = View.GONE
@@ -163,8 +182,10 @@ class MainActivity : AppCompatActivity() {
             override fun onProgressUpdate(progress: Long, duration: Long) {
                 runOnUiThread {
                     progressTv.text = progress.formatDuration()
-                    val progressInPercent = (progress * 100 / duration).toInt()
-                    playerSb.progress = progressInPercent
+                    if (isPlayerSbInTouching) {
+                        val progressInPercent = (progress * 100 / duration).toInt()
+                        playerSb.progress = progressInPercent
+                    }
                 }
             }
         })

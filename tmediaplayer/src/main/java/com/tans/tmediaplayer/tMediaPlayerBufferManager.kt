@@ -77,13 +77,23 @@ internal class tMediaPlayerBufferManager(
 
     fun enqueueRenderBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
-            renderBufferDeque.add(buffer)
+            if (decodeBufferDeque.contains(buffer)) {
+                decodeBufferDeque.remove(buffer)
+            }
+            if (!renderBufferDeque.contains(buffer)) {
+                renderBufferDeque.add(buffer)
+            }
         }
     }
 
     fun enqueueDecodeBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
-            decodeBufferDeque.add(buffer)
+            if (renderBufferDeque.contains(buffer)) {
+                renderBufferDeque.remove(buffer)
+            }
+            if (!decodeBufferDeque.contains(buffer)) {
+                decodeBufferDeque.add(buffer)
+            }
         }
     }
 
