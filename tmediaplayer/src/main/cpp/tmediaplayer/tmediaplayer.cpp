@@ -63,7 +63,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     } else {
         this->duration = audio_duration;
     }
-
+    LOGD("Audio duration: %ld, video duration: %ld", audio_duration, video_duration);
     // Video
     if (video_stream != nullptr) {
         AVCodecParameters *params = video_stream->codecpar;

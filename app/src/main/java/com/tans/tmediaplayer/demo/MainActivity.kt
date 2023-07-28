@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.seeking_loading_pb)
     }
 
-    private val fileName = "gokuraku2.mp4"
+    private val fileName = "gokuraku3.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir

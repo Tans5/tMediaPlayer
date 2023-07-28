@@ -230,6 +230,14 @@ internal class tMediaPlayerRender(
         }
     }
 
+    fun audioTrackFlush() {
+        try {
+            audioTrack.flush()
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+    }
+
     fun render() {
         val state = getState()
         if (state != tMediaPlayerRenderState.Released && state != tMediaPlayerRenderState.NotInit) {

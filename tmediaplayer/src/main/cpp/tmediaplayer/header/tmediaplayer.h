@@ -64,7 +64,7 @@ typedef struct tMediaPlayerContext {
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
     AVFrame *frame = nullptr;
-    long duration;
+    long duration = 0;
     bool skipPktRead = false;
 
     /**
@@ -81,10 +81,10 @@ typedef struct tMediaPlayerContext {
     AVBufferRef *hardware_ctx = nullptr;
     const AVCodec *video_decoder = nullptr;
     SwsContext * sws_ctx = nullptr;
-    int video_width;
-    int video_height;
-    double video_fps;
-    long video_duration;
+    int video_width = 0;
+    int video_height = 0;
+    double video_fps = 0;
+    long video_duration = 0;
     AVCodecContext *video_decoder_ctx = nullptr;
 
     /**
@@ -94,14 +94,14 @@ typedef struct tMediaPlayerContext {
     const AVCodec *audio_decoder = nullptr;
     AVCodecContext *audio_decoder_ctx = nullptr;
     SwrContext *swr_ctx = nullptr;
-    int audio_channels;
-    int audio_pre_sample_bytes;
-    int audio_simple_rate;
-    long audio_duration;
+    int audio_channels = 0;
+    int audio_pre_sample_bytes = 0;
+    int audio_simple_rate = 0;
+    long audio_duration = 0;
     long audio_output_sample_rate = 44100;
     AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
-    int audio_output_ch_layout;
-    int audio_output_channels;
+    int audio_output_ch_layout = 0;
+    int audio_output_channels = 0;
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);

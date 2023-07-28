@@ -67,6 +67,8 @@ class tMediaPlayer {
         bufferManager.clearRenderData()
         decoder.prepare()
         render.prepare()
+        render.audioTrackFlush()
+        render.removeRenderMessages()
         val nativePlayer = createPlayerNative()
         val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
         dispatchProgress(0L)
@@ -190,6 +192,8 @@ class tMediaPlayer {
             dispatchNewState(stopState)
             decoder.pause()
             render.pause()
+            render.audioTrackFlush()
+            render.removeRenderMessages()
             resetProgressAndBaseTime()
             bufferManager.clearRenderData()
             resetNative(stopState.mediaInfo.nativePlayer)
@@ -284,6 +288,7 @@ class tMediaPlayer {
                 OptResult.Success -> {
                     val pts = getPtsNativeInternal(b.nativeBuffer)
                     render.removeRenderMessages()
+                    render.audioTrackFlush()
                     bufferManager.clearRenderData()
                     basePts.set(pts)
                     ptsBaseTime.set(SystemClock.uptimeMillis())
@@ -295,7 +300,6 @@ class tMediaPlayer {
                             resetNative(info.nativePlayer)
                         }
                         resetProgressAndBaseTime()
-                        bufferManager.clearRenderData()
                         bufferManager.enqueueDecodeBuffer(b)
                     } else {
                         render.handleSeekingBuffer(b)
