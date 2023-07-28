@@ -331,7 +331,7 @@ class tMediaPlayer {
         val info = getMediaInfo()
         val lp = lastUpdateProgress.get()
         this.progress.set(progress)
-        if (info != null && abs(progress - lp) > 200) {
+        if (info != null && abs(progress - lp) > 80) {
             lastUpdateProgress.set(progress)
             callbackExecutor.execute {
                 listener.get()?.onProgressUpdate(progress, info.duration)

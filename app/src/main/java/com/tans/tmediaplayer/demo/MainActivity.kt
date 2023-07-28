@@ -183,7 +183,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     progressTv.text = progress.formatDuration()
                     if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking) {
-                        val progressInPercent = (progress * 100 / duration).toInt()
+                        val progressInPercent = (progress.toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
                         playerSb.progress = progressInPercent
                     }
                 }
