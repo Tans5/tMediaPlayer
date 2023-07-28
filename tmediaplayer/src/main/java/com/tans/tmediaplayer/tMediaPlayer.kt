@@ -92,6 +92,7 @@ class tMediaPlayer {
             is tMediaPlayerState.Playing -> null
             is tMediaPlayerState.Prepared -> state.play()
             is tMediaPlayerState.Stopped -> state.play()
+            is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
         }
         return if (playingState != null) {
@@ -120,6 +121,7 @@ class tMediaPlayer {
             is tMediaPlayerState.Playing -> state.pause()
             is tMediaPlayerState.Prepared -> null
             is tMediaPlayerState.Stopped -> null
+            is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
         }
         return if (pauseState != null) {
@@ -136,51 +138,32 @@ class tMediaPlayer {
     }
 
     @Synchronized
-    private fun pauseForce() {
-        val state = getState()
-        val pauseState = when (state) {
-            is tMediaPlayerState.Error -> null
-            tMediaPlayerState.NoInit -> null
-            is tMediaPlayerState.Paused -> null
-            is tMediaPlayerState.PlayEnd -> tMediaPlayerState.Paused(state.mediaInfo)
-            is tMediaPlayerState.Playing -> state.pause()
-            is tMediaPlayerState.Prepared -> tMediaPlayerState.Paused(state.mediaInfo)
-            is tMediaPlayerState.Stopped -> tMediaPlayerState.Paused(state.mediaInfo)
-            tMediaPlayerState.Released -> null
-        }
-       if (pauseState != null) {
-            MediaLog.d(TAG, "Request pause.")
-            dispatchNewState(pauseState)
-            decoder.pause()
-            render.pause()
-            render.audioTrackPause()
-        } else {
-            MediaLog.e(TAG, "Wrong state: $state for pause() method.")
-        }
-    }
-
-    @Synchronized
     fun seekTo(position: Long): OptResult {
         val state = getState()
-        val mediaInfo = when (state) {
+        val seekingState: tMediaPlayerState.Seeking? = when (state) {
             is tMediaPlayerState.Error -> null
             tMediaPlayerState.NoInit -> null
-            is tMediaPlayerState.Paused -> state.mediaInfo
-            is tMediaPlayerState.PlayEnd -> state.mediaInfo
-            is tMediaPlayerState.Playing -> state.mediaInfo
-            is tMediaPlayerState.Prepared -> state.mediaInfo
-            is tMediaPlayerState.Stopped -> state.mediaInfo
+            is tMediaPlayerState.Paused -> state.seek(position)
+            is tMediaPlayerState.PlayEnd -> state.seek(position)
+            is tMediaPlayerState.Playing -> state.seek(position)
+            is tMediaPlayerState.Prepared -> state.seek(position)
+            is tMediaPlayerState.Stopped -> state.seek(position)
+            is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
         }
-        return if (mediaInfo != null) {
+        val mediaInfo = getMediaInfo()
+        return if (mediaInfo != null && seekingState != null) {
             if (position !in 0 .. mediaInfo.duration) {
                 MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
-                pauseForce()
+                decoder.pause()
+                render.pause()
+                render.audioTrackPause()
                 render.removeRenderMessages()
                 bufferManager.clearRenderData()
                 decoder.seekTo(position)
+                dispatchNewState(seekingState)
                 OptResult.Success
             }
         } else {
@@ -200,6 +183,7 @@ class tMediaPlayer {
             is tMediaPlayerState.Playing -> state.stop()
             is tMediaPlayerState.Prepared -> null
             is tMediaPlayerState.Stopped -> null
+            is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
         }
         return if (stopState != null) {
@@ -222,7 +206,11 @@ class tMediaPlayer {
     }
 
     fun getMediaInfo(): MediaInfo? {
-        return when (val state = getState()) {
+        return getMediaInfoByState(getState())
+    }
+
+    private fun getMediaInfoByState(state: tMediaPlayerState): MediaInfo? {
+        return when (state) {
             tMediaPlayerState.NoInit -> null
             is tMediaPlayerState.Error -> null
             is tMediaPlayerState.Released -> null
@@ -231,6 +219,7 @@ class tMediaPlayer {
             is tMediaPlayerState.Playing -> state.mediaInfo
             is tMediaPlayerState.Prepared -> state.mediaInfo
             is tMediaPlayerState.Stopped -> state.mediaInfo
+            is tMediaPlayerState.Seeking -> getMediaInfoByState(state.lastState)
         }
     }
 
@@ -290,12 +279,24 @@ class tMediaPlayer {
 
     internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
         synchronized(b) {
-            if (getState() == tMediaPlayerState.Released) { return@synchronized }
+            val s = getState()
+            if (s == tMediaPlayerState.Released) { return@synchronized }
             val pts = getPtsNativeInternal(b.nativeBuffer)
             basePts.set(pts)
             ptsBaseTime.set(SystemClock.uptimeMillis())
             dispatchProgress(pts)
             render.handleSeekingBuffer(b)
+            if (s is tMediaPlayerState.Seeking) {
+                val lastState = s.lastState
+                if (lastState is tMediaPlayerState.Playing) {
+                    decoder.decode()
+                    render.render()
+                    render.audioTrackPlay()
+                }
+                dispatchNewState(lastState)
+            } else {
+                MediaLog.e(TAG, "Expect seeking state, but now is $s")
+            }
         }
     }
 
