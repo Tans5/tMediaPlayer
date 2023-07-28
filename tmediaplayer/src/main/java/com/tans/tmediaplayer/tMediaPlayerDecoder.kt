@@ -3,6 +3,7 @@ package com.tans.tmediaplayer
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
+import android.os.SystemClock
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -102,6 +103,7 @@ internal class tMediaPlayerDecoder(
                     SEEK_TO -> {
                         val position = msg.obj as? Long
                         if (position != null) {
+                            val start = SystemClock.uptimeMillis()
                             bufferManager.clearRenderData()
                             val buffer = bufferManager.requestDecodeBufferForce()
                             val seekResult = synchronized(buffer) {
@@ -111,11 +113,12 @@ internal class tMediaPlayerDecoder(
                                     targetPtsInMillis = position
                                 ).toOptResult()
                             }
+                            val end = SystemClock.uptimeMillis()
                             if (seekResult == OptResult.Success) {
-                                MediaLog.d(TAG, "Seek to $position success.")
+                                MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
                                 player.handleSeekingBuffer(buffer)
                             } else {
-                                MediaLog.e(TAG, "Seek to $position fail.")
+                                MediaLog.e(TAG, "Seek to $position fail, cost ${end - start} ms.")
                                 bufferManager.enqueueDecodeBuffer(buffer)
                             }
                         }

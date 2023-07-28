@@ -21,7 +21,6 @@ extern "C" {
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 typedef struct tMediaVideoBuffer {
-    long pts = 0;
     int size = 0;
     int width = 0;
     int height = 0;
@@ -30,7 +29,6 @@ typedef struct tMediaVideoBuffer {
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
-    long pts = 0;
     int size = 0;
     uint8_t  *pcmBuffer = nullptr;
 } tMediaAudioBuffer;
@@ -44,6 +42,7 @@ enum tMediaDecodeBufferType {
 typedef struct tMediaDecodeBuffer {
     tMediaDecodeBufferType type = BufferTypeNone;
     bool is_last_frame = false;
+    long pts;
     tMediaVideoBuffer *videoBuffer = nullptr;
     tMediaAudioBuffer *audioBuffer = nullptr;
 } tMediaDecodeBuffer;

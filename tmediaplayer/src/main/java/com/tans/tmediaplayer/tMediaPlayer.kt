@@ -43,6 +43,10 @@ class tMediaPlayer {
         AtomicLong(0)
     }
 
+    private val lastUpdateProgress: AtomicLong by lazy {
+        AtomicLong(0L)
+    }
+
     fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
@@ -283,7 +287,14 @@ class tMediaPlayer {
     }
 
     internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
-        render.handleSeekingBuffer(b)
+        synchronized(b) {
+            if (getState() == tMediaPlayerState.Released) { return@synchronized }
+            val pts = getPtsNativeInternal(b.nativeBuffer)
+            basePts.set(pts)
+            ptsBaseTime.set(SystemClock.uptimeMillis())
+            dispatchProgress(pts)
+            render.handleSeekingBuffer(b)
+        }
     }
 
     internal fun calculateRenderDelay(pts: Long): Long {
@@ -294,8 +305,10 @@ class tMediaPlayer {
 
     internal fun dispatchProgress(progress: Long) {
         val info = getMediaInfo()
+        val lp = lastUpdateProgress.get()
         this.progress.set(progress)
-        if (info != null) {
+        if (info != null && abs(progress - lp) > 200) {
+            lastUpdateProgress.set(progress)
             listener.get()?.onProgressUpdate(progress, info.duration)
         }
     }
@@ -318,6 +331,7 @@ class tMediaPlayer {
 
     private fun resetProgressAndBaseTime() {
         progress.set(0)
+        lastUpdateProgress.set(0L)
         basePts.set(0L)
         ptsBaseTime.set(0L)
     }
@@ -366,17 +380,13 @@ class tMediaPlayer {
 
     private external fun getVideoHeightNative(nativeBuffer: Long): Int
 
-    internal fun getVideoPtsNativeInternal(nativeBuffer: Long): Long = getVideoPtsNative(nativeBuffer)
+    internal fun getPtsNativeInternal(nativeBuffer: Long): Long = getPtsNative(nativeBuffer)
 
-    private external fun getVideoPtsNative(nativeBuffer: Long): Long
+    private external fun getPtsNative(nativeBuffer: Long): Long
 
     internal fun getVideoFrameBytesNativeInternal(nativeBuffer: Long): ByteArray = getVideoFrameBytesNative(nativeBuffer)
 
     private external fun getVideoFrameBytesNative(nativeBuffer: Long): ByteArray
-
-    internal fun getAudioPtsNativeInternal(nativeBuffer: Long): Long = getAudioPtsNative(nativeBuffer)
-
-    private external fun getAudioPtsNative(nativeBuffer: Long): Long
 
     internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long): ByteArray = getAudioFrameBytesNative(nativeBuffer)
 

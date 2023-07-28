@@ -278,9 +278,10 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             if (result < 0) {
                 if (videoDecodeBuffer != nullptr) {
                     videoDecodeBuffer->is_last_frame = true;
+                    videoDecodeBuffer->pts = duration;
                 }
                 LOGE("Seek decode media end");
-                return OptFail;
+                return OptSuccess;
             }
         }
         skipPktRead = false;
@@ -368,9 +369,9 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                         return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis);
                     }
                 }
-                videoBuffer->pts = ptsInMillis;
+                videoDecodeBuffer->pts = ptsInMillis;
                 videoDecodeBuffer->type = BufferTypeVideo;
-                LOGD("Seek decode video success: %ld, buffer size: %d", videoBuffer->pts, videoBuffer->size);
+                LOGD("Seek decode video success: %ld, buffer size: %d", ptsInMillis, videoBuffer->size);
             }
 
             if (abs(targetPtsInMillis - ptsInMillis) < minStepInMillis) {
@@ -399,6 +400,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis);
             }
             long ptsInMillis = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
+            videoDecodeBuffer->pts = ptsInMillis;
             if (abs(targetPtsInMillis - ptsInMillis) < minStepInMillis) {
                 return OptSuccess;
             } else {
@@ -505,8 +507,8 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 LOGE("Decode video sws scale fail: %d", result);
                 return DecodeFail;
             }
-            videoBuffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
-            LOGD("Decode video success: %ld, buffer size: %d, cost: %ld ms", videoBuffer->pts, videoBuffer->size, get_time_millis() - start_time);
+            buffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
+            LOGD("Decode video success: %ld, buffer size: %d, cost: %ld ms", buffer->pts, videoBuffer->size, get_time_millis() - start_time);
             buffer->type = BufferTypeVideo;
             return DecodeSuccess;
         }
@@ -543,14 +545,14 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(output_audio_buffer_size));
             }
             audioBuffer->size = output_audio_buffer_size;
-            audioBuffer->pts = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
+            buffer->pts = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
             result = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), output_nb_samples,(const uint8_t **)(frame->data), frame->nb_samples);
             if (result < 0) {
                 LOGE("Decode audio swr convert fail: %d", result);
                 return DecodeFail;
             }
             buffer->type = BufferTypeAudio;
-            LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", audioBuffer->pts, output_audio_buffer_size, get_time_millis() - start_time);
+            LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", buffer->pts, output_audio_buffer_size, get_time_millis() - start_time);
             return DecodeSuccess;
         }
         LOGE("Decode unknown pkt");

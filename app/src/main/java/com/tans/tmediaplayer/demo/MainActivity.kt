@@ -100,11 +100,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             mediaPlayer.prepare(testVideoFile.absolutePath)
-            mediaPlayer.seekTo(1000 * 10)
+            mediaPlayer.seekTo(1000 * 60)
             runOnUiThread {
                 durationTv.text = mediaPlayer.getMediaInfo()?.duration?.formatDuration() ?: ""
             }
-            // mediaPlayer.play()
+            mediaPlayer.play()
         }
         mediaPlayer.attachPlayerView(playerView)
 

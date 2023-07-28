@@ -174,16 +174,12 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoHeightNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoPtsNative(
+Java_com_tans_tmediaplayer_tMediaPlayer_getPtsNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (buffer->type == BufferTypeVideo) {
-        return buffer->videoBuffer->pts;
-    } else {
-        return 0L;
-    }
+    return buffer->pts;
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
@@ -199,19 +195,6 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameBytesNative(
         return jbyteArray;
     } else {
         return env->NewByteArray(0);
-    }
-}
-
-extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getAudioPtsNative(
-        JNIEnv * env,
-        jobject j_player,
-        jlong buffer_l) {
-    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    if (buffer->type == BufferTypeAudio) {
-        return buffer->audioBuffer->pts;
-    } else {
-        return 0L;
     }
 }
 
