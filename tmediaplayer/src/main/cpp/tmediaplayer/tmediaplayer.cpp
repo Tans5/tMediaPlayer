@@ -398,12 +398,12 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             av_frame_unref(frame);
             result = avcodec_receive_frame(audio_decoder_ctx, frame);
             if (result < 0) {
-                LOGE("Decode audio receive frame fail: %d", result);
+                LOGE("Seek decode audio receive frame fail: %d", result);
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
-            long ptsInMillis = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
+            long ptsInMillis = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
             videoDecodeBuffer->pts = ptsInMillis;
-            if (abs(targetPtsInMillis - ptsInMillis) < minStepInMillis) {
+            if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
                 return OptSuccess;
             } else {
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
