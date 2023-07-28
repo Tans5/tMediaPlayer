@@ -257,19 +257,14 @@ internal class tMediaPlayerRender(
                 if (getState() == tMediaPlayerRenderState.Released) {
                     return
                 }
-                if (player.isLastFrameBufferNativeInternal(b.nativeBuffer)) {
-                    player.dispatchProgress(player.getMediaInfo()?.duration ?: 0L)
-                    player.dispatchPlayEnd()
+                lastRequestRenderPts.set(player.getPtsNativeInternal(b.nativeBuffer))
+                if (player.isVideoBufferNativeInternal(b.nativeBuffer)) {
+                    val m = Message.obtain()
+                    m.what = RENDER_VIDEO
+                    m.obj = b
+                    renderHandler.sendMessage(m)
                 } else {
-                    lastRequestRenderPts.set(player.getPtsNativeInternal(b.nativeBuffer))
-                    if (player.isVideoBufferNativeInternal(b.nativeBuffer)) {
-                        val m = Message.obtain()
-                        m.what = RENDER_VIDEO
-                        m.obj = b
-                        renderHandler.sendMessage(m)
-                    } else {
-                        bufferManager.enqueueDecodeBuffer(b)
-                    }
+                    bufferManager.enqueueDecodeBuffer(b)
                 }
             }
         }
@@ -312,7 +307,7 @@ internal class tMediaPlayerRender(
 
         private val audioTrackExecutor: Executor by lazy {
             Executors.newSingleThreadExecutor(ThreadFactory {
-                Thread(it, "audio-track")
+                Thread(it, "tMediaTrackAudioTrackThread")
             })
         }
     }

@@ -2,6 +2,7 @@ package com.tans.tmediaplayer
 
 import android.os.SystemClock
 import androidx.annotation.Keep
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
@@ -160,8 +161,6 @@ class tMediaPlayer {
                 decoder.pause()
                 render.pause()
                 render.audioTrackPause()
-                render.removeRenderMessages()
-                bufferManager.clearRenderData()
                 decoder.seekTo(position)
                 dispatchNewState(seekingState)
                 OptResult.Success
@@ -277,27 +276,47 @@ class tMediaPlayer {
         }
     }
 
-    internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
+    internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer, result: OptResult) {
         synchronized(b) {
             val s = getState()
             if (s == tMediaPlayerState.Released) { return@synchronized }
-            val pts = getPtsNativeInternal(b.nativeBuffer)
-            render.removeRenderMessages()
-            bufferManager.clearRenderData()
-            basePts.set(pts)
-            ptsBaseTime.set(SystemClock.uptimeMillis())
-            dispatchProgress(pts)
-            render.handleSeekingBuffer(b)
-            if (s is tMediaPlayerState.Seeking) {
-                val lastState = s.lastState
-                if (lastState is tMediaPlayerState.Playing) {
-                    decoder.decode()
-                    render.render()
-                    render.audioTrackPlay()
+            when (result) {
+                OptResult.Success -> {
+                    val pts = getPtsNativeInternal(b.nativeBuffer)
+                    render.removeRenderMessages()
+                    bufferManager.clearRenderData()
+                    basePts.set(pts)
+                    ptsBaseTime.set(SystemClock.uptimeMillis())
+                    dispatchProgress(pts)
+                    if (isLastFrameBufferNative(b.nativeBuffer)) {
+                        val info = getMediaInfo()
+                        if (info != null) {
+                            dispatchNewState(tMediaPlayerState.PlayEnd(info))
+                            resetNative(info.nativePlayer)
+                        }
+                        resetProgressAndBaseTime()
+                        bufferManager.clearRenderData()
+                        bufferManager.enqueueDecodeBuffer(b)
+                    } else {
+                        render.handleSeekingBuffer(b)
+                        if (s is tMediaPlayerState.Seeking) {
+                            val lastState = s.lastState
+                            if (lastState is tMediaPlayerState.Playing) {
+                                decoder.decode()
+                                render.render()
+                                render.audioTrackPlay()
+                            }
+                            dispatchNewState(lastState)
+                        } else {
+                            MediaLog.e(TAG, "Expect seeking state, but now is $s")
+                        }
+                    }
                 }
-                dispatchNewState(lastState)
-            } else {
-                MediaLog.e(TAG, "Expect seeking state, but now is $s")
+                OptResult.Fail -> {
+                    if (s is tMediaPlayerState.Seeking) {
+                        dispatchNewState(s.lastState)
+                    }
+                }
             }
         }
     }
@@ -314,7 +333,9 @@ class tMediaPlayer {
         this.progress.set(progress)
         if (info != null && abs(progress - lp) > 200) {
             lastUpdateProgress.set(progress)
-            listener.get()?.onProgressUpdate(progress, info.duration)
+            callbackExecutor.execute {
+                listener.get()?.onProgressUpdate(progress, info.duration)
+            }
         }
     }
 
@@ -330,7 +351,9 @@ class tMediaPlayer {
         val lastState = getState()
         if (lastState != s) {
             state.set(s)
-            listener.get()?.onPlayerState(s)
+            callbackExecutor.execute {
+                listener.get()?.onPlayerState(s)
+            }
         }
     }
 
@@ -422,5 +445,10 @@ class tMediaPlayer {
             System.loadLibrary("tmediaplayer")
         }
         const val TAG = "tMediaPlayer"
+        private val callbackExecutor by lazy {
+            Executors.newSingleThreadExecutor {
+                Thread(it, "tMediaPlayerCallbackThread")
+            }
+        }
     }
 }

@@ -104,7 +104,6 @@ internal class tMediaPlayerDecoder(
                         val position = msg.obj as? Long
                         if (position != null) {
                             val start = SystemClock.uptimeMillis()
-                            bufferManager.clearRenderData()
                             val buffer = bufferManager.requestDecodeBufferForce()
                             val seekResult = synchronized(buffer) {
                                 player.seekToNativeInternal(
@@ -114,9 +113,9 @@ internal class tMediaPlayerDecoder(
                                 ).toOptResult()
                             }
                             val end = SystemClock.uptimeMillis()
+                            player.handleSeekingBuffer(buffer, seekResult)
                             if (seekResult == OptResult.Success) {
                                 MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
-                                player.handleSeekingBuffer(buffer)
                             } else {
                                 MediaLog.e(TAG, "Seek to $position fail, cost ${end - start} ms.")
                                 bufferManager.enqueueDecodeBuffer(buffer)
