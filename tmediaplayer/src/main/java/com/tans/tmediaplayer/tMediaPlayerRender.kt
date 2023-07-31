@@ -146,11 +146,16 @@ internal class tMediaPlayerRender(
                                 val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
                                 player.dispatchProgress(progress)
                                 val view = playerView.get()
-                                view?.requestRenderFrame(
-                                    width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
-                                    height = player.getVideoHeightNativeInternal(buffer.nativeBuffer),
-                                    imageBytes = player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer)
-                                )
+                                if (view != null) {
+                                    val bufferSize = player.getVideoFrameSizeNativeInternal(buffer.nativeBuffer)
+                                    val bytes = ByteArray(bufferSize)
+                                    player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer, bytes)
+                                    view.requestRenderFrame(
+                                        width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
+                                        height = player.getVideoHeightNativeInternal(buffer.nativeBuffer),
+                                        imageBytes = bytes
+                                    )
+                                }
                                 bufferManager.enqueueDecodeBuffer(buffer)
                                 player.renderSuccess()
                             }
@@ -166,7 +171,9 @@ internal class tMediaPlayerRender(
                                 if (ls == tMediaPlayerRenderState.Released || ls == tMediaPlayerRenderState.NotInit) { return }
                                 val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
                                 player.dispatchProgress(progress)
-                                val bytes = player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer)
+                                val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
+                                val bytes = ByteArray(size)
+                                player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, bytes)
                                 audioTrackExecutor.execute {
                                     try {
                                         audioTrack.write(bytes, 0, bytes.size)

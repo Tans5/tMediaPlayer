@@ -416,13 +416,21 @@ class tMediaPlayer {
 
     private external fun getPtsNative(nativeBuffer: Long): Long
 
-    internal fun getVideoFrameBytesNativeInternal(nativeBuffer: Long): ByteArray = getVideoFrameBytesNative(nativeBuffer)
+    internal fun getVideoFrameBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameBytesNative(nativeBuffer, bytes)
 
-    private external fun getVideoFrameBytesNative(nativeBuffer: Long): ByteArray
+    private external fun getVideoFrameBytesNative(nativeBuffer: Long, bytes: ByteArray)
 
-    internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long): ByteArray = getAudioFrameBytesNative(nativeBuffer)
+    internal fun getVideoFrameSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameSizeNative(nativeBuffer)
 
-    private external fun getAudioFrameBytesNative(nativeBuffer: Long): ByteArray
+    private external fun getVideoFrameSizeNative(nativeBuffer: Long): Int
+
+    internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getAudioFrameBytesNative(nativeBuffer, bytes)
+
+    private external fun getAudioFrameBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getAudioFrameSizeNativeInternal(nativeBuffer: Long): Int = getAudioFrameSizeNative(nativeBuffer)
+
+    private external fun getAudioFrameSizeNative(nativeBuffer: Long): Int
 
     internal fun freeDecodeDataNativeInternal(nativeBuffer: Long) {
         freeDecodeDataNative(nativeBuffer)

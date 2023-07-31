@@ -182,35 +182,55 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getPtsNative(
     return buffer->pts;
 }
 
-extern "C" JNIEXPORT jbyteArray JNICALL
+extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->size,
+                                reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeVideo) {
-        auto jbyteArray = env->NewByteArray(buffer->videoBuffer->size);
-        env->SetByteArrayRegion(jbyteArray, 0, buffer->videoBuffer->size,
-                                reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
-        return jbyteArray;
+        return buffer->videoBuffer->size;
     } else {
-        return env->NewByteArray(0);
+        return 0;
     }
 }
 
-extern "C" JNIEXPORT jbyteArray JNICALL
+extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeAudio) {
+        env->SetByteArrayRegion(j_bytes, 0, buffer->audioBuffer->size,
+                                reinterpret_cast<const jbyte *>(buffer->audioBuffer->pcmBuffer));
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeAudio) {
-        auto jbyteArray = env->NewByteArray(buffer->audioBuffer->size);
-        env->SetByteArrayRegion(jbyteArray, 0, buffer->audioBuffer->size,
-                                reinterpret_cast<const jbyte *>(buffer->audioBuffer->pcmBuffer));
-        return jbyteArray;
+        return buffer->audioBuffer->size;
     } else {
-        return env->NewByteArray(0);
+        return 0;
     }
 }
 
