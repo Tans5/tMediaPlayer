@@ -3,12 +3,13 @@ package com.tans.tmediaplayer.demo
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
-import android.view.Window
-import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.tans.tmediaplayer.tMediaPlayer
 import com.tans.tmediaplayer.tMediaPlayerListener
 import com.tans.tmediaplayer.tMediaPlayerState
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.seeking_loading_pb)
     }
 
-    private val fileName = "gokuraku3.mp4"
+    private val fileName = "gokuraku2.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir
@@ -76,8 +77,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
+
         setContentView(R.layout.activity_main)
         rootView.setOnClickListener {
             if (actionLayout.visibility == View.VISIBLE) {
