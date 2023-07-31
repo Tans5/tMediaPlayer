@@ -148,13 +148,14 @@ internal class tMediaPlayerRender(
                                 val view = playerView.get()
                                 if (view != null) {
                                     val bufferSize = player.getVideoFrameSizeNativeInternal(buffer.nativeBuffer)
-                                    val bytes = ByteArray(bufferSize)
-                                    player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer, bytes)
+                                    val javaBuffer = bufferManager.requestJavaBuffer(bufferSize)
+                                    player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
                                     view.requestRenderFrame(
                                         width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
                                         height = player.getVideoHeightNativeInternal(buffer.nativeBuffer),
-                                        imageBytes = bytes
+                                        imageBytes = javaBuffer.bytes
                                     )
+                                    bufferManager.enqueueJavaBuffer(javaBuffer)
                                 }
                                 bufferManager.enqueueDecodeBuffer(buffer)
                                 player.renderSuccess()
@@ -172,13 +173,15 @@ internal class tMediaPlayerRender(
                                 val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
                                 player.dispatchProgress(progress)
                                 val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
-                                val bytes = ByteArray(size)
-                                player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, bytes)
+                                val javaBuffer = bufferManager.requestJavaBuffer(size)
+                                player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
                                 audioTrackExecutor.execute {
                                     try {
-                                        audioTrack.write(bytes, 0, bytes.size)
+                                        audioTrack.write(javaBuffer.bytes, 0, javaBuffer.size)
                                     } catch (e: Throwable) {
                                         e.printStackTrace()
+                                    } finally {
+                                        bufferManager.enqueueJavaBuffer(javaBuffer)
                                     }
                                 }
                                 bufferManager.enqueueDecodeBuffer(buffer)

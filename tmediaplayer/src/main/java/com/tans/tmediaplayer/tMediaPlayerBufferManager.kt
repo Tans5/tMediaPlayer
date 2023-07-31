@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @Suppress("ClassName")
 internal class tMediaPlayerBufferManager(
     private val player: tMediaPlayer,
-    private val maxBufferSize: Int) {
+    private val maxNativeBufferSize: Int) {
 
     private val isReleased: AtomicBoolean by lazy {
         AtomicBoolean(false)
@@ -26,6 +26,10 @@ internal class tMediaPlayerBufferManager(
     }
 
     private val allBuffers: LinkedBlockingDeque<MediaBuffer> by lazy {
+        LinkedBlockingDeque()
+    }
+
+    private val javaBuffers: LinkedBlockingDeque<JavaBuffer> by lazy {
         LinkedBlockingDeque()
     }
 
@@ -56,7 +60,7 @@ internal class tMediaPlayerBufferManager(
     fun requestDecodeBuffer(): MediaBuffer? {
         return if (!isReleased.get()) {
             decodeBufferDeque.pollFirst()
-                ?: if (hasAllocBufferSize.get() >= maxBufferSize) {
+                ?: if (hasAllocBufferSize.get() >= maxNativeBufferSize) {
                     null
                 } else {
                     hasAllocBufferSize.addAndGet(1)
@@ -97,6 +101,25 @@ internal class tMediaPlayerBufferManager(
         }
     }
 
+    fun requestJavaBuffer(size: Int): JavaBuffer {
+        val cache = javaBuffers.find { it.size == size }
+        return if (cache != null) {
+            javaBuffers.remove(cache)
+            cache
+        } else {
+            JavaBuffer(
+                size = size,
+                bytes = ByteArray(size)
+            )
+        }
+    }
+
+    fun enqueueJavaBuffer(javaBuffer: JavaBuffer) {
+        if (!isReleased.get()) {
+            javaBuffers.add(javaBuffer)
+        }
+    }
+
 
     fun release() {
         isReleased.set(true)
@@ -108,12 +131,18 @@ internal class tMediaPlayerBufferManager(
             }
         }
         allBuffers.clear()
+        javaBuffers.clear()
     }
 
 
     companion object {
         data class MediaBuffer(
             val nativeBuffer: Long
+        )
+
+        class JavaBuffer(
+            val size: Int,
+            val bytes: ByteArray
         )
     }
 }
