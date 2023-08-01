@@ -163,6 +163,9 @@ class tMediaPlayer {
                 decoder.pause()
                 render.pause()
                 render.audioTrackPause()
+                render.removeRenderMessages()
+                render.audioTrackFlush()
+                bufferManager.clearRenderData()
                 decoder.seekTo(position)
                 dispatchNewState(seekingState)
                 OptResult.Success
