@@ -151,7 +151,7 @@ internal class tMediaPlayerRender(
                                     val bufferSize = player.getVideoFrameSizeNativeInternal(buffer.nativeBuffer)
                                     val javaBuffer = bufferManager.requestJavaBuffer(bufferSize)
                                     player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
-                                    view.requestRenderFrame(
+                                    view.requestRenderRgbaFrame(
                                         width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
                                         height = player.getVideoHeightNativeInternal(buffer.nativeBuffer),
                                         imageBytes = javaBuffer.bytes

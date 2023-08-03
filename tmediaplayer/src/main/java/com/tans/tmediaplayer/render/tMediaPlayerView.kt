@@ -8,6 +8,9 @@ import android.opengl.Matrix
 import android.util.AttributeSet
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
+import com.tans.tmediaplayer.render.texconverter.RgbaImageTextureConverter
+import com.tans.tmediaplayer.render.texconverter.Yuv420pImageTextureConverter
+import com.tans.tmediaplayer.render.texconverter.Yuv420spImageTextureConverter
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig
@@ -30,6 +33,18 @@ class tMediaPlayerView : GLSurfaceView {
         AtomicReference(ScaleType.CenterFit)
     }
 
+    private val rgbaTexConverter: RgbaImageTextureConverter by lazy {
+        RgbaImageTextureConverter()
+    }
+
+    private val yuv420pTexConverter: Yuv420pImageTextureConverter by lazy {
+        Yuv420pImageTextureConverter()
+    }
+
+    private val yuv420spTexConverter: Yuv420spImageTextureConverter by lazy {
+        Yuv420spImageTextureConverter()
+    }
+
     init {
         setEGLContextClientVersion(3)
         setRenderer(FrameRenderer().apply { this@tMediaPlayerView.renderer = this })
@@ -42,11 +57,68 @@ class tMediaPlayerView : GLSurfaceView {
 
     fun getScaleType(): ScaleType = this.scaleType.get()
 
-    internal fun requestRenderFrame(width: Int, height: Int, imageBytes: ByteArray) {
+    fun requestRenderRgbaFrame(width: Int, height: Int, imageBytes: ByteArray) {
         val imageData = ImageData(
             imageWidth = width,
             imageHeight = height,
-            imageBytes = imageBytes
+            imageRawData = ImageRawData.RgbaRawData(rgbaBytes = imageBytes)
+        )
+        nextRenderFrame.set(imageData)
+        requestRender()
+    }
+
+    fun requestRenderYuv420pFrame(
+        width: Int,
+        height: Int,
+        yBytes: ByteArray,
+        uBytes: ByteArray,
+        vBytes: ByteArray) {
+        val imageData = ImageData(
+            imageWidth = width,
+            imageHeight = height,
+            imageRawData = ImageRawData.Yuv420pRawData(
+                yBytes = yBytes,
+                uBytes = uBytes,
+                vBytes = vBytes
+            )
+        )
+        nextRenderFrame.set(imageData)
+        requestRender()
+    }
+
+    fun requestRenderNv12Frame(
+        width: Int,
+        height: Int,
+        yBytes: ByteArray,
+        uvBytes: ByteArray
+    ) {
+        val imageData = ImageData(
+            imageWidth = width,
+            imageHeight = height,
+            imageRawData = ImageRawData.Yuv420spRawData(
+                yBytes = yBytes,
+                uvBytes = uvBytes,
+                yuv420spType = Yuv420spType.Nv12
+            )
+        )
+        nextRenderFrame.set(imageData)
+        requestRender()
+    }
+
+    fun requestRenderNv21Frame(
+        width: Int,
+        height: Int,
+        yBytes: ByteArray,
+        vuBytes: ByteArray
+    ) {
+        val imageData = ImageData(
+            imageWidth = width,
+            imageHeight = height,
+            imageRawData = ImageRawData.Yuv420spRawData(
+                yBytes = yBytes,
+                uvBytes = vuBytes,
+                yuv420spType = Yuv420spType.Nv21
+            )
         )
         nextRenderFrame.set(imageData)
         requestRender()
@@ -108,20 +180,15 @@ class tMediaPlayerView : GLSurfaceView {
             val imageData = this@tMediaPlayerView.nextRenderFrame.get()
             if (rendererData != null && screenSize != null && imageData != null) {
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, rendererData.textureId)
-                GLES30.glTexImage2D(
-                    GLES30.GL_TEXTURE_2D,
-                    0,
-                    GLES30.GL_RGBA,
-                    imageData.imageWidth,
-                    imageData.imageHeight,
-                    0,
-                    GLES30.GL_RGBA,
-                    GLES30.GL_UNSIGNED_BYTE,
-                    ByteBuffer.wrap(imageData.imageBytes)
-                )
+                val texConverter = when (imageData.imageRawData) {
+                    is ImageRawData.RgbaRawData -> rgbaTexConverter
+                    is ImageRawData.Yuv420pRawData -> yuv420pTexConverter
+                    is ImageRawData.Yuv420spRawData -> yuv420spTexConverter
+                }
+                texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData, outputTexId = rendererData.textureId)
 
                 GLES30.glUseProgram(rendererData.program)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, rendererData.textureId)
                 val imageRatio = imageData.imageWidth.toFloat() / imageData.imageHeight.toFloat()
                 val renderRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
                 val scaleType = this@tMediaPlayerView.getScaleType()
@@ -204,31 +271,32 @@ class tMediaPlayerView : GLSurfaceView {
             CenterFit,
             CenterCrop
         }
+
+        enum class Yuv420spType { Nv12, Nv21 }
+
+        sealed class ImageRawData {
+            class RgbaRawData(
+                val rgbaBytes: ByteArray
+            ) : ImageRawData()
+
+            class Yuv420pRawData(
+                val yBytes: ByteArray,
+                val uBytes: ByteArray,
+                val vBytes: ByteArray
+            ) : ImageRawData()
+
+            class Yuv420spRawData(
+                val yBytes: ByteArray,
+                val uvBytes: ByteArray,
+                val yuv420spType: Yuv420spType
+            ) : ImageRawData()
+        }
+
         data class ImageData(
             val imageWidth: Int,
             val imageHeight: Int,
-            val imageBytes: ByteArray
-        ) {
-            override fun equals(other: Any?): Boolean {
-                if (this === other) return true
-                if (javaClass != other?.javaClass) return false
-
-                other as ImageData
-
-                if (imageWidth != other.imageWidth) return false
-                if (imageHeight != other.imageHeight) return false
-                if (!imageBytes.contentEquals(other.imageBytes)) return false
-
-                return true
-            }
-
-            override fun hashCode(): Int {
-                var result = imageWidth
-                result = 31 * result + imageHeight
-                result = 31 * result + imageBytes.contentHashCode()
-                return result
-            }
-        }
+            val imageRawData: ImageRawData
+        )
 
         private data class Point(
             val x: Float,
@@ -296,7 +364,7 @@ class tMediaPlayerView : GLSurfaceView {
             val VBO: Int,
         )
 
-        private data class SurfaceSizeCache(
+        data class SurfaceSizeCache(
             val gl: GL10,
             val width: Int,
             val height: Int
