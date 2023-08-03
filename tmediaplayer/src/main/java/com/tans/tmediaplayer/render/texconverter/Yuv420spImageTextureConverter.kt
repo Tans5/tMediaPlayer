@@ -4,7 +4,7 @@ import android.content.Context
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.render.tMediaPlayerView
 
-class Yuv420spImageTextureConverter : ImageTextureConverter {
+internal class Yuv420spImageTextureConverter : ImageTextureConverter {
 
     override fun convertImageToTexture(
         context: Context,

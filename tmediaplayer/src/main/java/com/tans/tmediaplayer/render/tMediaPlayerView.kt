@@ -262,6 +262,9 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glDeleteBuffers(1, intArrayOf(data.VBO), 0)
             }
             glRendererData = null
+            rgbaTexConverter.recycle()
+            yuv420pTexConverter.recycle()
+            yuv420spTexConverter.recycle()
         }
 
     }
