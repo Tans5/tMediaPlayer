@@ -13,7 +13,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.tans.tmediaplayer.tMediaPlayer
 import com.tans.tmediaplayer.tMediaPlayerListener
 import com.tans.tmediaplayer.tMediaPlayerState
-import com.tans.tmediaplayer.tMediaPlayerView
+import com.tans.tmediaplayer.render.tMediaPlayerView
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executor

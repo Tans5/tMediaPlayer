@@ -7,6 +7,7 @@ import android.media.AudioTrack
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
+import com.tans.tmediaplayer.render.tMediaPlayerView
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory

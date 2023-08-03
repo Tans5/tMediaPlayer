@@ -9,7 +9,7 @@
     android:keepScreenOn="true"
     tools:context=".MainActivity">
 
-    <com.tans.tmediaplayer.tMediaPlayerView
+    <com.tans.tmediaplayer.render.tMediaPlayerView
         android:id="@+id/player_view"
         android:layout_width="0dp"
         android:layout_height="0dp"

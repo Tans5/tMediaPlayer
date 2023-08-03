@@ -2,6 +2,7 @@ package com.tans.tmediaplayer
 
 import android.os.SystemClock
 import androidx.annotation.Keep
+import com.tans.tmediaplayer.render.tMediaPlayerView
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
