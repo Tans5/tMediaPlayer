@@ -448,55 +448,139 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
     int w = frame->width;
     int h = frame->height;
     auto videoBuffer = buffer->videoBuffer;
-    if (w != video_width ||
-        h != video_height) {
-        LOGE("Decode video change rgbaSize, recreate sws ctx.");
-        if (sws_ctx != nullptr) {
-            sws_freeContext(sws_ctx);
-        }
+    switch(frame->format) {
+        case AV_PIX_FMT_YUV420P: {
+            int ySize = w * h;
+            int uSize = ySize / 4;
+            int vSize = uSize;
+            if (videoBuffer->ySize != ySize || videoBuffer->yBuffer == nullptr) {
+                if (videoBuffer->yBuffer != nullptr) {
+                    free(videoBuffer->yBuffer);
+                }
+                videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+                videoBuffer->ySize = ySize;
+            }
 
-        this->sws_ctx = sws_getContext(
-                w,
-                h,
-                (AVPixelFormat) frame->format,
-                w,
-                h,
-                AV_PIX_FMT_RGBA,
-                SWS_BICUBIC,
-                nullptr,
-                nullptr,
-                nullptr);
-        if (sws_ctx == nullptr) {
-            LOGE("Decode video fail, sws ctx create fail.");
-            return DecodeFail;
+            if (videoBuffer->uSize != uSize || videoBuffer->uBuffer == nullptr) {
+                if (videoBuffer->uBuffer != nullptr) {
+                    free(videoBuffer->uBuffer);
+                }
+                videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
+                videoBuffer->uSize = uSize;
+            }
+
+            if (videoBuffer->vSize != vSize || videoBuffer->vBuffer == nullptr) {
+                if (videoBuffer->vBuffer != nullptr) {
+                    free(videoBuffer->vBuffer);
+                }
+                videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
+                videoBuffer->vSize = vSize;
+            }
+            uint8_t *yBuffer = videoBuffer->yBuffer;
+            uint8_t *uBuffer = videoBuffer->uBuffer;
+            uint8_t *vBuffer = videoBuffer->vBuffer;
+            memcpy(yBuffer, frame->data[0], ySize);
+            memcpy(uBuffer, frame->data[1], uSize);
+            memcpy(vBuffer, frame->data[2], vSize);
+            videoBuffer->type = Yuv420p;
+            break;
+        }
+        case AV_PIX_FMT_NV12:
+        case AV_PIX_FMT_NV21: {
+            int ySize = w * h;
+            int uvSize = ySize / 2;
+            if (videoBuffer->ySize != ySize || videoBuffer->yBuffer == nullptr) {
+                if (videoBuffer->yBuffer != nullptr) {
+                    free(videoBuffer->yBuffer);
+                }
+                videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+                videoBuffer->ySize = ySize;
+            }
+
+            if (videoBuffer->uvSize != uvSize || videoBuffer->uvBuffer == nullptr) {
+                if (videoBuffer->uvBuffer != nullptr) {
+                    free(videoBuffer->uvBuffer);
+                }
+                videoBuffer->uvBuffer = static_cast<uint8_t *>(av_malloc(uvSize * sizeof(uint8_t)));
+                videoBuffer->uvSize = uvSize;
+            }
+            uint8_t *yBuffer = videoBuffer->yBuffer;
+            uint8_t *uvBuffer = videoBuffer->uvBuffer;
+            memcpy(yBuffer, frame->data[0], ySize);
+            memcpy(uvBuffer, frame->data[1], uvSize);
+            if (frame->format == AV_PIX_FMT_NV12) {
+                videoBuffer->type = Nv12;
+            } else {
+                videoBuffer->type = Nv21;
+            }
+            break;
+        }
+        case AV_PIX_FMT_RGBA: {
+            int rgbaSize = w * h * 4;
+            if (videoBuffer->rgbaSize != rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
+                if (videoBuffer->rgbaBuffer != nullptr) {
+                    free(videoBuffer->rgbaBuffer);
+                }
+                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaSize * sizeof(uint8_t)));
+                videoBuffer->rgbaSize = rgbaSize;
+            }
+            uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
+            memcpy(rgbaBuffer, frame->data[0], rgbaSize);
+            videoBuffer->type = Rgba;
+            break;
+        }
+        default: {
+            if (w != video_width ||
+                h != video_height) {
+                LOGE("Decode video change rgbaSize, recreate sws ctx.");
+                if (sws_ctx != nullptr) {
+                    sws_freeContext(sws_ctx);
+                }
+
+                this->sws_ctx = sws_getContext(
+                        w,
+                        h,
+                        (AVPixelFormat) frame->format,
+                        w,
+                        h,
+                        AV_PIX_FMT_RGBA,
+                        SWS_BICUBIC,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+                if (sws_ctx == nullptr) {
+                    LOGE("Decode video fail, sws ctx create fail.");
+                    return DecodeFail;
+                }
+            }
+            if (w != videoBuffer->width ||
+                h != videoBuffer->height ||
+                videoBuffer->rgbaBuffer == nullptr ||
+                videoBuffer->rgbaFrame == nullptr) {
+                LOGE("Decode video create new buffer.");
+                videoBuffer->width = w;
+                videoBuffer->height = h;
+                videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
+                if (videoBuffer->rgbaBuffer != nullptr) {
+                    free(videoBuffer->rgbaBuffer);
+                }
+                if (videoBuffer->rgbaFrame != nullptr) {
+                    av_frame_free(&(videoBuffer->rgbaFrame));
+                    videoBuffer->rgbaFrame = nullptr;
+                }
+                videoBuffer->rgbaFrame = av_frame_alloc();
+                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
+                av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
+                                     AV_PIX_FMT_RGBA, w, h, 1);
+            }
+            int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+            if (result < 0) {
+                LOGE("Decode video sws scale fail: %d", result);
+                return DecodeFail;
+            }
+            videoBuffer->type = Rgba;
         }
     }
-    if (w != videoBuffer->width ||
-        h != videoBuffer->height ||
-        videoBuffer->rgbaBuffer == nullptr ||
-        videoBuffer->rgbaFrame == nullptr) {
-        LOGE("Decode video create new buffer.");
-        videoBuffer->width = w;
-        videoBuffer->height = h;
-        videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
-        if (videoBuffer->rgbaBuffer != nullptr) {
-            free(videoBuffer->rgbaBuffer);
-        }
-        if (videoBuffer->rgbaFrame != nullptr) {
-            av_frame_free(&(videoBuffer->rgbaFrame));
-            videoBuffer->rgbaFrame = nullptr;
-        }
-        videoBuffer->rgbaFrame = av_frame_alloc();
-        videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
-        av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
-                             AV_PIX_FMT_RGBA, w, h, 1);
-    }
-    int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
-    if (result < 0) {
-        LOGE("Decode video sws scale fail: %d", result);
-        return DecodeFail;
-    }
-    videoBuffer->type = Rgba;
     buffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
     buffer->type = BufferTypeVideo;
     return DecodeSuccess;
