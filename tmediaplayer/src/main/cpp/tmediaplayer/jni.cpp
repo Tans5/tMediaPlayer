@@ -182,18 +182,16 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getPtsNative(
     return buffer->pts;
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaBytesNative(
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameTypeNative(
         JNIEnv * env,
         jobject j_player,
-        jlong buffer_l,
-        jbyteArray j_bytes) {
+        jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeVideo) {
-        if (buffer->videoBuffer->type == Rgba) {
-            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->rgbaSize,
-                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
-        }
+        return buffer->videoBuffer->type;
+    } else {
+        return Unknown;
     }
 }
 
@@ -211,6 +209,149 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaSizeNative(
         }
     } else {
         return 0;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Rgba) {
+            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->rgbaSize,
+                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
+        }
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameYSizeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Nv12 || buffer->videoBuffer->type == Nv21 || buffer->videoBuffer->type == Yuv420p) {
+            return buffer->videoBuffer->ySize;
+        } else {
+            return 0;
+        }
+    } else {
+        return 0;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameYBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Nv12 || buffer->videoBuffer->type == Nv21 || buffer->videoBuffer->type == Yuv420p) {
+            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->ySize,
+                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->yBuffer));
+        }
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUSizeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Yuv420p) {
+            return buffer->videoBuffer->uSize;
+        } else {
+            return 0;
+        }
+    } else {
+        return 0;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Yuv420p) {
+            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->uSize,
+                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->uBuffer));
+        }
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameVSizeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Yuv420p) {
+            return buffer->videoBuffer->vSize;
+        } else {
+            return 0;
+        }
+    } else {
+        return 0;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameVBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Yuv420p) {
+            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->vSize,
+                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->vBuffer));
+        }
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUVSizeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Nv12 || buffer->videoBuffer->type == Nv21) {
+            return buffer->videoBuffer->uvSize;
+        } else {
+            return 0;
+        }
+    } else {
+        return 0;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUVBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l,
+        jbyteArray j_bytes) {
+    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
+    if (buffer->type == BufferTypeVideo) {
+        if (buffer->videoBuffer->type == Nv12 || buffer->videoBuffer->type == Nv21) {
+            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->uvSize,
+                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->uvBuffer));
+        }
     }
 }
 

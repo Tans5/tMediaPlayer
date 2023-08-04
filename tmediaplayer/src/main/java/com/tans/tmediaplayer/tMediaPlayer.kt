@@ -420,6 +420,10 @@ class tMediaPlayer {
 
     private external fun getPtsNative(nativeBuffer: Long): Long
 
+    internal fun getVideoFrameTypeNativeInternal(nativeBuffer: Long): Int = getVideoFrameTypeNative(nativeBuffer)
+
+    private external fun getVideoFrameTypeNative(nativeBuffer: Long): Int
+
     internal fun getVideoFrameRgbaBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameRgbaBytesNative(nativeBuffer, bytes)
 
     private external fun getVideoFrameRgbaBytesNative(nativeBuffer: Long, bytes: ByteArray)
@@ -427,6 +431,38 @@ class tMediaPlayer {
     internal fun getVideoFrameRgbaSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameRgbaSizeNative(nativeBuffer)
 
     private external fun getVideoFrameRgbaSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameYSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameYSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameYSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameYBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameYBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameYBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameUSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameUSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameUSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameUBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameUBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameUBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameVSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameVSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameVSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameVBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameVBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameVBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameUVSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameUVSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameUVSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameUVBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameUVBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameUVBytesNative(nativeBuffer: Long, bytes: ByteArray)
 
     internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getAudioFrameBytesNative(nativeBuffer, bytes)
 
