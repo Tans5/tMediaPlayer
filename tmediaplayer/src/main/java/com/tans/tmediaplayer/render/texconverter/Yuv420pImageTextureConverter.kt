@@ -86,7 +86,7 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
         if (renderData != null) {
             return renderData
         } else {
-            val program = compileShaderProgram(context, R.raw.t_media_player_yuv420p_vert, R.raw.t_media_player_yuv420p_vert) ?: return null
+            val program = compileShaderProgram(context, R.raw.t_media_player_yuv420p_vert, R.raw.t_media_player_yuv420p_frag) ?: return null
             val yTexId = glGenTextureAndSetDefaultParams()
             val uTexId = glGenTextureAndSetDefaultParams()
             val vTexId = glGenTextureAndSetDefaultParams()
