@@ -36,17 +36,17 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
                 ) {
                     GLES30.glUseProgram(renderData.program)
                     // y
+                    GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.yTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth, imageData.imageHeight,
                         0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.yBytes))
-                    GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "yTexture"), 0)
 
                     // uv
+                    GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.uvTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE_ALPHA, imageData.imageWidth / 2, imageData.imageHeight / 2,
                         0, GLES30.GL_LUMINANCE_ALPHA, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.uvBytes))
-                    GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "uvTexture"), 1)
 
                     GLES30.glUniform1i(

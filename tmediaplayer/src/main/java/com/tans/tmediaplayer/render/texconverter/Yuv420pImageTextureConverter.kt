@@ -36,24 +36,24 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
                 ) {
                     GLES30.glUseProgram(renderData.program)
                     // y
+                    GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.yTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth, imageData.imageHeight,
                         0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.yBytes))
-                    GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "yTexture"), 0)
 
                     // u
+                    GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.uTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth / 2, imageData.imageHeight / 2,
                         0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.uBytes))
-                    GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "uTexture"), 1)
 
                     // v
+                    GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.vTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth / 2, imageData.imageHeight / 2,
                         0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.vBytes))
-                    GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "vTexture"), 2)
 
                     GLES30.glBindVertexArray(renderData.vao)
