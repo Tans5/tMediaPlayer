@@ -183,26 +183,32 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getPtsNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameBytesNative(
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeVideo) {
-        env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->size,
-                                reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
+        if (buffer->videoBuffer->type == Rgba) {
+            env->SetByteArrayRegion(j_bytes, 0, buffer->videoBuffer->rgbaSize,
+                                    reinterpret_cast<const jbyte *>(buffer->videoBuffer->rgbaBuffer));
+        }
     }
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameSizeNative(
+Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeVideo) {
-        return buffer->videoBuffer->size;
+        if (buffer->videoBuffer->type == Rgba) {
+            return buffer->videoBuffer->rgbaSize;
+        } else {
+            return 0;
+        }
     } else {
         return 0;
     }

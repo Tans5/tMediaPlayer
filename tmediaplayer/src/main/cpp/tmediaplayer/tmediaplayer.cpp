@@ -348,7 +348,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                     videoBuffer->rgbaFrame == nullptr) {
                     videoBuffer->width = w;
                     videoBuffer->height = h;
-                    videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h,1);
+                    videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
                     if (videoBuffer->rgbaBuffer != nullptr) {
                         free(videoBuffer->rgbaBuffer);
                     }
@@ -357,7 +357,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                         videoBuffer->rgbaFrame = nullptr;
                     }
                     videoBuffer->rgbaFrame = av_frame_alloc();
-                    videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->size * sizeof(uint8_t)));
+                    videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
                     av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                                          AV_PIX_FMT_RGBA, w, h, 1);
                 }
@@ -372,7 +372,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                 }
                 videoDecodeBuffer->pts = ptsInMillis;
                 videoDecodeBuffer->type = BufferTypeVideo;
-                LOGD("Seek decode video success: %ld, buffer size: %d", ptsInMillis, videoBuffer->size);
+                LOGD("Seek decode video success: %ld, buffer rgbaSize: %d", ptsInMillis, videoBuffer->rgbaSize);
             }
 
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
@@ -463,7 +463,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             auto videoBuffer = buffer->videoBuffer;
             if (w != video_width ||
                 h != video_height) {
-                LOGE("Decode video change size, recreate sws ctx.");
+                LOGE("Decode video change rgbaSize, recreate sws ctx.");
                 if (sws_ctx != nullptr) {
                     sws_freeContext(sws_ctx);
                 }
@@ -491,7 +491,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 LOGE("Decode video create new buffer.");
                 videoBuffer->width = w;
                 videoBuffer->height = h;
-                videoBuffer->size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h,1);
+                videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
                 if (videoBuffer->rgbaBuffer != nullptr) {
                     free(videoBuffer->rgbaBuffer);
                 }
@@ -500,7 +500,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                     videoBuffer->rgbaFrame = nullptr;
                 }
                 videoBuffer->rgbaFrame = av_frame_alloc();
-                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->size * sizeof(uint8_t)));
+                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
                 av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                                      AV_PIX_FMT_RGBA, w, h, 1);
             }
@@ -510,8 +510,9 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 return DecodeFail;
             }
             buffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
-            LOGD("Decode video success: %ld, buffer size: %d, cost: %ld ms", buffer->pts, videoBuffer->size, get_time_millis() - start_time);
+            LOGD("Decode video success: %ld, buffer rgbaSize: %d, cost: %ld ms", buffer->pts, videoBuffer->rgbaSize, get_time_millis() - start_time);
             buffer->type = BufferTypeVideo;
+            videoBuffer->type = Rgba;
             return DecodeSuccess;
         }
         if (audio_stream != nullptr &&
@@ -540,7 +541,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             int output_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, output_nb_samples, audio_output_sample_fmt, 1);
             auto audioBuffer = buffer->audioBuffer;
             if (audioBuffer->size != output_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
-                LOGE("Decode audio change size.");
+                LOGE("Decode audio change rgbaSize.");
                 if (audioBuffer->pcmBuffer != nullptr) {
                     free(audioBuffer->pcmBuffer);
                 }
@@ -554,7 +555,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
                 return DecodeFail;
             }
             buffer->type = BufferTypeAudio;
-            LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", buffer->pts, output_audio_buffer_size, get_time_millis() - start_time);
+            LOGD("Decode audio success: %ld, buffer rgbaSize: %d, cost: %ld ms", buffer->pts, output_audio_buffer_size, get_time_millis() - start_time);
             return DecodeSuccess;
         }
         LOGE("Decode unknown pkt");
@@ -592,6 +593,18 @@ void freeDecodeBuffer(tMediaDecodeBuffer *b) {
         }
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
+        }
+        if (videoBuffer->yBuffer != nullptr) {
+            free(videoBuffer->yBuffer);
+        }
+        if (videoBuffer->uBuffer != nullptr) {
+            free(videoBuffer->uBuffer);
+        }
+        if (videoBuffer->vBuffer != nullptr) {
+            free(videoBuffer->vBuffer);
+        }
+        if (videoBuffer->uvBuffer != nullptr) {
+            free(videoBuffer->uvBuffer);
         }
         free(videoBuffer);
         b->videoBuffer = nullptr;

@@ -20,12 +20,29 @@ extern "C" {
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+enum ImageRawType {
+    Yuv420p,
+    Nv12,
+    Nv21,
+    Rgba,
+    Unknown
+};
+
 typedef struct tMediaVideoBuffer {
-    int size = 0;
     int width = 0;
     int height = 0;
+    ImageRawType type = Unknown;
+    int rgbaSize = 0;
     AVFrame *rgbaFrame = nullptr;
     uint8_t *rgbaBuffer = nullptr;
+    int ySize = 0;
+    uint8_t *yBuffer = nullptr;
+    int uSize = 0;
+    uint8_t  *uBuffer = nullptr;
+    int vSize = 0;
+    uint8_t  *vBuffer = nullptr;
+    int uvSize = 0;
+    uint8_t  *uvBuffer = nullptr;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {

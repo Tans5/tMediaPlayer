@@ -148,9 +148,9 @@ internal class tMediaPlayerRender(
                                 player.dispatchProgress(progress)
                                 val view = playerView.get()
                                 if (view != null) {
-                                    val bufferSize = player.getVideoFrameSizeNativeInternal(buffer.nativeBuffer)
+                                    val bufferSize = player.getVideoFrameRgbaSizeNativeInternal(buffer.nativeBuffer)
                                     val javaBuffer = bufferManager.requestJavaBuffer(bufferSize)
-                                    player.getVideoFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
+                                    player.getVideoFrameRgbaBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
                                     view.requestRenderRgbaFrame(
                                         width = player.getVideoWidthNativeInternal(buffer.nativeBuffer),
                                         height = player.getVideoHeightNativeInternal(buffer.nativeBuffer),
