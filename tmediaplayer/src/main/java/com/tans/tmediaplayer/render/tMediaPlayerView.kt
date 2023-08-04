@@ -143,26 +143,14 @@ class tMediaPlayerView : GLSurfaceView {
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
             val program = compileShaderProgram(context, R.raw.t_media_player_vert, R.raw.t_media_player_frag)
             if (program != null) {
-                val textureIdArray =IntArray(1)
-                GLES30.glGenTextures(1, textureIdArray, 0)
-                val textureId = textureIdArray[0]
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureId)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_REPEAT)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
-                GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D)
-
                 val VAOArray = IntArray(1)
                 GLES30.glGenVertexArrays(1, VAOArray, 0)
                 val VAO = VAOArray[0]
                 val VBOArray = IntArray(1)
                 GLES30.glGenBuffers(1, VBOArray, 0)
                 val VBO = VBOArray[0]
-
                 glRendererData = GLRendererData(
                     program = program,
-                    textureId = textureId,
                     VAO = VAO,
                     VBO = VBO
                 )
@@ -185,10 +173,10 @@ class tMediaPlayerView : GLSurfaceView {
                     is ImageRawData.Yuv420pRawData -> yuv420pTexConverter
                     is ImageRawData.Yuv420spRawData -> yuv420spTexConverter
                 }
-                texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData, outputTexId = rendererData.textureId)
+                val textureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
 
                 GLES30.glUseProgram(rendererData.program)
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, rendererData.textureId)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureId)
                 val imageRatio = imageData.imageWidth.toFloat() / imageData.imageHeight.toFloat()
                 val renderRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
                 val scaleType = this@tMediaPlayerView.getScaleType()
@@ -258,7 +246,6 @@ class tMediaPlayerView : GLSurfaceView {
             sizeCache = null
             val data = glRendererData
             if (data != null) {
-                GLES30.glDeleteTextures(1, intArrayOf(data.textureId), 0)
                 GLES30.glDeleteBuffers(1, intArrayOf(data.VBO), 0)
             }
             glRendererData = null
@@ -362,7 +349,6 @@ class tMediaPlayerView : GLSurfaceView {
 
         private data class GLRendererData(
             val program: Int,
-            val textureId: Int,
             val VAO: Int,
             val VBO: Int,
         )

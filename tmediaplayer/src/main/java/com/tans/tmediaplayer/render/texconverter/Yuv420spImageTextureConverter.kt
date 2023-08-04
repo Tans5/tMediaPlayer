@@ -23,15 +23,14 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
     override fun convertImageToTexture(
         context: Context,
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
-        imageData: tMediaPlayerView.Companion.ImageData,
-        outputTexId: Int
-    ) {
-        if (imageData.imageRawData is tMediaPlayerView.Companion.ImageRawData.Yuv420spRawData) {
+        imageData: tMediaPlayerView.Companion.ImageData
+    ): Int {
+        return if (imageData.imageRawData is tMediaPlayerView.Companion.ImageRawData.Yuv420spRawData) {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
                 val rawImageData = imageData.imageRawData
                 offScreenRender(
-                    outputTexId = outputTexId,
+                    outputTexId = renderData.outputTexId,
                     outputTexWidth = imageData.imageWidth,
                     outputTexHeight = imageData.imageHeight
                 ) {
@@ -62,11 +61,14 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
                     GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.vbo)
                     GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
                 }
+                renderData.outputTexId
             } else {
                 MediaLog.e(TAG, "Render data is null.")
+                0
             }
         } else {
             MediaLog.e(TAG, "Wrong image type: ${imageData.imageRawData::class.java.simpleName}")
+            0
         }
     }
 
@@ -77,6 +79,7 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
             GLES30.glDeleteTextures(1, intArrayOf(renderData.yTexId), 0)
             GLES30.glDeleteTextures(1, intArrayOf(renderData.uvTexId), 0)
             GLES30.glDeleteBuffers(1, intArrayOf(renderData.vbo), 0)
+            GLES30.glDeleteTextures(1, intArrayOf(renderData.outputTexId), 0)
             GLES30.glDeleteProgram(renderData.program)
         }
     }
@@ -87,6 +90,7 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
             return renderData
         } else {
             val program = compileShaderProgram(context, R.raw.t_media_player_yuv420sp_vert, R.raw.t_media_player_yuv420sp_frag) ?: return null
+            val outputTexId = glGenTextureAndSetDefaultParams()
             val yTexId = glGenTextureAndSetDefaultParams()
             val uvTexId = glGenTextureAndSetDefaultParams()
             val vertices = floatArrayOf(
@@ -110,7 +114,8 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
                 uvTexId = uvTexId,
                 vao = vao,
                 vbo = vbo,
-                program = program
+                program = program,
+                outputTexId = outputTexId
             )
             this.renderData.set(result)
             return result
@@ -124,7 +129,8 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
             val uvTexId: Int,
             val vao: Int,
             val vbo: Int,
-            val program: Int
+            val program: Int,
+            val outputTexId: Int
         )
     }
 }
