@@ -176,7 +176,9 @@ class tMediaPlayerView : GLSurfaceView {
                 val textureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
 
                 GLES30.glUseProgram(rendererData.program)
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                 GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureId)
+                GLES30.glUniform1i(GLES30.glGetUniformLocation(rendererData.program, "Texture"), 0)
                 val imageRatio = imageData.imageWidth.toFloat() / imageData.imageHeight.toFloat()
                 val renderRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
                 val scaleType = this@tMediaPlayerView.getScaleType()
