@@ -448,6 +448,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
     int w = frame->width;
     int h = frame->height;
     auto videoBuffer = buffer->videoBuffer;
+    videoBuffer->width = w;
+    videoBuffer->height = h;
     switch(frame->format) {
         case AV_PIX_FMT_YUV420P: {
             int ySize = w * h;
@@ -558,8 +560,6 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 videoBuffer->rgbaBuffer == nullptr ||
                 videoBuffer->rgbaFrame == nullptr) {
                 LOGE("Decode video create new buffer.");
-                videoBuffer->width = w;
-                videoBuffer->height = h;
                 videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
                 if (videoBuffer->rgbaBuffer != nullptr) {
                     free(videoBuffer->rgbaBuffer);
