@@ -24,10 +24,10 @@ void main() {
     y = texture(yTexture, TexCoord).x;
     if (swapUv == 0) {
         u = texture(uvTexture, TexCoord).x;
-        v = texture(uvTexture, TexCoord).y;
+        v = texture(uvTexture, TexCoord).a;
     } else {
         v = texture(uvTexture, TexCoord).x;
-        u = texture(uvTexture, TexCoord).y;
+        u = texture(uvTexture, TexCoord).a;
     }
     FragColor = vec4(yuvToRgb(y, u, v), 1.0);
 }
