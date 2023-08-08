@@ -2,16 +2,16 @@ package com.tans.tmediaplayer.render
 
 import android.content.Context
 import android.opengl.GLES30
-import android.opengl.GLES31
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.AttributeSet
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
+import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
+import com.tans.tmediaplayer.render.filter.FilterImageTexture
 import com.tans.tmediaplayer.render.texconverter.RgbaImageTextureConverter
 import com.tans.tmediaplayer.render.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.render.texconverter.Yuv420spImageTextureConverter
-import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -45,6 +45,10 @@ class tMediaPlayerView : GLSurfaceView {
         Yuv420spImageTextureConverter()
     }
 
+    private val asciiArtFilter: AsciiArtImageFilter by lazy {
+        AsciiArtImageFilter()
+    }
+
     init {
         setEGLContextClientVersion(3)
         setRenderer(FrameRenderer().apply { this@tMediaPlayerView.renderer = this })
@@ -53,6 +57,10 @@ class tMediaPlayerView : GLSurfaceView {
 
     fun setScaleType(scaleType: ScaleType) {
         this.scaleType.set(scaleType)
+    }
+
+    fun enableAsciiArtFilter(enable: Boolean) {
+        asciiArtFilter.enable(enable)
     }
 
     fun getScaleType(): ScaleType = this.scaleType.get()
@@ -149,6 +157,14 @@ class tMediaPlayerView : GLSurfaceView {
                 val VBOArray = IntArray(1)
                 GLES30.glGenBuffers(1, VBOArray, 0)
                 val VBO = VBOArray[0]
+
+                GLES30.glBindVertexArray(VAO)
+                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, VBO)
+                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 5 * 4 * 4 + 4, null, GLES30.GL_STREAM_DRAW)
+                GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 5 * 4, 0)
+                GLES30.glEnableVertexAttribArray(0)
+                GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, 5 * 4, 3 * 4)
+                GLES30.glEnableVertexAttribArray(1)
                 glRendererData = GLRendererData(
                     program = program,
                     VAO = VAO,
@@ -173,13 +189,23 @@ class tMediaPlayerView : GLSurfaceView {
                     is ImageRawData.Yuv420pRawData -> yuv420pTexConverter
                     is ImageRawData.Yuv420spRawData -> yuv420spTexConverter
                 }
-                val textureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
+                val convertTextureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
+
+                val filterOutput = asciiArtFilter.filter(
+                    context = context,
+                    surfaceSize = screenSize,
+                    input = FilterImageTexture(
+                        texture = convertTextureId,
+                        width = imageData.imageWidth,
+                        height = imageData.imageHeight
+                    )
+                )
 
                 GLES30.glUseProgram(rendererData.program)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureId)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, filterOutput.texture)
                 GLES30.glUniform1i(GLES30.glGetUniformLocation(rendererData.program, "Texture"), 0)
-                val imageRatio = imageData.imageWidth.toFloat() / imageData.imageHeight.toFloat()
+                val imageRatio = filterOutput.width.toFloat() / filterOutput.height.toFloat()
                 val renderRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
                 val scaleType = this@tMediaPlayerView.getScaleType()
 
@@ -218,24 +244,20 @@ class tMediaPlayerView : GLSurfaceView {
                 )
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
-                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertex.size * 4, vertex.toGlBuffer(), GLES31.GL_STREAM_DRAW)
-                GLES30.glVertexAttribPointer(0, 3, GLES31.GL_FLOAT, false, 5 * 4, 0)
-                GLES30.glEnableVertexAttribArray(0)
-                GLES30.glVertexAttribPointer(1, 3, GLES31.GL_FLOAT, false, 5 * 4, 3 * 4)
-                GLES30.glEnableVertexAttribArray(1)
+                GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertex.size * 4, vertex.toGlBuffer())
 
                 // view
                 val viewMatrix = newGlFloatMatrix()
                 Matrix.scaleM(viewMatrix, 0, 1 / renderRatio, 1.0f, 1.0f)
-                GLES31.glUniformMatrix4fv(GLES31.glGetUniformLocation(rendererData.program, "view"), 1, false, viewMatrix, 0)
+                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "view"), 1, false, viewMatrix, 0)
 
                 // model
                 val modelMatrix = newGlFloatMatrix()
-                GLES31.glUniformMatrix4fv(GLES31.glGetUniformLocation(rendererData.program, "model"), 1, false, modelMatrix, 0)
+                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "model"), 1, false, modelMatrix, 0)
 
                 // transform
                 val transformMatrix = newGlFloatMatrix()
-                GLES31.glUniformMatrix4fv(GLES31.glGetUniformLocation(rendererData.program, "transform"), 1, false, transformMatrix, 0)
+                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "transform"), 1, false, transformMatrix, 0)
 
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
