@@ -4,7 +4,7 @@ import android.content.Context
 import android.opengl.GLES30
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.render.compileShaderProgram
-import com.tans.tmediaplayer.render.glGenFrameBuffer
+import com.tans.tmediaplayer.render.glGenBuffers
 import com.tans.tmediaplayer.render.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.render.glGenVertexArrays
 import com.tans.tmediaplayer.render.offScreenRender
@@ -25,7 +25,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(1920)
+        AtomicInteger(128)
     }
 
     fun setCharLineWidth(width: Int) {
@@ -96,19 +96,17 @@ class AsciiArtImageFilter : ImageFilter {
                 val lumaTexture = glGenTextureAndSetDefaultParams()
                 val vertices = floatArrayOf(
                     // 坐标(position 0)   // 纹理坐标
-                    -1.0f, 1.0f, 0.0f,   0.0f, 1.0f,    // 左上角
-                    1.0f, 1.0f, 0.0f,    1.0f, 1.0f,   // 右上角
-                    1.0f, -1.0f, 0.0f,   1.0f, 0.0f,   // 右下角
-                    -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,   // 左下角
+                    -1.0f, 1.0f,        0.0f, 1.0f,    // 左上角
+                    1.0f, 1.0f,         1.0f, 1.0f,   // 右上角
+                    1.0f, -1.0f,        1.0f, 0.0f,   // 右下角
+                    -1.0f, -1.0f,       0.0f, 0.0f,   // 左下角
                 )
                 val lumaVao = glGenVertexArrays()
-                val lumaVbo = glGenFrameBuffer()
+                val lumaVbo = glGenBuffers()
                 GLES30.glBindVertexArray(lumaVao)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, lumaVbo)
-                GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 20, 0)
+                GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
                 GLES30.glEnableVertexAttribArray(0)
-                GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 20, 12)
-                GLES30.glEnableVertexAttribArray(1)
                 GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertices.toGlBuffer(), GLES30.GL_STATIC_DRAW)
                 val renderData = RenderData(
                     lumaProgram = lumaProgram,

@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-       // playerView.enableAsciiArtFilter(true)
+       playerView.enableAsciiArtFilter(true)
 
         mediaPlayer.setListener(object : tMediaPlayerListener {
 
