@@ -146,6 +146,8 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        playerView.enableAsciiArtFilter(true)
+
         mediaPlayer.setListener(object : tMediaPlayerListener {
 
             override fun onPlayerState(state: tMediaPlayerState) {
