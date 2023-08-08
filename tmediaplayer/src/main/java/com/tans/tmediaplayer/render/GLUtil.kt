@@ -1,7 +1,9 @@
 package com.tans.tmediaplayer.render
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.opengl.GLES30
+import android.opengl.GLES31
 import android.util.Log
 import com.tans.tmediaplayer.MediaLog
 import java.nio.ByteBuffer
@@ -192,6 +194,19 @@ internal fun offScreenRender(
 
     GLES30.glUseProgram(0)
     GLES30.glFinish()
+//
+//    val imageBytes = ByteArray(outputTexWidth * outputTexHeight * 4)
+//    GLES31.glBindTexture(GLES31.GL_TEXTURE_2D, outputTexId)
+//    GLES31.glReadPixels(
+//        0, 0,
+//        outputTexWidth, outputTexHeight,
+//        GLES31.GL_RGBA,
+//        GLES31.GL_UNSIGNED_BYTE,
+//        ByteBuffer.wrap(imageBytes)
+//    )
+//    val b = Bitmap.createBitmap(outputTexWidth, outputTexHeight, Bitmap.Config.ARGB_8888)
+//    b.copyPixelsFromBuffer(ByteBuffer.wrap(imageBytes))
+//    println(b)
 
     GLES30.glViewport(lastViewPort[0], lastViewPort[1], lastViewPort[2], lastViewPort[3])
     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, GLES30.GL_NONE)

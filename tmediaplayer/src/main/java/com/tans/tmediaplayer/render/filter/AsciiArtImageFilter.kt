@@ -25,7 +25,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(128)
+        AtomicInteger(1920)
     }
 
     fun setCharLineWidth(width: Int) {

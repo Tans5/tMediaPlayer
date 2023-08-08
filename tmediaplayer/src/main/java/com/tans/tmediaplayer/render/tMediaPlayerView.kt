@@ -236,11 +236,10 @@ class tMediaPlayerView : GLSurfaceView {
                     }
                 }
                 val vertex = floatArrayOf(
-                    positionTl.x, positionTl.y, 1.0f,    textureTl.x, textureTl.y,      // 左上
-                    positionRb.x, positionTl.y, 1.0f,    textureRb.x, textureTl.y,      // 右上
-                    positionRb.x, positionRb.y, 1.0f,    textureRb.x, textureRb.y,      // 右下
-                    positionTl.x, positionRb.y, 1.0f,    textureTl.x,  textureRb.y,     // 左下
-                    0.0f
+                    positionTl.x, positionTl.y, 0.0f,    textureTl.x, textureTl.y,      // 左上
+                    positionRb.x, positionTl.y, 0.0f,    textureRb.x, textureTl.y,      // 右上
+                    positionRb.x, positionRb.y, 0.0f,    textureRb.x, textureRb.y,      // 右下
+                    positionTl.x, positionRb.y, 0.0f,    textureTl.x,  textureRb.y,     // 左下
                 )
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
