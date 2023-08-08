@@ -47,17 +47,19 @@ class AsciiArtImageFilter : ImageFilter {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
                 val asciiWidth = charLineWidth.get()
-                val asciiHeight = (asciiWidth.toFloat() * input.height.toFloat() / input.width.toFloat() + 0.5f).toInt()
+                val asciiHeight = (asciiWidth.toFloat() * input.height.toFloat() / input.width.toFloat()).toInt()
                 offScreenRender(
                     outputTexId = renderData.lumaTexture,
                     outputTexWidth = asciiWidth,
                     outputTexHeight = asciiHeight
                 ) {
                     GLES30.glUseProgram(renderData.lumaProgram)
-                    GLES30.glBindVertexArray(renderData.lumaVao)
-                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.lumaVbo)
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, input.texture)
+                    GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.lumaProgram, "Texture"), 0)
+
+                    GLES30.glBindVertexArray(renderData.lumaVao)
+                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.lumaVbo)
                     GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
                 }
                 FilterImageTexture(
