@@ -18,7 +18,6 @@ import com.tans.tmediaplayer.render.offScreenRender
 import com.tans.tmediaplayer.render.tMediaPlayerView
 import com.tans.tmediaplayer.render.toGlBuffer
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -39,7 +38,15 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(85)
+        AtomicInteger(64)
+    }
+
+    private val revertChar: AtomicReference<Boolean> by lazy {
+        AtomicReference(false)
+    }
+
+    private val showImageColor:  AtomicReference<Boolean> by lazy {
+        AtomicReference(false)
     }
 
     private val charPaint: Paint by lazy {
@@ -53,6 +60,14 @@ class AsciiArtImageFilter : ImageFilter {
 
     fun setCharLineWidth(width: Int) {
         charLineWidth.set(min(max(MIN_CHAR_LINE_WIDTH, width), MAX_CHAR_LINE_WIDTH))
+    }
+
+    fun revertChar(revert: Boolean) {
+        revertChar.set(revert)
+    }
+
+    fun showImageColor(showColor: Boolean) {
+        showImageColor.set(showColor)
     }
 
     override fun enable(enable: Boolean) {
@@ -114,11 +129,16 @@ class AsciiArtImageFilter : ImageFilter {
                     GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVbo)
                     for (h in 0 until asciiHeight) {
                         for (w in 0 until asciiWidth) {
-                            val r = lumaImageBytes[pixelIndex ++].toUnsignedInt()
-                            val g = lumaImageBytes[pixelIndex ++].toUnsignedInt()
-                            val b = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                            if (showImageColor.get()) {
+                                val r = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                                val g = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                                val b = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                                GLES30.glUniform3i(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), r, g, b)
+                            } else {
+                                pixelIndex += 3
+                            }
                             val y = lumaImageBytes[pixelIndex ++].toUnsignedInt()
-                            val chars = renderData.asciiArtChars
+                            val chars = if (revertChar.get()) renderData.asciiArtCharsReverse else renderData.asciiArtChars
                             val charIndex = renderData.asciiIndex[y]
                             val char = chars[charIndex]
                             val widthStart = renderWidthStart

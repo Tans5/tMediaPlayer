@@ -63,6 +63,10 @@ class tMediaPlayerView : GLSurfaceView {
         asciiArtFilter.enable(enable)
     }
 
+    fun getAsciiArtImageFilter(): AsciiArtImageFilter {
+        return asciiArtFilter
+    }
+
     fun getScaleType(): ScaleType = this.scaleType.get()
 
     fun requestRenderRgbaFrame(width: Int, height: Int, imageBytes: ByteArray) {
