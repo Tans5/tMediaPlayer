@@ -37,7 +37,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(64)
+        AtomicInteger(85)
     }
 
     private val charPaint: Paint by lazy {
@@ -105,15 +105,15 @@ class AsciiArtImageFilter : ImageFilter {
                     val charHeightGLStep = 2.0f / asciiHeight.toFloat()
                     var renderWidthStart = -1.0f
                     var renderHeightStart = 1.0f
+                    var pixelIndex = 0
                     val start = SystemClock.uptimeMillis()
                     for (h in 0 until asciiHeight) {
                         for (w in 0 until asciiWidth) {
-                            val i = w * h
-                            val r = lumaImageBytes[i].toUnsignedInt().toFloat() / 255.0f
-                            val g = lumaImageBytes[i + 1].toUnsignedInt().toFloat() / 255.0f
-                            val b = lumaImageBytes[i + 2].toUnsignedInt().toFloat() / 255.0f
-                            val y = lumaImageBytes[i + 3].toUnsignedInt()
-                            val chars = renderData.asciiArtChars
+                            val r = lumaImageBytes[pixelIndex ++].toUnsignedInt().toFloat() / 255.0f
+                            val g = lumaImageBytes[pixelIndex ++].toUnsignedInt().toFloat() / 255.0f
+                            val b = lumaImageBytes[pixelIndex ++].toUnsignedInt().toFloat() / 255.0f
+                            val y = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                            val chars = renderData.asciiArtChars.asReversed()
                             val charIndex = ((chars.size - 1).toFloat() * y.toFloat() / 255.0f + 0.5).toInt()
                             val char = chars[charIndex]
                             val widthStart = renderWidthStart
