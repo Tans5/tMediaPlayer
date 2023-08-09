@@ -35,7 +35,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(128)
+        AtomicInteger(64)
     }
 
     private val charPaint: Paint by lazy {
@@ -91,10 +91,60 @@ class AsciiArtImageFilter : ImageFilter {
                         ByteBuffer.wrap(lumaImageBytes)
                     )
                 }
+                offScreenRender(
+                    outputTexId = renderData.charTexture,
+                    outputTexWidth = input.width,
+                    outputTexHeight = input.height
+                ) {
+                    GLES30.glEnable(GLES30.GL_BLEND)
+                    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
+                    GLES30.glUseProgram(renderData.charProgram)
+                    val charWidthInScreenPercent = asciiWidth.toFloat() / input.width.toFloat()
+                    val charHeightInScreenPercent = asciiHeight.toFloat() / input.height.toFloat()
+                    val charWidthGLStep = charWidthInScreenPercent / 2.0f
+                    val charHeightGLStep = charHeightInScreenPercent / 2.0f
+                    var renderWidthStart = -1.0f
+                    var renderHeightStart = 1.0f
+                    for (h in 0 until asciiHeight) {
+                        for (w in 0 until asciiWidth) {
+                            val i = w * h
+                            val r = lumaImageBytes[i].toUnsignedInt().toFloat() / 255.0f
+                            val g = lumaImageBytes[i + 1].toUnsignedInt().toFloat() / 255.0f
+                            val b = lumaImageBytes[i + 2].toUnsignedInt().toFloat() / 255.0f
+                            val y = lumaImageBytes[i + 3].toUnsignedInt()
+                            val chars = renderData.asciiArtChars
+                            val charIndex = ((chars.size - 1).toFloat() * y.toFloat() / 255.0f + 0.5).toInt()
+                            val char = chars[charIndex]
+                            val widthStart = renderWidthStart
+                            val widthEnd = widthStart + charWidthGLStep
+                            val heightStart = renderHeightStart
+                            val heightEnd = heightStart - charHeightGLStep
+                            val vertices = floatArrayOf(
+                                // 坐标(position 0)              // 纹理坐标
+                                widthStart, heightStart,        0.0f, 1.0f,    // 左上角
+                                widthEnd, heightStart,          1.0f, 1.0f,   // 右上角
+                                widthEnd, heightEnd,            1.0f, 0.0f,   // 右下角
+                                widthStart, heightEnd,          0.0f, 0.0f,   // 左下角
+                            )
+                            GLES30.glUniform3f(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), r, g, b)
+                            GLES30.glBindVertexArray(renderData.charVao)
+                            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVbo)
+                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertices.size * 4, vertices.toGlBuffer())
+                            GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, char.texture)
+                            GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
+                            renderWidthStart += charWidthGLStep
+                        }
+                        renderWidthStart = -1.0f
+                        renderHeightStart -= charHeightGLStep
+                    }
+
+                    GLES30.glDisable(GLES30.GL_BLEND)
+                }
                 FilterImageTexture(
-                    width = asciiWidth,
-                    height = asciiHeight,
-                    texture = renderData.lumaTexture
+                    width = input.width,
+                    height = input.height,
+                    texture = renderData.charTexture
                 )
             } else {
                 input
@@ -114,6 +164,7 @@ class AsciiArtImageFilter : ImageFilter {
             GLES30.glDeleteBuffers(1, intArrayOf(renderData.lumaVbo), 0)
 
             GLES30.glDeleteProgram(renderData.charProgram)
+            GLES30.glDeleteTextures(1, intArrayOf(renderData.charTexture), 0)
             GLES30.glDeleteBuffers(1, intArrayOf(renderData.charVbo), 0)
             val charTextures = renderData.asciiArtChars.map { it.texture }.toIntArray()
             GLES30.glDeleteTextures(charTextures.size, charTextures, 0)
@@ -155,6 +206,7 @@ class AsciiArtImageFilter : ImageFilter {
                 GLES30.glEnableVertexAttribArray(0)
                 GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertices.toGlBuffer(), GLES30.GL_STATIC_DRAW)
 
+                val charTexture = glGenTextureAndSetDefaultParams()
                 val charVao = glGenVertexArrays()
                 val charVbo = glGenBuffers()
                 GLES30.glBindVertexArray(charVao)
@@ -162,8 +214,6 @@ class AsciiArtImageFilter : ImageFilter {
                 GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
                 GLES30.glEnableVertexAttribArray(0)
                 GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, null, GLES30.GL_STREAM_DRAW)
-//                GLES30.glEnable(GLES30.GL_BLEND)
-//                GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
 
                 val asciiArtChars = asciiChars.toCharArray().map { c -> createCharTexture(c) }
                 val renderData = RenderData(
@@ -175,6 +225,7 @@ class AsciiArtImageFilter : ImageFilter {
                     charProgram = charProgram,
                     charVao = charVao,
                     charVbo = charVbo,
+                    charTexture = charTexture,
                     asciiArtChars = asciiArtChars
                 )
                 this.renderData.set(renderData)
@@ -184,6 +235,8 @@ class AsciiArtImageFilter : ImageFilter {
             }
         }
     }
+
+    private inline fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
 
     private fun createCharTexture(c: Char, width: Int = 32, height: Int = 32): CharTexture {
         val texture = glGenTextureAndSetDefaultParams()
@@ -211,6 +264,7 @@ class AsciiArtImageFilter : ImageFilter {
             val charProgram: Int,
             val charVao: Int,
             val charVbo: Int,
+            val charTexture: Int,
             val asciiArtChars: List<CharTexture>
         )
 
