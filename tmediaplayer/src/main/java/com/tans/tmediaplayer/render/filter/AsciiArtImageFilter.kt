@@ -7,6 +7,8 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.opengl.GLES30
 import android.opengl.GLUtils
+import android.os.SystemClock
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.render.compileShaderProgram
 import com.tans.tmediaplayer.render.glGenBuffers
@@ -105,6 +107,7 @@ class AsciiArtImageFilter : ImageFilter {
                     val charHeightGLStep = charHeightInScreenPercent / 2.0f
                     var renderWidthStart = -1.0f
                     var renderHeightStart = 1.0f
+                    val start = SystemClock.uptimeMillis()
                     for (h in 0 until asciiHeight) {
                         for (w in 0 until asciiWidth) {
                             val i = w * h
@@ -132,19 +135,21 @@ class AsciiArtImageFilter : ImageFilter {
                             GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertices.size * 4, vertices.toGlBuffer())
                             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, char.texture)
+                            GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
                             GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
                             renderWidthStart += charWidthGLStep
                         }
                         renderWidthStart = -1.0f
                         renderHeightStart -= charHeightGLStep
                     }
-
+                    val end = SystemClock.uptimeMillis()
+                    MediaLog.d(TAG, "Char render cost: ${end - start} ms")
                     GLES30.glDisable(GLES30.GL_BLEND)
                 }
                 FilterImageTexture(
-                    width = input.width,
-                    height = input.height,
-                    texture = renderData.charTexture
+                    width = asciiWidth,
+                    height = asciiHeight,
+                    texture = renderData.lumaTexture
                 )
             } else {
                 input
@@ -238,7 +243,7 @@ class AsciiArtImageFilter : ImageFilter {
 
     private inline fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
 
-    private fun createCharTexture(c: Char, width: Int = 32, height: Int = 32): CharTexture {
+    private fun createCharTexture(c: Char, width: Int = 16, height: Int = 16): CharTexture {
         val texture = glGenTextureAndSetDefaultParams()
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ALPHA_8)
         val canvas = Canvas(bitmap)
@@ -255,6 +260,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     companion object {
+        private const val TAG = "AsciiArtImageFilter"
         private data class RenderData(
             val lumaProgram: Int,
             val lumaVao: Int,
@@ -274,8 +280,8 @@ class AsciiArtImageFilter : ImageFilter {
             val height: Int
         )
 
-        const val MIN_CHAR_LINE_WIDTH = 64
-        const val MAX_CHAR_LINE_WIDTH = 256
+        const val MIN_CHAR_LINE_WIDTH = 16
+        const val MAX_CHAR_LINE_WIDTH = 128
 
         private const val asciiChars = " `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#\$Bg0MNWQ%&@"
     }
