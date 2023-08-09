@@ -101,10 +101,8 @@ class AsciiArtImageFilter : ImageFilter {
                     GLES30.glEnable(GLES30.GL_BLEND)
                     GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
                     GLES30.glUseProgram(renderData.charProgram)
-                    val charWidthInScreenPercent = asciiWidth.toFloat() / input.width.toFloat()
-                    val charHeightInScreenPercent = asciiHeight.toFloat() / input.height.toFloat()
-                    val charWidthGLStep = charWidthInScreenPercent / 2.0f
-                    val charHeightGLStep = charHeightInScreenPercent / 2.0f
+                    val charWidthGLStep = 2.0f / asciiWidth.toFloat()
+                    val charHeightGLStep = 2.0f / asciiHeight.toFloat()
                     var renderWidthStart = -1.0f
                     var renderHeightStart = 1.0f
                     val start = SystemClock.uptimeMillis()
@@ -147,9 +145,9 @@ class AsciiArtImageFilter : ImageFilter {
                     GLES30.glDisable(GLES30.GL_BLEND)
                 }
                 FilterImageTexture(
-                    width = asciiWidth,
-                    height = asciiHeight,
-                    texture = renderData.lumaTexture
+                    width = input.width,
+                    height = input.height,
+                    texture = renderData.charTexture
                 )
             } else {
                 input
@@ -247,7 +245,7 @@ class AsciiArtImageFilter : ImageFilter {
         val texture = glGenTextureAndSetDefaultParams()
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ALPHA_8)
         val canvas = Canvas(bitmap)
-        charPaint.textSize = max(width, height).toFloat() * 1.2f
+        charPaint.textSize = max(width, height).toFloat() * 1.1f
         val metrics = charPaint.fontMetrics
         val charWidth = charPaint.measureText(c.toString())
         val x = max((width - charWidth) / 2.0f, 0.0f)
