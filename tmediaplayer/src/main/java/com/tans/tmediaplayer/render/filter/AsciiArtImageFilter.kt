@@ -37,7 +37,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(128)
+        AtomicInteger(64)
     }
 
     private val charPaint: Paint by lazy {
@@ -109,28 +109,29 @@ class AsciiArtImageFilter : ImageFilter {
                     val start = SystemClock.uptimeMillis()
                     for (h in 0 until asciiHeight) {
                         for (w in 0 until asciiWidth) {
-                            val r = lumaImageBytes[pixelIndex ++].toUnsignedInt().toFloat() / 255.0f
-                            val g = lumaImageBytes[pixelIndex ++].toUnsignedInt().toFloat() / 255.0f
-                            val b = lumaImageBytes[pixelIndex ++].toUnsignedInt().toFloat() / 255.0f
+                            val r = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                            val g = lumaImageBytes[pixelIndex ++].toUnsignedInt()
+                            val b = lumaImageBytes[pixelIndex ++].toUnsignedInt()
                             val y = lumaImageBytes[pixelIndex ++].toUnsignedInt()
-                            val chars = renderData.asciiArtChars.asReversed()
+                            val chars = renderData.asciiArtCharsReverse
                             val charIndex = ((chars.size - 1).toFloat() * y.toFloat() / 255.0f + 0.5).toInt()
                             val char = chars[charIndex]
                             val widthStart = renderWidthStart
                             val widthEnd = renderWidthStart + charWidthGLStep
                             val heightStart = renderHeightStart + charHeightGLStep
                             val heightEnd = renderHeightStart
-                            val vertices = floatArrayOf(
-                                // 坐标(position 0)              // 纹理坐标
-                                widthStart, heightStart,        0.0f, 1.0f,    // 左上角
-                                widthEnd, heightStart,          1.0f, 1.0f,   // 右上角
-                                widthEnd, heightEnd,            1.0f, 0.0f,   // 右下角
-                                widthStart, heightEnd,          0.0f, 0.0f,   // 左下角
-                            )
-                            GLES30.glUniform3f(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), r, g, b)
+                            renderData.charVert[0] = widthStart
+                            renderData.charVert[1] = heightStart
+                            renderData.charVert[4] = widthEnd
+                            renderData.charVert[5] = heightStart
+                            renderData.charVert[8] = widthEnd
+                            renderData.charVert[9] = heightEnd
+                            renderData.charVert[12] = widthStart
+                            renderData.charVert[13] = heightEnd
+                            GLES30.glUniform3i(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), r, g, b)
                             GLES30.glBindVertexArray(renderData.charVao)
                             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVbo)
-                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertices.size * 4, vertices.toGlBuffer())
+                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, renderData.charVert.size * 4, renderData.charVert.toGlBuffer())
                             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, char.texture)
                             GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
@@ -229,7 +230,8 @@ class AsciiArtImageFilter : ImageFilter {
                     charVao = charVao,
                     charVbo = charVbo,
                     charTexture = charTexture,
-                    asciiArtChars = asciiArtChars
+                    asciiArtChars = asciiArtChars,
+                    asciiArtCharsReverse = asciiArtChars.asReversed()
                 )
                 this.renderData.set(renderData)
                 renderData
@@ -269,8 +271,52 @@ class AsciiArtImageFilter : ImageFilter {
             val charVao: Int,
             val charVbo: Int,
             val charTexture: Int,
-            val asciiArtChars: List<CharTexture>
-        )
+            val charVert: FloatArray = floatArrayOf(
+                // 坐标(position 0) // 纹理坐标
+                0.0f, 0.0f,        0.0f, 1.0f,    // 左上角
+                0.0f, 0.0f,        1.0f, 1.0f,   // 右上角
+                0.0f, 0.0f,        1.0f, 0.0f,   // 右下角
+                0.0f, 0.0f,        0.0f, 0.0f,   // 左下角
+            ),
+            val asciiArtChars: List<CharTexture>,
+            val asciiArtCharsReverse: List<CharTexture>,
+        ) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as RenderData
+
+                if (lumaProgram != other.lumaProgram) return false
+                if (lumaVao != other.lumaVao) return false
+                if (lumaVbo != other.lumaVbo) return false
+                if (lumaTexture != other.lumaTexture) return false
+                if (charProgram != other.charProgram) return false
+                if (charVao != other.charVao) return false
+                if (charVbo != other.charVbo) return false
+                if (charTexture != other.charTexture) return false
+                if (!charVert.contentEquals(other.charVert)) return false
+                if (asciiArtChars != other.asciiArtChars) return false
+                if (asciiArtCharsReverse != other.asciiArtCharsReverse) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = lumaProgram
+                result = 31 * result + lumaVao
+                result = 31 * result + lumaVbo
+                result = 31 * result + lumaTexture
+                result = 31 * result + charProgram
+                result = 31 * result + charVao
+                result = 31 * result + charVbo
+                result = 31 * result + charTexture
+                result = 31 * result + charVert.contentHashCode()
+                result = 31 * result + asciiArtChars.hashCode()
+                result = 31 * result + asciiArtCharsReverse.hashCode()
+                return result
+            }
+        }
 
         private data class CharTexture(
             val texture: Int,

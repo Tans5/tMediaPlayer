@@ -5,8 +5,11 @@ in vec2 TexCoord;
 out vec4 FragColor;
 
 uniform sampler2D Texture;
-uniform vec3 TextColor;
+uniform ivec3 TextColor;
 
 void main() {
-    FragColor = vec4(TextColor, texture(Texture, TexCoord).a);
+    float r = float(TextColor.x) / 255.0;
+    float g = float(TextColor.y) / 255.0;
+    float b = float(TextColor.z) / 255.0;
+    FragColor = vec4(r, g, b, texture(Texture, TexCoord).a);
 }
