@@ -114,7 +114,7 @@ class AsciiArtImageFilter : ImageFilter {
                             val b = lumaImageBytes[pixelIndex ++].toUnsignedInt()
                             val y = lumaImageBytes[pixelIndex ++].toUnsignedInt()
                             val chars = renderData.asciiArtCharsReverse
-                            val charIndex = ((chars.size - 1).toFloat() * y.toFloat() / 255.0f + 0.5).toInt()
+                            val charIndex = renderData.asciiIndex[y]
                             val char = chars[charIndex]
                             val widthStart = renderWidthStart
                             val widthEnd = renderWidthStart + charWidthGLStep
@@ -131,7 +131,7 @@ class AsciiArtImageFilter : ImageFilter {
                             GLES30.glUniform3i(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), r, g, b)
                             GLES30.glBindVertexArray(renderData.charVao)
                             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVbo)
-                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, renderData.charVert.size * 4, renderData.charVert.toGlBuffer())
+                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVert.toGlBuffer())
                             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, char.texture)
                             GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
@@ -231,7 +231,10 @@ class AsciiArtImageFilter : ImageFilter {
                     charVbo = charVbo,
                     charTexture = charTexture,
                     asciiArtChars = asciiArtChars,
-                    asciiArtCharsReverse = asciiArtChars.asReversed()
+                    asciiArtCharsReverse = asciiArtChars.asReversed(),
+                    asciiIndex = IntArray(256) { i ->
+                        ((asciiArtChars.size - 1).toFloat() * i.toFloat() / 255.0f + 0.5f).toInt()
+                    }
                 )
                 this.renderData.set(renderData)
                 renderData
@@ -280,6 +283,7 @@ class AsciiArtImageFilter : ImageFilter {
             ),
             val asciiArtChars: List<CharTexture>,
             val asciiArtCharsReverse: List<CharTexture>,
+            val asciiIndex: IntArray
         ) {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
