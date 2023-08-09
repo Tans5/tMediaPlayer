@@ -18,6 +18,8 @@ import com.tans.tmediaplayer.render.offScreenRender
 import com.tans.tmediaplayer.render.tMediaPlayerView
 import com.tans.tmediaplayer.render.toGlBuffer
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.FloatBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -37,7 +39,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(64)
+        AtomicInteger(85)
     }
 
     private val charPaint: Paint by lazy {
@@ -107,13 +109,16 @@ class AsciiArtImageFilter : ImageFilter {
                     var renderHeightStart = -1.0f
                     var pixelIndex = 0
                     val start = SystemClock.uptimeMillis()
+                    GLES30.glUniform3i(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), 255, 255, 255)
+                    GLES30.glBindVertexArray(renderData.charVao)
+                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVbo)
                     for (h in 0 until asciiHeight) {
                         for (w in 0 until asciiWidth) {
                             val r = lumaImageBytes[pixelIndex ++].toUnsignedInt()
                             val g = lumaImageBytes[pixelIndex ++].toUnsignedInt()
                             val b = lumaImageBytes[pixelIndex ++].toUnsignedInt()
                             val y = lumaImageBytes[pixelIndex ++].toUnsignedInt()
-                            val chars = renderData.asciiArtCharsReverse
+                            val chars = renderData.asciiArtChars
                             val charIndex = renderData.asciiIndex[y]
                             val char = chars[charIndex]
                             val widthStart = renderWidthStart
@@ -128,13 +133,13 @@ class AsciiArtImageFilter : ImageFilter {
                             renderData.charVert[9] = heightEnd
                             renderData.charVert[12] = widthStart
                             renderData.charVert[13] = heightEnd
-                            GLES30.glUniform3i(GLES30.glGetUniformLocation(renderData.charProgram, "TextColor"), r, g, b)
-                            GLES30.glBindVertexArray(renderData.charVao)
-                            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVbo)
-                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVert.toGlBuffer())
-                            GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                            renderData.charVertBuffer.clear()
+                            renderData.charVertBuffer.put(renderData.charVert)
+                            renderData.charVertBuffer.position(0)
+                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVertBuffer)
+//                             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, char.texture)
-                            GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
+//                            GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
                             GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
                             renderWidthStart += charWidthGLStep
                         }
@@ -281,6 +286,7 @@ class AsciiArtImageFilter : ImageFilter {
                 0.0f, 0.0f,        1.0f, 0.0f,   // 右下角
                 0.0f, 0.0f,        0.0f, 0.0f,   // 左下角
             ),
+            val charVertBuffer: FloatBuffer = charVert.toGlBuffer().asFloatBuffer(),
             val asciiArtChars: List<CharTexture>,
             val asciiArtCharsReverse: List<CharTexture>,
             val asciiIndex: IntArray
