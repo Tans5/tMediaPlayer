@@ -37,7 +37,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val charLineWidth: AtomicInteger by lazy {
-        AtomicInteger(85)
+        AtomicInteger(128)
     }
 
     private val charPaint: Paint by lazy {
@@ -104,7 +104,7 @@ class AsciiArtImageFilter : ImageFilter {
                     val charWidthGLStep = 2.0f / asciiWidth.toFloat()
                     val charHeightGLStep = 2.0f / asciiHeight.toFloat()
                     var renderWidthStart = -1.0f
-                    var renderHeightStart = 1.0f
+                    var renderHeightStart = -1.0f
                     var pixelIndex = 0
                     val start = SystemClock.uptimeMillis()
                     for (h in 0 until asciiHeight) {
@@ -117,9 +117,9 @@ class AsciiArtImageFilter : ImageFilter {
                             val charIndex = ((chars.size - 1).toFloat() * y.toFloat() / 255.0f + 0.5).toInt()
                             val char = chars[charIndex]
                             val widthStart = renderWidthStart
-                            val widthEnd = widthStart + charWidthGLStep
-                            val heightStart = renderHeightStart
-                            val heightEnd = heightStart - charHeightGLStep
+                            val widthEnd = renderWidthStart + charWidthGLStep
+                            val heightStart = renderHeightStart + charHeightGLStep
+                            val heightEnd = renderHeightStart
                             val vertices = floatArrayOf(
                                 // 坐标(position 0)              // 纹理坐标
                                 widthStart, heightStart,        0.0f, 1.0f,    // 左上角
@@ -138,7 +138,7 @@ class AsciiArtImageFilter : ImageFilter {
                             renderWidthStart += charWidthGLStep
                         }
                         renderWidthStart = -1.0f
-                        renderHeightStart -= charHeightGLStep
+                        renderHeightStart += charHeightGLStep
                     }
                     val end = SystemClock.uptimeMillis()
                     MediaLog.d(TAG, "Char render cost: ${end - start} ms")
