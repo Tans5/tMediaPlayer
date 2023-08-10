@@ -5,8 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PorterDuff
 import android.opengl.GLES30
-import android.opengl.GLUtils
 import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
@@ -138,28 +138,34 @@ class AsciiArtImageFilter : ImageFilter {
                                 pixelIndex += 3
                             }
                             val y = lumaImageBytes[pixelIndex ++].toUnsignedInt()
-                            val chars = if (revertChar.get()) renderData.asciiArtCharsReverse else renderData.asciiArtChars
-                            val charIndex = renderData.asciiIndex[y]
-                            val char = chars[charIndex]
+                            val charIndex = if (revertChar.get()) renderData.asciiIndexRevers[y] else renderData.asciiIndex[y]
                             val widthStart = renderWidthStart
                             val widthEnd = renderWidthStart + charWidthGLStep
                             val heightStart = renderHeightStart + charHeightGLStep
                             val heightEnd = renderHeightStart
                             renderData.charVert[0] = widthStart
                             renderData.charVert[1] = heightStart
-                            renderData.charVert[4] = widthEnd
-                            renderData.charVert[5] = heightStart
-                            renderData.charVert[8] = widthEnd
-                            renderData.charVert[9] = heightEnd
-                            renderData.charVert[12] = widthStart
-                            renderData.charVert[13] = heightEnd
+                            renderData.charVert[4] = charIndex.toFloat()
+
+                            renderData.charVert[5] = widthEnd
+                            renderData.charVert[6] = heightStart
+                            renderData.charVert[9] = charIndex.toFloat()
+
+                            renderData.charVert[10] = widthEnd
+                            renderData.charVert[11] = heightEnd
+                            renderData.charVert[14] = charIndex.toFloat()
+
+                            renderData.charVert[15] = widthStart
+                            renderData.charVert[16] = heightEnd
+                            renderData.charVert[19] = charIndex.toFloat()
+
                             renderData.charVertBuffer.clear()
                             renderData.charVertBuffer.put(renderData.charVert)
                             renderData.charVertBuffer.position(0)
-                            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVertBuffer)
-//                             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-                            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, char.texture)
-//                            GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
+                            GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 80, renderData.charVertBuffer, GLES30.GL_STREAM_DRAW)
+                            GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, renderData.charTexturesArray)
+                            GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "Texture"), 0)
                             GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
                             renderWidthStart += charWidthGLStep
                         }
@@ -167,8 +173,8 @@ class AsciiArtImageFilter : ImageFilter {
                         renderHeightStart += charHeightGLStep
                     }
                     val end = SystemClock.uptimeMillis()
-                    MediaLog.d(TAG, "Char render cost: ${end - start} ms")
                     GLES30.glDisable(GLES30.GL_BLEND)
+                    MediaLog.d(TAG, "Char render cost: ${end - start} ms")
                 }
                 FilterImageTexture(
                     width = input.width,
@@ -195,8 +201,7 @@ class AsciiArtImageFilter : ImageFilter {
             GLES30.glDeleteProgram(renderData.charProgram)
             GLES30.glDeleteTextures(1, intArrayOf(renderData.charTexture), 0)
             GLES30.glDeleteBuffers(1, intArrayOf(renderData.charVbo), 0)
-            val charTextures = renderData.asciiArtChars.map { it.texture }.toIntArray()
-            GLES30.glDeleteTextures(charTextures.size, charTextures, 0)
+            GLES30.glDeleteTextures(1, intArrayOf(renderData.charTexturesArray), 0)
         }
     }
 
@@ -240,11 +245,45 @@ class AsciiArtImageFilter : ImageFilter {
                 val charVbo = glGenBuffers()
                 GLES30.glBindVertexArray(charVao)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charVbo)
-                GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
+                GLES30.glVertexAttribPointer(0, 2, GLES30.GL_FLOAT, false, 20, 0)
                 GLES30.glEnableVertexAttribArray(0)
-                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, null, GLES30.GL_STREAM_DRAW)
+                GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, 20, 8)
+                GLES30.glEnableVertexAttribArray(1)
+                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 80, null, GLES30.GL_STREAM_DRAW)
 
-                val asciiArtChars = asciiChars.toCharArray().map { c -> createCharTexture(c) }
+                val charTexturesArray = IntArray(1)
+                GLES30.glGenTextures(1, charTexturesArray, 0)
+                val charTextures = charTexturesArray[0]
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, charTextures)
+                val charSize = 16
+                // GLES30.glTexStorage3D(GLES30.GL_TEXTURE_2D_ARRAY, 1, GLES30.GL_RGBA8, charSize, charSize, asciiChars.length)
+                GLES30.glTexImage3D(GLES30.GL_TEXTURE_2D_ARRAY, 0, GLES30.GL_RGBA, charSize, charSize, asciiChars.length, 0, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, null)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_REPEAT)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
+                GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D_ARRAY)
+                charPaint.textSize = charSize.toFloat() * 1.1f
+                for ((i, c) in asciiChars.toCharArray().withIndex()) {
+                    val bitmap = Bitmap.createBitmap(charSize, charSize, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(bitmap)
+                    val metrics = charPaint.fontMetrics
+                    val charWidth = charPaint.measureText(c.toString())
+                    val x = max((charSize - charWidth) / 2.0f, 0.0f)
+                    val y = - metrics.top / (metrics.bottom - metrics.top) * charSize
+                    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+                    canvas.drawText(c.toString(), x, y, charPaint)
+                    val b = ByteBuffer.allocate(charSize * charSize * 4)
+                    bitmap.copyPixelsToBuffer(b)
+                    b.position(0)
+                    GLES30.glTexSubImage3D(GLES30.GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, charSize, charSize, 1, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, b)
+                    bitmap.recycle()
+                }
+
+                val asciiIndex = IntArray(256) { i ->
+                    ((asciiChars.length - 1).toFloat() * i.toFloat() / 255.0f + 0.5f).toInt()
+                }
+
                 val renderData = RenderData(
                     lumaProgram = lumaProgram,
                     lumaVao = lumaVao,
@@ -255,11 +294,9 @@ class AsciiArtImageFilter : ImageFilter {
                     charVao = charVao,
                     charVbo = charVbo,
                     charTexture = charTexture,
-                    asciiArtChars = asciiArtChars,
-                    asciiArtCharsReverse = asciiArtChars.asReversed(),
-                    asciiIndex = IntArray(256) { i ->
-                        ((asciiArtChars.size - 1).toFloat() * i.toFloat() / 255.0f + 0.5f).toInt()
-                    }
+                    charTexturesArray = charTextures,
+                    asciiIndex = asciiIndex,
+                    asciiIndexRevers = asciiIndex.toList().asReversed().toIntArray()
                 )
                 this.renderData.set(renderData)
                 renderData
@@ -270,22 +307,6 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private inline fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
-
-    private fun createCharTexture(c: Char, width: Int = 16, height: Int = 16): CharTexture {
-        val texture = glGenTextureAndSetDefaultParams()
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ALPHA_8)
-        val canvas = Canvas(bitmap)
-        charPaint.textSize = max(width, height).toFloat() * 1.1f
-        val metrics = charPaint.fontMetrics
-        val charWidth = charPaint.measureText(c.toString())
-        val x = max((width - charWidth) / 2.0f, 0.0f)
-        val y = - metrics.top / (metrics.bottom - metrics.top) * height
-        canvas.drawText(c.toString(), x, y, charPaint)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, texture)
-        GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, bitmap, 0)
-        bitmap.recycle()
-        return CharTexture(texture, width, height)
-    }
 
     companion object {
         private const val TAG = "AsciiArtImageFilter"
@@ -301,15 +322,15 @@ class AsciiArtImageFilter : ImageFilter {
             val charTexture: Int,
             val charVert: FloatArray = floatArrayOf(
                 // 坐标(position 0) // 纹理坐标
-                0.0f, 0.0f,        0.0f, 1.0f,    // 左上角
-                0.0f, 0.0f,        1.0f, 1.0f,   // 右上角
-                0.0f, 0.0f,        1.0f, 0.0f,   // 右下角
-                0.0f, 0.0f,        0.0f, 0.0f,   // 左下角
+                0.0f, 0.0f,        0.0f, 1.0f, 0.0f,   // 左上角
+                0.0f, 0.0f,        1.0f, 1.0f, 0.0f,  // 右上角
+                0.0f, 0.0f,        1.0f, 0.0f, 0.0f,  // 右下角
+                0.0f, 0.0f,        0.0f, 0.0f, 0.0f,  // 左下角
             ),
+            val charTexturesArray: Int,
             val charVertBuffer: FloatBuffer = charVert.toGlBuffer().asFloatBuffer(),
-            val asciiArtChars: List<CharTexture>,
-            val asciiArtCharsReverse: List<CharTexture>,
-            val asciiIndex: IntArray
+            val asciiIndex: IntArray,
+            val asciiIndexRevers: IntArray
         ) {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
@@ -326,8 +347,6 @@ class AsciiArtImageFilter : ImageFilter {
                 if (charVbo != other.charVbo) return false
                 if (charTexture != other.charTexture) return false
                 if (!charVert.contentEquals(other.charVert)) return false
-                if (asciiArtChars != other.asciiArtChars) return false
-                if (asciiArtCharsReverse != other.asciiArtCharsReverse) return false
 
                 return true
             }
@@ -342,17 +361,9 @@ class AsciiArtImageFilter : ImageFilter {
                 result = 31 * result + charVbo
                 result = 31 * result + charTexture
                 result = 31 * result + charVert.contentHashCode()
-                result = 31 * result + asciiArtChars.hashCode()
-                result = 31 * result + asciiArtCharsReverse.hashCode()
                 return result
             }
         }
-
-        private data class CharTexture(
-            val texture: Int,
-            val width: Int,
-            val height: Int
-        )
 
         const val MIN_CHAR_LINE_WIDTH = 16
         const val MAX_CHAR_LINE_WIDTH = 128

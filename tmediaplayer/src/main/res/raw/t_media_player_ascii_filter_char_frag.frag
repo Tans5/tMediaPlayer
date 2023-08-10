@@ -1,10 +1,11 @@
 #version 300 es
 
 precision highp float; // Define float precision
-in vec2 TexCoord;
+precision highp sampler2DArray;
+in vec3 TexCoord;
 out vec4 FragColor;
 
-uniform sampler2D Texture;
+uniform sampler2DArray Texture;
 uniform ivec3 TextColor;
 
 void main() {
