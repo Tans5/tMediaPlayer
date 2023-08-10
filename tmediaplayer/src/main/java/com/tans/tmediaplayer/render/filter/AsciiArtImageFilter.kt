@@ -47,7 +47,7 @@ class AsciiArtImageFilter : ImageFilter {
     }
 
     private val showImageColor:  AtomicReference<Boolean> by lazy {
-        AtomicReference(true)
+        AtomicReference(false)
     }
 
     private val charPaint: Paint by lazy {
@@ -428,6 +428,6 @@ class AsciiArtImageFilter : ImageFilter {
         const val MIN_CHAR_LINE_WIDTH = 16
         const val MAX_CHAR_LINE_WIDTH = 256
 
-        private const val asciiChars = " `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#\$Bg0MNWQ%&@"
+        private const val asciiChars = "@&%QWNM0gB\$#DR8mHXKAUbGOpV4d9h6PkqwSE2]ayjxY5Zoen[ult13If}C{iF|(7J)vTLs?z/*cr!+<>;=^,_:'-.` "
     }
 }

@@ -146,7 +146,10 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-       playerView.enableAsciiArtFilter(true)
+        playerView.enableAsciiArtFilter(true)
+        playerView.getAsciiArtImageFilter().apply {
+            setCharLineWidth(128)
+        }
 
         mediaPlayer.setListener(object : tMediaPlayerListener {
 
