@@ -12,7 +12,6 @@ import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.render.compileShaderProgram
 import com.tans.tmediaplayer.render.glGenBuffers
-import com.tans.tmediaplayer.render.glGenTexture
 import com.tans.tmediaplayer.render.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.render.glGenVertexArrays
 import com.tans.tmediaplayer.render.offScreenRender
@@ -23,6 +22,7 @@ import java.nio.FloatBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -153,7 +153,7 @@ class AsciiArtImageFilter : ImageFilter {
                                 b = lumaImageBytes[pixelIndex * 4 + 2].toUnsignedInt()
                             }
                             val y = lumaImageBytes[pixelIndex * 4 + 3].toUnsignedInt()
-                            val charIndex = if (revertChar.get()) renderData.asciiIndexRevers[y] else renderData.asciiIndex[y]
+                            val charIndex = if (revertChar.get()) asciiLightLevelIndexRevers[y] else asciiLightLevelIndex[y]
                             colorTexArray[pixelIndex * 4] = r.toFloat()
                             colorTexArray[pixelIndex * 4 + 1] = g.toFloat()
                             colorTexArray[pixelIndex * 4 + 2] = b.toFloat()
@@ -307,9 +307,7 @@ class AsciiArtImageFilter : ImageFilter {
                     charOffsetVbo = charOffsetVbo,
                     charColorAndTextureVbo = charColorAndTextureVbo,
                     charTexture = charTexture,
-                    charTexturesArray = charTextures,
-                    asciiIndex = asciiIndex,
-                    asciiIndexRevers = asciiIndex.toList().asReversed().toIntArray()
+                    charTexturesArray = charTextures
                 )
                 this.renderData.set(renderData)
                 renderData
@@ -375,9 +373,7 @@ class AsciiArtImageFilter : ImageFilter {
             val charOffsetVbo: Int,
             val charColorAndTextureVbo: Int,
 
-            val charTexturesArray: Int,
-            val asciiIndex: IntArray,
-            val asciiIndexRevers: IntArray
+            val charTexturesArray: Int
         ) {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
@@ -398,8 +394,6 @@ class AsciiArtImageFilter : ImageFilter {
                 if (charOffsetVbo != other.charOffsetVbo) return false
                 if (charColorAndTextureVbo != other.charColorAndTextureVbo) return false
                 if (charTexturesArray != other.charTexturesArray) return false
-                if (!asciiIndex.contentEquals(other.asciiIndex)) return false
-                if (!asciiIndexRevers.contentEquals(other.asciiIndexRevers)) return false
 
                 return true
             }
@@ -418,8 +412,6 @@ class AsciiArtImageFilter : ImageFilter {
                 result = 31 * result + charOffsetVbo
                 result = 31 * result + charColorAndTextureVbo
                 result = 31 * result + charTexturesArray
-                result = 31 * result + asciiIndex.contentHashCode()
-                result = 31 * result + asciiIndexRevers.contentHashCode()
                 return result
             }
 
@@ -428,6 +420,43 @@ class AsciiArtImageFilter : ImageFilter {
         const val MIN_CHAR_LINE_WIDTH = 16
         const val MAX_CHAR_LINE_WIDTH = 256
 
-        private const val asciiChars = "@&%QWNM0gB\$#DR8mHXKAUbGOpV4d9h6PkqwSE2]ayjxY5Zoen[ult13If}C{iF|(7J)vTLs?z/*cr!+<>;=^,_:'-.` "
+        private const val asciiChars = " `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#\$Bg0MNWQ%&@"
+
+        private val asciiCharsLightLevel = doubleArrayOf(0.00, 0.0751, 0.0829, 0.0848, 0.1227, 0.1403, 0.1559, 0.185, 0.2183, 0.2417, 0.2571, 0.2852, 0.2902, 0.2919, 0.3099, 0.3192, 0.3232, 0.3294, 0.3384, 0.3609, 0.3619, 0.3667, 0.3737, 0.3747, 0.3838, 0.3921, 0.396, 0.3984, 0.3993, 0.4075, 0.4091, 0.4101, 0.42, 0.423, 0.4247, 0.4274, 0.4293, 0.4328, 0.4382, 0.4385, 0.442, 0.4473, 0.4477, 0.4503, 0.4562, 0.458, 0.461, 0.4638, 0.4667, 0.4686, 0.4693, 0.4703, 0.4833, 0.4881, 0.4944, 0.4953, 0.4992, 0.5509, 0.5567, 0.5569, 0.5591, 0.5602, 0.5602, 0.565, 0.5776, 0.5777, 0.5818, 0.587, 0.5972, 0.5999, 0.6043, 0.6049, 0.6093, 0.6099, 0.6465, 0.6561, 0.6595, 0.6631, 0.6714, 0.6759, 0.6809, 0.6816, 0.6925, 0.7039, 0.7086, 0.7235, 0.7302, 0.7332, 0.7602, 0.7834, 0.8037, 0.9999)
+        private fun findClosestCharLightLevelIndex(inputLightLevel: Double): Int {
+            var targetPreIndex = 0
+            var targetNextIndex = -1
+            for (i in asciiCharsLightLevel.indices) {
+                if (asciiCharsLightLevel[i] < inputLightLevel) {
+                    targetPreIndex = i
+                }
+                if (asciiCharsLightLevel[i] > inputLightLevel) {
+                    targetNextIndex = i
+                    break
+                }
+            }
+            return if (targetNextIndex < 0) {
+                asciiCharsLightLevel.lastIndex
+            } else {
+                val preValue = asciiCharsLightLevel[targetPreIndex]
+                val nextValue = asciiCharsLightLevel[targetNextIndex]
+                if (abs(inputLightLevel - preValue) > abs(inputLightLevel - nextValue)) {
+                    targetNextIndex
+                } else {
+                    targetPreIndex
+                }
+            }
+        }
+
+        private val asciiLightLevelIndex: IntArray = IntArray(256) { i ->
+            val lightLevel = i.toDouble() / 255.0
+            findClosestCharLightLevelIndex(lightLevel)
+        }
+
+        private val asciiLightLevelIndexRevers: IntArray = IntArray(256) { i ->
+            val lightLevel = (255.0 - i.toDouble()) / 255.0
+            findClosestCharLightLevelIndex(lightLevel)
+        }
+
     }
 }
