@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.opengl.GLES30
 import android.os.SystemClock
+import androidx.annotation.FloatRange
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.render.compileShaderProgram
@@ -42,12 +43,16 @@ class AsciiArtImageFilter : ImageFilter {
         AtomicInteger(128)
     }
 
-    private val revertChar: AtomicReference<Boolean> by lazy {
-        AtomicReference(false)
+    private val reverseChar: AtomicBoolean by lazy {
+        AtomicBoolean(false)
     }
 
-    private val showImageColor:  AtomicReference<Boolean> by lazy {
-        AtomicReference(false)
+    private val reverseColor: AtomicBoolean by lazy {
+        AtomicBoolean(false)
+    }
+
+    private val colorFillRate: AtomicReference<Float> by lazy {
+        AtomicReference(0.0f)
     }
 
     private val charPaint: Paint by lazy {
@@ -63,12 +68,19 @@ class AsciiArtImageFilter : ImageFilter {
         charLineWidth.set(min(max(MIN_CHAR_LINE_WIDTH, width), MAX_CHAR_LINE_WIDTH))
     }
 
-    fun revertChar(revert: Boolean) {
-        revertChar.set(revert)
+    fun reverseChar(reverse: Boolean) {
+        reverseChar.set(reverse)
     }
 
-    fun showImageColor(showColor: Boolean) {
-        showImageColor.set(showColor)
+    fun reverseColor(reverse: Boolean) {
+        reverseColor.set(reverse)
+    }
+
+    fun colorFillRate(
+        @FloatRange(from = 0.0, to = 1.0)
+        rate: Float
+    ) {
+        colorFillRate.set(min(1.0f, max(0.0f, rate)))
     }
 
     override fun enable(enable: Boolean) {
@@ -146,16 +158,11 @@ class AsciiArtImageFilter : ImageFilter {
                         for (w in 0 until asciiWidth) {
                             offsetArray[pixelIndex * 2] = xOffset
                             offsetArray[pixelIndex * 2 + 1] = yOffset
-                            var r = 255
-                            var g = 255
-                            var b = 255
-                            if (showImageColor.get()) {
-                                r = lumaImageBytes[pixelIndex * 4].toUnsignedInt()
-                                g = lumaImageBytes[pixelIndex * 4 + 1].toUnsignedInt()
-                                b = lumaImageBytes[pixelIndex * 4 + 2].toUnsignedInt()
-                            }
+                            val r = lumaImageBytes[pixelIndex * 4].toUnsignedInt()
+                            val g = lumaImageBytes[pixelIndex * 4 + 1].toUnsignedInt()
+                            val b = lumaImageBytes[pixelIndex * 4 + 2].toUnsignedInt()
                             val y = lumaImageBytes[pixelIndex * 4 + 3].toUnsignedInt()
-                            val charIndex = if (revertChar.get()) asciiLightLevelIndexRevers[y] else asciiLightLevelIndex[y]
+                            val charIndex = if (reverseChar.get()) asciiLightLevelIndexReverse[y] else asciiLightLevelIndex[y]
                             colorTexArray[pixelIndex * 4] = r.toFloat()
                             colorTexArray[pixelIndex * 4 + 1] = g.toFloat()
                             colorTexArray[pixelIndex * 4 + 2] = b.toFloat()
@@ -167,6 +174,8 @@ class AsciiArtImageFilter : ImageFilter {
                         xOffset = 0.0f
                         yOffset += charHeightGLStep
                     }
+                    GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "reverseColor"), if (reverseColor.get()) 1 else 0)
+                    GLES30.glUniform1f(GLES30.glGetUniformLocation(renderData.charProgram, "colorFillRate"), colorFillRate.get())
                     GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charOffsetVbo)
                     offsetCache.floatBuffer.apply {
                         clear()
@@ -504,7 +513,7 @@ class AsciiArtImageFilter : ImageFilter {
             findClosestCharLightLevelIndex(lightLevel)
         }
 
-        private val asciiLightLevelIndexRevers: IntArray = IntArray(256) { i ->
+        private val asciiLightLevelIndexReverse: IntArray = IntArray(256) { i ->
             val lightLevel = (255.0 - i.toDouble()) / 255.0
             findClosestCharLightLevelIndex(lightLevel)
         }

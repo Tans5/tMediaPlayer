@@ -149,8 +149,9 @@ class MainActivity : AppCompatActivity() {
         playerView.enableAsciiArtFilter(true)
         playerView.getAsciiArtImageFilter().apply {
             setCharLineWidth(128)
-            showImageColor(true)
-            // revertChar(true)
+            colorFillRate(1.0f)
+            reverseChar(true)
+            reverseColor(true)
         }
 
         mediaPlayer.setListener(object : tMediaPlayerListener {
