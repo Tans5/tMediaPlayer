@@ -149,7 +149,7 @@ class MainActivity : AppCompatActivity() {
         playerView.enableAsciiArtFilter(true)
         playerView.getAsciiArtImageFilter().apply {
             setCharLineWidth(128)
-            colorFillRate(1.0f)
+            colorFillRate(0.0f)
             reverseChar(true)
             reverseColor(true)
         }
