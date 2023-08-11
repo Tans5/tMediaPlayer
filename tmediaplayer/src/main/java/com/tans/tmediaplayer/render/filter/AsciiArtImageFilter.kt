@@ -136,8 +136,10 @@ class AsciiArtImageFilter : ImageFilter {
                     renderData.charVertBuffer.put(renderData.charVert)
                     renderData.charVertBuffer.position(0)
                     GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVertBuffer)
-                    val offsetArray = getCharOffsetCacheArray(pixelSize)
-                    val colorTexArray = getCharColorAndTextureCacheArray(pixelSize)
+                    val offsetCache = getCharOffsetCacheArray(pixelSize)
+                    val offsetArray = offsetCache.floatArray
+                    val colorTexCache = getCharColorAndTextureCacheArray(pixelSize)
+                    val colorTexArray = colorTexCache.floatArray
                     var xOffset = 0.0f
                     var yOffset = 0.0f
                     for (h in 0 until asciiHeight) {
@@ -166,9 +168,19 @@ class AsciiArtImageFilter : ImageFilter {
                         yOffset += charHeightGLStep
                     }
                     GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charOffsetVbo)
-                    GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, offsetArray.size * 4, offsetArray.toGlBuffer(), GLES30.GL_STREAM_DRAW)
+                    offsetCache.floatBuffer.apply {
+                        clear()
+                        put(offsetArray)
+                        position(0)
+                    }
+                    GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, offsetArray.size * 4, offsetCache.floatBuffer, GLES30.GL_STREAM_DRAW)
                     GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charColorAndTextureVbo)
-                    GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, colorTexArray.size * 4, colorTexArray.toGlBuffer(), GLES30.GL_STREAM_DRAW)
+                    colorTexCache.floatBuffer.apply {
+                        clear()
+                        put(colorTexArray)
+                        position(0)
+                    }
+                    GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, colorTexArray.size * 4, colorTexCache.floatBuffer, GLES30.GL_STREAM_DRAW)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, renderData.charTexturesArray)
                     GLES30.glDrawArraysInstanced(GLES30.GL_TRIANGLE_FAN, 0, 4, pixelSize)
                     GLES30.glDisable(GLES30.GL_BLEND)
@@ -319,31 +331,43 @@ class AsciiArtImageFilter : ImageFilter {
 
     private inline fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
 
-    private val lastCharOffsetCacheArray: AtomicReference<FloatArray?> by lazy {
+    private val lastCharOffsetCacheArray: AtomicReference<FloatArrayBufferCache?> by lazy {
         AtomicReference(null)
     }
-    private fun getCharOffsetCacheArray(pixelSize: Int): FloatArray {
+    private fun getCharOffsetCacheArray(pixelSize: Int): FloatArrayBufferCache {
         val size = pixelSize shl 1
         val last = lastCharOffsetCacheArray.get()
         return if (last?.size == size) {
             last
         } else {
-            val new = FloatArray(size)
+            val array = FloatArray(size)
+            val buffer = array.toGlBuffer().asFloatBuffer()
+            val new = FloatArrayBufferCache(
+                size = size,
+                floatArray = array,
+                floatBuffer = buffer
+            )
             lastCharOffsetCacheArray.set(new)
             new
         }
     }
 
-    private val lastCharColorAndTextureCacheArray: AtomicReference<FloatArray?> by lazy {
+    private val lastCharColorAndTextureCacheArray: AtomicReference<FloatArrayBufferCache?> by lazy {
         AtomicReference(null)
     }
-    private fun getCharColorAndTextureCacheArray(pixelSize: Int): FloatArray {
+    private fun getCharColorAndTextureCacheArray(pixelSize: Int): FloatArrayBufferCache {
         val size = pixelSize shl 2
         val last = lastCharColorAndTextureCacheArray.get()
         return if (last?.size == size) {
             last
         } else {
-            val new = FloatArray(size)
+            val array = FloatArray(size)
+            val buffer = array.toGlBuffer().asFloatBuffer()
+            val new = FloatArrayBufferCache(
+                size = size,
+                floatArray = array,
+                floatBuffer = buffer
+            )
             lastCharColorAndTextureCacheArray.set(new)
             new
         }
@@ -352,6 +376,33 @@ class AsciiArtImageFilter : ImageFilter {
 
     companion object {
         private const val TAG = "AsciiArtImageFilter"
+
+        private data class FloatArrayBufferCache(
+            val size: Int,
+            val floatArray: FloatArray,
+            val floatBuffer: FloatBuffer
+        ) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as FloatArrayBufferCache
+
+                if (size != other.size) return false
+                if (!floatArray.contentEquals(other.floatArray)) return false
+                if (floatBuffer != other.floatBuffer) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = size
+                result = 31 * result + floatArray.contentHashCode()
+                result = 31 * result + floatBuffer.hashCode()
+                return result
+            }
+        }
+
         private data class RenderData(
             val lumaProgram: Int,
             val lumaVao: Int,
