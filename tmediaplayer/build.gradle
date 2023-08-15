@@ -76,16 +76,10 @@ tasks.register('androidSourcesJar', Jar) {
     from(android.sourceSets.main.java.srcDirs)
 }
 
-signing {
-    keyId = ""
-    password = ""
-    secretKeyRingFile = ""
-}
-
 publishing {
     repositories {
         maven {
-            name = "release"
+            name = "MavenCentral"
             credentials {
                 username "Tans96"
                 password ""
@@ -94,7 +88,7 @@ publishing {
         }
     }
     publications {
-        github(MavenPublication) {
+        release(MavenPublication) {
             groupId(GROUP_ID)
             artifactId(ARTIFACT_ID)
             version(VERSION_NAME)
@@ -142,4 +136,8 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    sign publishing.publications.release
 }
