@@ -2,12 +2,14 @@ plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
     id 'maven-publish'
+    id 'signing'
 }
 
-def GROUP_ID = "com.tans.tmediaplayer"
+def GROUP_ID = "io.github.tans5"
 def ARTIFACT_ID = 'tmediaplayer'
 def VERSION_NAME = "1.0.0-alpha01"
-def GITHUB_PATH = "https://maven.pkg.github.com/Tans5/tMediaPlayer"
+def RELEASE_REPOSITORY_URL = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+def SNAPSHOT_REPOSITORY_URL = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
 
 android {
     compileSdk 33
@@ -74,15 +76,21 @@ tasks.register('androidSourcesJar', Jar) {
     from(android.sourceSets.main.java.srcDirs)
 }
 
+signing {
+    keyId = ""
+    password = ""
+    secretKeyRingFile = ""
+}
+
 publishing {
     repositories {
         maven {
             name = "release"
             credentials {
-                username "Tans5"
+                username "Tans96"
                 password ""
             }
-            url "$GITHUB_PATH" // 仓库地址
+            url "$RELEASE_REPOSITORY_URL" // 仓库地址
         }
     }
     publications {
@@ -90,6 +98,27 @@ publishing {
             groupId(GROUP_ID)
             artifactId(ARTIFACT_ID)
             version(VERSION_NAME)
+            pom {
+                name = 'tMediaPlayer'
+                description = 'Android media player libs.'
+                url = 'https://github.com/tans5/tMediaPlayer.git'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'tanpengcheng'
+                        name = 'tans5'
+                        email = 'tans.tan096@gmail.com'
+                    }
+                }
+                scm {
+                    url = 'https://github.com/wslaimin/RVAdapter.git'
+                }
+            }
             // 必须有这个 否则不会上传AAR包
             afterEvaluate {
                 artifact(tasks.getByName("bundleReleaseAar"))
