@@ -99,7 +99,7 @@ publishing {
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
                 developers {
@@ -110,7 +110,7 @@ publishing {
                     }
                 }
                 scm {
-                    url = 'https://github.com/wslaimin/RVAdapter.git'
+                    url = 'https://github.com/tans5/tMediaPlayer.git'
                 }
             }
             // 必须有这个 否则不会上传AAR包
