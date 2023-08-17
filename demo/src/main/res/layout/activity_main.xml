@@ -74,6 +74,16 @@
             android:layout_marginEnd="35dp"
             tools:text="00:00" />
 
+        <ImageView
+            android:id="@+id/settings_iv"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/icon_settings"
+            android:layout_marginStart="35dp"
+            android:layout_marginTop="5dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/progress_tv"/>
+
         <FrameLayout
             android:id="@+id/play_pause_layout"
             android:layout_width="45dp"
@@ -106,6 +116,170 @@
                 android:src="@drawable/icon_play"/>
             
         </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/settings_layout"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#55333333"
+        android:padding="5dp"
+        android:visibility="gone"
+        app:layout_constraintWidth_percent="0.333"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:visibility="visible">
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:overScrollMode="never"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Crop Image: "
+                        android:textColor="@color/white"/>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/crop_image_sw"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ascii Filter: "
+                        android:textColor="@color/white"/>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/ascii_filter_sw"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/white"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ascii Filter Settings:"
+                    android:layout_marginTop="12dp"
+                    android:textColor="@color/white"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Char Reverse: "
+                        android:textColor="@color/white"/>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/char_reverse_sw"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Color Reverse: "
+                        android:textColor="@color/white"/>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/color_reverse_sw"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/char_width_tv"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Char Width: 128"
+                        android:textColor="@color/white"/>
+
+                    <androidx.appcompat.widget.AppCompatSeekBar
+                        android:id="@+id/char_width_sb"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="33"/>
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/image_color_fill_rate_tv"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Image Color Fill Rate: 0"
+                        android:textColor="@color/white"/>
+
+                    <androidx.appcompat.widget.AppCompatSeekBar
+                        android:id="@+id/image_color_fill_rate_sb"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="0"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

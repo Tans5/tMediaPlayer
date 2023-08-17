@@ -7,9 +7,11 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.tMediaPlayer
 import com.tans.tmediaplayer.tMediaPlayerListener
 import com.tans.tmediaplayer.tMediaPlayerState
@@ -34,6 +36,14 @@ class MainActivity : AppCompatActivity() {
 
     private val actionLayout: View by lazy {
         findViewById(R.id.action_layout)
+    }
+
+    private val settingsLayout: View by lazy {
+        findViewById(R.id.settings_layout)
+    }
+
+    private val settingsIv: ImageView by lazy {
+        findViewById(R.id.settings_iv)
     }
 
     private val progressTv: TextView by lazy {
@@ -68,11 +78,59 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.seeking_loading_pb)
     }
 
+    private val cropImageSw: SwitchCompat by lazy {
+        findViewById(R.id.crop_image_sw)
+    }
+
+    private val asciiFilterSw: SwitchCompat by lazy {
+        findViewById(R.id.ascii_filter_sw)
+    }
+
+    private val charReverseSw: SwitchCompat by lazy {
+        findViewById(R.id.char_reverse_sw)
+    }
+
+    private val colorReverseSw: SwitchCompat by lazy {
+        findViewById(R.id.color_reverse_sw)
+    }
+
+    private val charWidthTv: TextView by lazy {
+        findViewById(R.id.char_width_tv)
+    }
+
+    private val charWidthSb: SeekBar by lazy {
+        findViewById(R.id.char_width_sb)
+    }
+
+    private val imageColorFillRateTv: TextView by lazy {
+        findViewById(R.id.image_color_fill_rate_tv)
+    }
+
+    private val imageColorFillRateSb: SeekBar by lazy {
+        findViewById(R.id.image_color_fill_rate_sb)
+    }
+
     private val fileName = "gokuraku2.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir
         File(parentDir, fileName)
+    }
+
+    private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE
+
+    private fun View.isInvisible(): Boolean = !isVisible()
+
+    private fun View.hide() {
+        if (isVisible()) {
+            this.visibility = View.GONE
+        }
+    }
+
+    private fun View.show() {
+        if (isInvisible()) {
+            this.visibility = View.VISIBLE
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,12 +141,17 @@ class MainActivity : AppCompatActivity() {
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
         setContentView(R.layout.activity_main)
+
         rootView.setOnClickListener {
-            if (actionLayout.visibility == View.VISIBLE) {
-                actionLayout.visibility = View.GONE
-            } else {
-                actionLayout.visibility = View.VISIBLE
-            }
+           if (settingsLayout.isVisible()) {
+               settingsLayout.hide()
+           } else {
+               if (actionLayout.isVisible()) {
+                   actionLayout.hide()
+               } else {
+                   actionLayout.show()
+               }
+           }
         }
         ioExecutor.execute {
             if (!testVideoFile.exists()) {
@@ -146,14 +209,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        playerView.enableAsciiArtFilter(true)
-        playerView.getAsciiArtImageFilter().apply {
-            setCharLineWidth(128)
-            colorFillRate(0.0f)
-            reverseChar(true)
-            reverseColor(true)
-        }
-
         mediaPlayer.setListener(object : tMediaPlayerListener {
 
             override fun onPlayerState(state: tMediaPlayerState) {
@@ -198,6 +253,58 @@ class MainActivity : AppCompatActivity() {
                         val progressInPercent = (progress.toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
                         playerSb.progress = progressInPercent
                     }
+                }
+            }
+        })
+
+        settingsIv.setOnClickListener {
+            settingsLayout.show()
+            actionLayout.hide()
+        }
+
+        cropImageSw.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterCrop)
+            } else {
+                playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterFit)
+            }
+        }
+
+        asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
+            playerView.enableAsciiArtFilter(isChecked)
+        }
+
+        val asciiArtFilter = playerView.getAsciiArtImageFilter()
+
+        charReverseSw.setOnCheckedChangeListener { _, isChecked ->
+            asciiArtFilter.reverseChar(isChecked)
+        }
+
+        colorReverseSw.setOnCheckedChangeListener { _, isChecked ->
+            asciiArtFilter.reverseColor(isChecked)
+        }
+        charWidthSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()).toInt()
+                    asciiArtFilter.setCharLineWidth(requestWidth)
+                    charWidthTv.text = "Char Width: $requestWidth"
+                }
+            }
+        })
+
+        imageColorFillRateSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(seekBar: SeekBar?) { }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) { }
+
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val requestRate = progress.toFloat() / 100.0f
+                    asciiArtFilter.colorFillRate(requestRate)
+                    imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
                 }
             }
         })
