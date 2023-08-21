@@ -22,7 +22,7 @@ class tMediaPlayer {
     }
 
     private val bufferManager: tMediaPlayerBufferManager by lazy {
-        tMediaPlayerBufferManager(this, 15)
+        tMediaPlayerBufferManager(this, 40)
     }
 
     private val decoder: tMediaPlayerDecoder by lazy {
@@ -92,10 +92,19 @@ class tMediaPlayer {
             tMediaPlayerState.NoInit -> null
             is tMediaPlayerState.Error -> null
             is tMediaPlayerState.Paused -> state.play()
-            is tMediaPlayerState.PlayEnd -> state.play()
+            is tMediaPlayerState.PlayEnd -> {
+                progress.set(0L)
+                state.play()
+            }
             is tMediaPlayerState.Playing -> null
-            is tMediaPlayerState.Prepared -> state.play()
-            is tMediaPlayerState.Stopped -> state.play()
+            is tMediaPlayerState.Prepared -> {
+                progress.set(0L)
+                state.play()
+            }
+            is tMediaPlayerState.Stopped -> {
+                progress.set(0L)
+                state.play()
+            }
             is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
         }
@@ -336,13 +345,16 @@ class tMediaPlayer {
     }
 
     internal fun dispatchProgress(progress: Long) {
-        val info = getMediaInfo()
-        val lp = lastUpdateProgress.get()
-        this.progress.set(progress)
-        if (info != null && abs(progress - lp) > 80) {
-            lastUpdateProgress.set(progress)
-            callbackExecutor.execute {
-                listener.get()?.onProgressUpdate(progress, info.duration)
+        val state = getState()
+        if (state !is tMediaPlayerState.PlayEnd && state !is tMediaPlayerState.Error && state !is tMediaPlayerState.Stopped) {
+            val info = getMediaInfo()
+            val lp = lastUpdateProgress.get()
+            this.progress.set(progress)
+            if (info != null && abs(progress - lp) > 80) {
+                lastUpdateProgress.set(progress)
+                callbackExecutor.execute {
+                    listener.get()?.onProgressUpdate(progress, info.duration)
+                }
             }
         }
     }
