@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.image_color_fill_rate_sb)
     }
 
-    private val fileName = "oceans.mp4"
+    private val fileName = "gokuraku2.mp4"
 
     private val testVideoFile: File by lazy {
         val parentDir = filesDir
