@@ -312,10 +312,6 @@ class AsciiArtImageFilter : ImageFilter {
                     bitmap.recycle()
                 }
 
-                val asciiIndex = IntArray(256) { i ->
-                    ((asciiChars.length - 1).toFloat() * i.toFloat() / 255.0f + 0.5f).toInt()
-                }
-
                 val renderData = RenderData(
                     lumaProgram = lumaProgram,
                     lumaVao = lumaVao,
