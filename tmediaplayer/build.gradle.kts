@@ -96,6 +96,7 @@ publishing {
             pom {
                 name = "tMediaPlayer"
                 description = "Android media player libs."
+                url = "https://github.com/tans5/tMediaPlayer.git"
                 licenses {
                     license {
                         name = "The Apache License, Version 2.0"
