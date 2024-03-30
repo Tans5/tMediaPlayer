@@ -73,7 +73,7 @@ publishing {
         }
         maven {
             name = "MavenLocal"
-            url = uri(File(rootProject.projectDir, "Maven"))
+            url = uri(File(rootProject.projectDir, "maven"))
         }
     }
 
@@ -132,17 +132,7 @@ publishing {
     }
 }
 
-//signing {
-//    sign publishing.publications.release
-//}
 
 signing {
     sign(publishing.publications.getByName("Default"))
-    val secretKeyFile = File(projectDir, publishProperties.getProperty("SIGNING_secretKeyRingFile"))
-    val secretKey = secretKeyFile.inputStream().readBytes().toString(Charsets.UTF_8)
-    useInMemoryPgpKeys(
-        publishProperties.getProperty("SIGNING_KEY_Id"),
-        secretKey,
-        publishProperties.getProperty("SIGNING_PASSWORD")
-    )
 }
