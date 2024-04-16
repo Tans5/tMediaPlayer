@@ -1,6 +1,6 @@
 package com.tans.tmediaplayer
 
 @Suppress("ClassName")
-internal enum class tMediaPlayerRenderState {
+internal enum class tMediaPlayerRendererState {
     NotInit, Prepared, Rendering, Paused, RenderEnd, WaitingDecoder, Released
 }

@@ -3,7 +3,6 @@ package com.tans.tmediaplayer.demo
 import android.util.Log
 import android.view.View
 import android.widget.SeekBar
-import android.widget.TextView
 import com.tans.tmediaplayer.OptResult
 import com.tans.tmediaplayer.demo.databinding.ActivityMainBinding
 import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
@@ -30,10 +29,6 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
     }
 
     private val fileName = "bad-apple.mp4"
-
-    private val durationTv: TextView by lazy {
-        findViewById(R.id.duration_tv)
-    }
 
     private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE
 

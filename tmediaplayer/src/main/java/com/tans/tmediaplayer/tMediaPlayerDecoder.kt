@@ -7,14 +7,19 @@ import android.os.SystemClock
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Decode audio and video frames by native code.
+ */
 @Suppress("ClassName")
 internal class tMediaPlayerDecoder(
     private val player: tMediaPlayer,
     private val bufferManager: tMediaPlayerBufferManager
 ) {
 
+    // Is decode thread ready?
     private val isLooperPrepared: AtomicBoolean by lazy { AtomicBoolean(false) }
 
+    // Decode thread.
     private val decoderThread: HandlerThread by lazy {
         object : HandlerThread("tMediaPlayerDecoderThread", Thread.MAX_PRIORITY) {
             override fun onLooperPrepared() {
@@ -24,6 +29,7 @@ internal class tMediaPlayerDecoder(
         }.apply { start() }
     }
 
+    // Decode handler.
     private val decoderHandler: Handler by lazy {
         while (!isLooperPrepared.get()) {}
         object : Handler(decoderThread.looper) {
@@ -40,6 +46,9 @@ internal class tMediaPlayerDecoder(
                     return
                 }
                 when (msg.what) {
+                    /**
+                     * Decode media frame.
+                     */
                     DECODE_MEDIA_FRAME -> {
                         if (state == tMediaPlayerDecoderState.Decoding) {
                             val buffer = bufferManager.requestDecodeBuffer()
@@ -48,19 +57,25 @@ internal class tMediaPlayerDecoder(
                                     if (getState() == tMediaPlayerDecoderState.Released) { return }
                                     val nativePlayer = player.getMediaInfo()?.nativePlayer
                                     if (nativePlayer != null) {
+                                        // Invoke native decode code.
                                         when (player.decodeNativeInternal(nativePlayer, buffer.nativeBuffer).toDecodeResult()) {
                                             DecodeResult.Success -> {
+                                                // add buffer to waiting render.
                                                 bufferManager.enqueueRenderBuffer(buffer)
+                                                // notify player.
                                                 player.decodeSuccess()
+                                                // do next frame decode.
                                                 this.sendEmptyMessage(DECODE_MEDIA_FRAME)
                                             }
                                             DecodeResult.DecodeEnd -> {
+                                                // no next frame to decode.
                                                 MediaLog.d(TAG, "Decode end.")
                                                 bufferManager.enqueueRenderBuffer(buffer)
                                                 this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.DecodingEnd)
                                                 player.decodeSuccess()
                                             }
                                             DecodeResult.Fail -> {
+                                                // decode fail.
                                                 bufferManager.enqueueDecodeBuffer(buffer)
                                                 MediaLog.e(TAG, "Decode fail.")
                                                 this.sendEmptyMessage(DECODE_MEDIA_FRAME)
@@ -72,6 +87,7 @@ internal class tMediaPlayerDecoder(
                                     }
                                 }
                             } else {
+                                // no decode buffer to use, waiting renderer release buffer.
                                 this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.WaitingRender)
                                 MediaLog.d(TAG, "Waiting render buffer.")
                             }
@@ -79,6 +95,10 @@ internal class tMediaPlayerDecoder(
                             MediaLog.d(TAG, "Skip decode frame, because of state: $state")
                         }
                     }
+                    /**
+                     * Player State: Pause -> Playing.
+                     * Restart to decode.
+                     */
                     REQUEST_DECODE -> {
                         if (state in listOf(
                                 tMediaPlayerDecoderState.DecodingEnd,
@@ -93,6 +113,11 @@ internal class tMediaPlayerDecoder(
                             MediaLog.d(TAG, "Skip request decode, because of state: $state")
                         }
                     }
+
+                    /**
+                     * Player State: Playing -> Pause
+                     * Pause decode.
+                     */
                     REQUEST_PAUSE -> {
                         if (state == tMediaPlayerDecoderState.Decoding || state == tMediaPlayerDecoderState.WaitingRender) {
                             this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.Paused)
@@ -100,11 +125,16 @@ internal class tMediaPlayerDecoder(
                             MediaLog.d(TAG, "Skip request pause, because of state: $state")
                         }
                     }
+
+                    /**
+                     * Player do seeking.
+                     */
                     SEEK_TO -> {
                         val position = msg.obj as? Long
                         if (position != null) {
                             val start = SystemClock.uptimeMillis()
                             val buffer = bufferManager.requestDecodeBufferForce()
+                            // Do seeking by native code.
                             val seekResult = synchronized(buffer) {
                                 player.seekToNativeInternal(
                                     nativePlayer = mediaInfo.nativePlayer,
@@ -113,6 +143,7 @@ internal class tMediaPlayerDecoder(
                                 ).toOptResult()
                             }
                             val end = SystemClock.uptimeMillis()
+                            // Notify player seeking finished.
                             player.handleSeekingBuffer(buffer, seekResult)
                             if (seekResult == OptResult.Success) {
                                 MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
@@ -130,12 +161,16 @@ internal class tMediaPlayerDecoder(
 
     private val state: AtomicReference<tMediaPlayerDecoderState> by lazy { AtomicReference(tMediaPlayerDecoderState.NotInit) }
 
+    /**
+     * Init decoder
+     */
     fun prepare() {
         val lastState = getState()
         if (lastState == tMediaPlayerDecoderState.Released) {
             MediaLog.e(TAG, "Prepare fail, decoder has released.")
             return
         }
+        // Trigger decoder thread create.
         decoderThread
         decoderHandler
         decoderHandler.removeMessages(DECODE_MEDIA_FRAME)
@@ -144,6 +179,9 @@ internal class tMediaPlayerDecoder(
         state.set(tMediaPlayerDecoderState.Prepared)
     }
 
+    /**
+     * Start decode.
+     */
     fun decode() {
         val state = getState()
         if (state != tMediaPlayerDecoderState.NotInit && state != tMediaPlayerDecoderState.Released) {
@@ -151,6 +189,9 @@ internal class tMediaPlayerDecoder(
         }
     }
 
+    /**
+     * Pause decode.
+     */
     fun pause() {
         val state = getState()
         if (state != tMediaPlayerDecoderState.NotInit && state != tMediaPlayerDecoderState.Released) {
@@ -158,6 +199,9 @@ internal class tMediaPlayerDecoder(
         }
     }
 
+    /**
+     * Do seek
+     */
     fun seekTo(position: Long) {
         val msg = Message.obtain()
         msg.what = SEEK_TO
@@ -165,6 +209,9 @@ internal class tMediaPlayerDecoder(
         decoderHandler.sendMessage(msg)
     }
 
+    /**
+     * Contain new empty buffer to decode。
+     */
     fun checkDecoderBufferIfWaiting() {
         if (getState() == tMediaPlayerDecoderState.WaitingRender) {
             decode()

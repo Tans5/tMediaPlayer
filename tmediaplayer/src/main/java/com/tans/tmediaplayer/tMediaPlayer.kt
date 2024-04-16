@@ -29,22 +29,26 @@ class tMediaPlayer {
         tMediaPlayerDecoder(this, bufferManager)
     }
 
-    private val render: tMediaPlayerRender by lazy {
-        tMediaPlayerRender(this, bufferManager)
+    private val renderer: tMediaPlayerRenderer by lazy {
+        tMediaPlayerRenderer(this, bufferManager)
     }
 
+    // Play progress.
     private val progress: AtomicLong by lazy {
         AtomicLong(0)
     }
 
+    // Base time, use to compute frame render time.
     private val ptsBaseTime: AtomicLong by lazy {
         AtomicLong(0)
     }
 
+    // Base frame's pts, use to compute frame render time.
     private val basePts: AtomicLong by lazy {
         AtomicLong(0)
     }
 
+    // Last notify to observer progress.
     private val lastUpdateProgress: AtomicLong by lazy {
         AtomicLong(0L)
     }
@@ -60,24 +64,32 @@ class tMediaPlayer {
         }
         val lastMediaInfo = getMediaInfo()
         if (lastMediaInfo != null) {
+            // Release last nativePlayer.
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
         resetProgressAndBaseTime()
         bufferManager.prepare()
+        // Clear last render data.
         bufferManager.clearRenderData()
         decoder.prepare()
-        render.prepare()
-        render.audioTrackFlush()
-        render.removeRenderMessages()
+        renderer.prepare()
+        // Clear last waiting to render data.
+        renderer.audioTrackFlush()
+        renderer.removeRenderMessages()
+
+        // Create native player.
         val nativePlayer = createPlayerNative()
+        // Load media file by native player.
         val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
         dispatchProgress(0L)
         if (result == OptResult.Success) {
+            // Load media file success.
             val mediaInfo = getMediaInfo(nativePlayer)
             MediaLog.d(TAG, "Prepare player success: $mediaInfo")
             dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
         } else {
+            // Load media file fail.
             releaseNative(nativePlayer)
             MediaLog.e(TAG, "Prepare player fail.")
             dispatchNewState(tMediaPlayerState.Error("Prepare player fail."))
@@ -85,6 +97,9 @@ class tMediaPlayer {
         return result
     }
 
+    /**
+     * Start to play.
+     */
     @Synchronized
     fun play(): OptResult {
         val state = getState()
@@ -111,8 +126,8 @@ class tMediaPlayer {
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
             decoder.decode()
-            render.render()
-            render.audioTrackPlay()
+            renderer.render()
+            renderer.audioTrackPlay()
             ptsBaseTime.set(SystemClock.uptimeMillis())
             basePts.set(getProgress())
             dispatchNewState(playingState)
@@ -123,6 +138,9 @@ class tMediaPlayer {
         }
     }
 
+    /**
+     * Pause play.
+     */
     @Synchronized
     fun pause(): OptResult {
         val state = getState()
@@ -141,8 +159,8 @@ class tMediaPlayer {
             MediaLog.d(TAG, "Request pause.")
             dispatchNewState(pauseState)
             decoder.pause()
-            render.pause()
-            render.audioTrackPause()
+            renderer.pause()
+            renderer.audioTrackPause()
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for pause() method.")
@@ -150,6 +168,9 @@ class tMediaPlayer {
         }
     }
 
+    /**
+     * Do seek.
+     */
     @Synchronized
     fun seekTo(position: Long): OptResult {
         val state = getState()
@@ -171,10 +192,10 @@ class tMediaPlayer {
                 OptResult.Fail
             } else {
                 decoder.pause()
-                render.pause()
-                render.audioTrackPause()
-                render.removeRenderMessages()
-                render.audioTrackFlush()
+                renderer.pause()
+                renderer.audioTrackPause()
+                renderer.removeRenderMessages()
+                renderer.audioTrackFlush()
                 bufferManager.clearRenderData()
                 decoder.seekTo(position)
                 dispatchNewState(seekingState)
@@ -186,6 +207,10 @@ class tMediaPlayer {
         }
     }
 
+
+    /**
+     * Stop play.
+     */
     @Synchronized
     fun stop(): OptResult {
         val state = getState()
@@ -204,11 +229,12 @@ class tMediaPlayer {
             MediaLog.d(TAG, "Request stop.")
             dispatchNewState(stopState)
             decoder.pause()
-            render.pause()
-            render.audioTrackFlush()
-            render.removeRenderMessages()
+            renderer.pause()
+            renderer.audioTrackFlush()
+            renderer.removeRenderMessages()
             resetProgressAndBaseTime()
             bufferManager.clearRenderData()
+            // Reset native player decode progress.
             resetNative(stopState.mediaInfo.nativePlayer)
             OptResult.Success
         } else {
@@ -218,7 +244,7 @@ class tMediaPlayer {
     }
 
     fun attachPlayerView(view: tMediaPlayerView?) {
-        render.attachPlayerView(view)
+        renderer.attachPlayerView(view)
     }
 
     fun getMediaInfo(): MediaInfo? {
@@ -244,6 +270,9 @@ class tMediaPlayer {
         l?.onPlayerState(getState())
     }
 
+    /**
+     * Release player.
+     */
     @Synchronized
     fun release(): OptResult {
         val lastState = getState()
@@ -251,7 +280,7 @@ class tMediaPlayer {
             return OptResult.Fail
         }
         decoder.release()
-        render.release()
+        renderer.release()
         bufferManager.release()
         resetProgressAndBaseTime()
         val mediaInfo = getMediaInfo()
@@ -280,6 +309,9 @@ class tMediaPlayer {
         )
     }
 
+    /**
+     * Last frame rendered, no buffer to render and no buffer to decode.
+     */
     internal fun dispatchPlayEnd() {
         val s = getState()
         if (s is tMediaPlayerState.Playing) {
@@ -289,24 +321,36 @@ class tMediaPlayer {
         bufferManager.clearRenderData()
         val np = getMediaInfo()?.nativePlayer
         if (np != null) {
+            // Reset native player decode progress.
             resetNative(np)
         }
     }
 
+    /**
+     * Decoder do seeking finished.
+     */
     internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer, result: OptResult) {
         synchronized(b) {
             val s = getState()
             if (s == tMediaPlayerState.Released) { return@synchronized }
             when (result) {
+                // Seeking success.
                 OptResult.Success -> {
+                    // Get seek buffer's pts.
                     val pts = getPtsNativeInternal(b.nativeBuffer)
-                    render.removeRenderMessages()
-                    render.audioTrackFlush()
+                    // Remove waiting to render data.
+                    renderer.removeRenderMessages()
+                    // Clear audio track cache.
+                    renderer.audioTrackFlush()
+                    // Clear last render data.
                     bufferManager.clearRenderData()
+                    // Update base pts.
                     basePts.set(pts)
+                    // Update base time.
                     ptsBaseTime.set(SystemClock.uptimeMillis())
                     dispatchProgress(pts)
                     if (isLastFrameBufferNative(b.nativeBuffer)) {
+                        // Current seek frame is last fame.
                         val info = getMediaInfo()
                         if (info != null) {
                             dispatchNewState(tMediaPlayerState.PlayEnd(info))
@@ -315,13 +359,16 @@ class tMediaPlayer {
                         resetProgressAndBaseTime()
                         bufferManager.enqueueDecodeBuffer(b)
                     } else {
-                        render.handleSeekingBuffer(b)
+                        // Not last frame.
+                        // Notify renderer to handle seeking buffer.
+                        renderer.handleSeekingBuffer(b)
                         if (s is tMediaPlayerState.Seeking) {
                             val lastState = s.lastState
                             if (lastState is tMediaPlayerState.Playing) {
+                                // If last state is playing, notify to decoder and renderer.
                                 decoder.decode()
-                                render.render()
-                                render.audioTrackPlay()
+                                renderer.render()
+                                renderer.audioTrackPlay()
                             }
                             dispatchNewState(lastState)
                         } else {
@@ -330,6 +377,7 @@ class tMediaPlayer {
                     }
                 }
                 OptResult.Fail -> {
+                    // Seeking fail.
                     if (s is tMediaPlayerState.Seeking) {
                         dispatchNewState(s.lastState)
                     }
@@ -338,6 +386,9 @@ class tMediaPlayer {
         }
     }
 
+    /**
+     * Calculate [pts] frame render delay.
+     */
     internal fun calculateRenderDelay(pts: Long): Long {
         val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
@@ -359,12 +410,18 @@ class tMediaPlayer {
         }
     }
 
+    /**
+     * Contain new buffer to decode.
+     */
     internal fun renderSuccess() {
         decoder.checkDecoderBufferIfWaiting()
     }
 
+    /**
+     * Contain new buffer to render.
+     */
     internal fun decodeSuccess() {
-        render.checkRenderBufferIfWaiting()
+        renderer.checkRenderBufferIfWaiting()
     }
 
     private fun dispatchNewState(s: tMediaPlayerState) {
@@ -378,7 +435,7 @@ class tMediaPlayer {
     }
 
     private fun resetProgressAndBaseTime() {
-        progress.set(0)
+        progress.set(0L)
         lastUpdateProgress.set(0L)
         basePts.set(0L)
         ptsBaseTime.set(0L)
