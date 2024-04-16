@@ -1,120 +1,38 @@
 package com.tans.tmediaplayer.demo
 
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.appcompat.widget.SwitchCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import com.tans.tmediaplayer.OptResult
+import com.tans.tmediaplayer.demo.databinding.ActivityMainBinding
 import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.tMediaPlayer
 import com.tans.tmediaplayer.tMediaPlayerListener
 import com.tans.tmediaplayer.tMediaPlayerState
 import com.tans.tmediaplayer.render.tMediaPlayerView
+import com.tans.tuiutils.activity.BaseCoroutineStateActivity
+import com.tans.tuiutils.systembar.annotation.FullScreenStyle
+import com.tans.tuiutils.view.clicks
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 
-val ioExecutor: Executor by lazy {
-    Executors.newFixedThreadPool(2)
-}
+@FullScreenStyle
+class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(State()) {
 
-class MainActivity : AppCompatActivity() {
+    override val layoutId: Int = R.layout.activity_main
 
-    private val mediaPlayer: tMediaPlayer by lazy {
+    private val mediaPlayer: tMediaPlayer by lazyViewModelField("mediaPlayer") {
         tMediaPlayer()
-    }
-    private val playerView by lazy {
-        findViewById<tMediaPlayerView>(R.id.player_view)
-    }
-
-    private val actionLayout: View by lazy {
-        findViewById(R.id.action_layout)
-    }
-
-    private val settingsLayout: View by lazy {
-        findViewById(R.id.settings_layout)
-    }
-
-    private val settingsIv: ImageView by lazy {
-        findViewById(R.id.settings_iv)
-    }
-
-    private val progressTv: TextView by lazy {
-        findViewById(R.id.progress_tv)
-    }
-
-    private val durationTv: TextView by lazy {
-        findViewById(R.id.duration_tv)
-    }
-
-    private val playIv: ImageView by lazy {
-        findViewById(R.id.play_iv)
-    }
-
-    private val pauseIv: ImageView by lazy {
-        findViewById(R.id.pause_iv)
-    }
-
-    private val replayIv: ImageView by lazy {
-        findViewById(R.id.replay_iv)
-    }
-
-    private val rootView: View by lazy {
-        findViewById(R.id.root_layout)
-    }
-
-    private val playerSb: SeekBar by lazy {
-        findViewById(R.id.player_sb)
-    }
-
-    private val seekingLoadingPb: ProgressBar by lazy {
-        findViewById(R.id.seeking_loading_pb)
-    }
-
-    private val cropImageSw: SwitchCompat by lazy {
-        findViewById(R.id.crop_image_sw)
-    }
-
-    private val asciiFilterSw: SwitchCompat by lazy {
-        findViewById(R.id.ascii_filter_sw)
-    }
-
-    private val charReverseSw: SwitchCompat by lazy {
-        findViewById(R.id.char_reverse_sw)
-    }
-
-    private val colorReverseSw: SwitchCompat by lazy {
-        findViewById(R.id.color_reverse_sw)
-    }
-
-    private val charWidthTv: TextView by lazy {
-        findViewById(R.id.char_width_tv)
-    }
-
-    private val charWidthSb: SeekBar by lazy {
-        findViewById(R.id.char_width_sb)
-    }
-
-    private val imageColorFillRateTv: TextView by lazy {
-        findViewById(R.id.image_color_fill_rate_tv)
-    }
-
-    private val imageColorFillRateSb: SeekBar by lazy {
-        findViewById(R.id.image_color_fill_rate_sb)
     }
 
     private val fileName = "bad-apple.mp4"
 
-    private val testVideoFile: File by lazy {
-        val parentDir = filesDir
-        File(parentDir, fileName)
+    private val durationTv: TextView by lazy {
+        findViewById(R.id.duration_tv)
     }
 
     private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE
@@ -133,65 +51,118 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        insetsController.hide(WindowInsetsCompat.Type.systemBars())
-
-        setContentView(R.layout.activity_main)
-
-        rootView.setOnClickListener {
-           if (settingsLayout.isVisible()) {
-               settingsLayout.hide()
-           } else {
-               if (actionLayout.isVisible()) {
-                   actionLayout.hide()
-               } else {
-                   actionLayout.show()
-               }
-           }
-        }
-        ioExecutor.execute {
+    override fun CoroutineScope.firstLaunchInitDataCoroutine() {
+        launch(Dispatchers.IO) {
+            val testVideoFile = File(filesDir, fileName)
             if (!testVideoFile.exists()) {
                 testVideoFile.createNewFile()
-                FileOutputStream(testVideoFile).buffered(1024).use { output ->
-                    val buffer = ByteArray(1024)
-                    assets.open(fileName).buffered(1024).use { input ->
-                        var thisTimeRead: Int = 0
-                        do {
-                            thisTimeRead = input.read(buffer)
-                            if (thisTimeRead > 0) {
-                                output.write(buffer, 0, thisTimeRead)
-                            }
-                        } while (thisTimeRead > 0)
+                FileOutputStream(testVideoFile).buffered().use { outputStream ->
+                    assets.open(fileName).buffered().use { inputStream ->
+                        inputStream.copyTo(outputStream)
                     }
-                    output.flush()
                 }
             }
-            mediaPlayer.prepare(testVideoFile.absolutePath)
-            runOnUiThread {
-                durationTv.text = mediaPlayer.getMediaInfo()?.duration?.formatDuration() ?: ""
+
+            mediaPlayer.setListener(object : tMediaPlayerListener {
+                override fun onPlayerState(state: tMediaPlayerState) {
+                    updateState { it.copy(playerState = state) }
+                }
+
+                override fun onProgressUpdate(progress: Long, duration: Long) {
+                    updateState { it.copy(progress = Progress(progress = progress, duration = duration)) }
+                }
+            })
+
+            val loadResult = mediaPlayer.prepare(testVideoFile.absolutePath)
+            when (loadResult) {
+                OptResult.Success -> {
+                    mediaPlayer.play()
+                    Log.d(TAG, "Load media file success.")
+                }
+
+                OptResult.Fail -> {
+                    Log.e(TAG, "Load media file fail.")
+                }
             }
-            mediaPlayer.play()
         }
-        mediaPlayer.attachPlayerView(playerView)
+    }
 
-        playIv.setOnClickListener {
-            mediaPlayer.play()
-        }
+    override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
+        val viewBinding = ActivityMainBinding.bind(contentView)
 
-        pauseIv.setOnClickListener {
-            mediaPlayer.pause()
-        }
+        mediaPlayer.attachPlayerView(viewBinding.playerView)
 
-        replayIv.setOnClickListener {
-            mediaPlayer.play()
+        renderStateNewCoroutine({ it.progress.duration }) { duration ->
+            viewBinding.durationTv.text = duration.formatDuration()
         }
 
         var isPlayerSbInTouching = false
-        playerSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        renderStateNewCoroutine({ it.progress }) { (progress, duration) ->
+            viewBinding.progressTv.text = progress.formatDuration()
+            if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking) {
+                val progressInPercent = (progress.toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
+                viewBinding.playerSb.progress = progressInPercent
+            }
+        }
+
+        renderStateNewCoroutine({ it.playerState }) { playerState ->
+            if (playerState is tMediaPlayerState.Seeking) {
+                viewBinding.seekingLoadingPb.visibility = View.VISIBLE
+            } else {
+                viewBinding.seekingLoadingPb.visibility = View.GONE
+            }
+
+            val fixedState = when (playerState) {
+                is tMediaPlayerState.Seeking -> playerState.lastState
+                else -> playerState
+            }
+            if (fixedState is tMediaPlayerState.Playing) {
+                viewBinding.pauseIv.visibility = View.VISIBLE
+            } else {
+                viewBinding.pauseIv.visibility = View.GONE
+            }
+
+            if (fixedState is tMediaPlayerState.Prepared ||
+                fixedState is tMediaPlayerState.Paused ||
+                fixedState is tMediaPlayerState.Stopped
+            ) {
+                viewBinding.playIv.visibility = View.VISIBLE
+            } else {
+                viewBinding.playIv.visibility = View.GONE
+            }
+
+            if (fixedState is tMediaPlayerState.PlayEnd) {
+                viewBinding.replayIv.visibility = View.VISIBLE
+            } else {
+                viewBinding.replayIv.visibility = View.GONE
+            }
+        }
+
+        viewBinding.rootLayout.clicks(this) {
+            if (viewBinding.settingsLayout.isVisible()) {
+                viewBinding.settingsLayout.hide()
+            } else {
+                if (viewBinding.actionLayout.isVisible()) {
+                    viewBinding.actionLayout.hide()
+                } else {
+                    viewBinding.actionLayout.show()
+                }
+            }
+        }
+
+        viewBinding.playIv.clicks(this) {
+            mediaPlayer.play()
+        }
+
+        viewBinding.pauseIv.clicks(this) {
+            mediaPlayer.pause()
+        }
+
+        viewBinding.replayIv.clicks(this) {
+            mediaPlayer.play()
+        }
+
+        viewBinding.playerSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
@@ -209,81 +180,34 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        mediaPlayer.setListener(object : tMediaPlayerListener {
-
-            override fun onPlayerState(state: tMediaPlayerState) {
-                runOnUiThread {
-                    if (state is tMediaPlayerState.Seeking) {
-                        seekingLoadingPb.visibility = View.VISIBLE
-                    } else {
-                        seekingLoadingPb.visibility = View.GONE
-                    }
-
-                    val fixedState = when (state) {
-                        is tMediaPlayerState.Seeking -> state.lastState
-                        else -> state
-                    }
-                    if (fixedState is tMediaPlayerState.Playing) {
-                        pauseIv.visibility = View.VISIBLE
-                    } else {
-                        pauseIv.visibility = View.GONE
-                    }
-
-                    if (fixedState is tMediaPlayerState.Prepared ||
-                            fixedState is tMediaPlayerState.Paused ||
-                            fixedState is tMediaPlayerState.Stopped
-                    ) {
-                        playIv.visibility = View.VISIBLE
-                    } else {
-                        playIv.visibility = View.GONE
-                    }
-
-                    if (fixedState is tMediaPlayerState.PlayEnd) {
-                        replayIv.visibility = View.VISIBLE
-                    } else {
-                        replayIv.visibility = View.GONE
-                    }
-                }
-            }
-
-            override fun onProgressUpdate(progress: Long, duration: Long) {
-                runOnUiThread {
-                    progressTv.text = progress.formatDuration()
-                    if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking) {
-                        val progressInPercent = (progress.toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
-                        playerSb.progress = progressInPercent
-                    }
-                }
-            }
-        })
-
-        settingsIv.setOnClickListener {
-            settingsLayout.show()
-            actionLayout.hide()
+        viewBinding.settingsIv.clicks(this) {
+            viewBinding.settingsLayout.show()
+            viewBinding.actionLayout.hide()
         }
 
-        cropImageSw.setOnCheckedChangeListener { _, isChecked ->
+        viewBinding.cropImageSw.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterCrop)
+                viewBinding.playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterCrop)
             } else {
-                playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterFit)
+                viewBinding.playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterFit)
             }
         }
 
-        asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
-            playerView.enableAsciiArtFilter(isChecked)
+        viewBinding.asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
+            viewBinding.playerView.enableAsciiArtFilter(isChecked)
         }
 
-        val asciiArtFilter = playerView.getAsciiArtImageFilter()
+        val asciiArtFilter = viewBinding.playerView.getAsciiArtImageFilter()
 
-        charReverseSw.setOnCheckedChangeListener { _, isChecked ->
+        viewBinding.charReverseSw.setOnCheckedChangeListener { _, isChecked ->
             asciiArtFilter.reverseChar(isChecked)
         }
 
-        colorReverseSw.setOnCheckedChangeListener { _, isChecked ->
+        viewBinding.colorReverseSw.setOnCheckedChangeListener { _, isChecked ->
             asciiArtFilter.reverseColor(isChecked)
         }
-        charWidthSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+
+        viewBinding.charWidthSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
 
@@ -291,12 +215,12 @@ class MainActivity : AppCompatActivity() {
                 if (fromUser) {
                     val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()).toInt()
                     asciiArtFilter.setCharLineWidth(requestWidth)
-                    charWidthTv.text = "Char Width: $requestWidth"
+                    viewBinding.charWidthTv.text = "Char Width: $requestWidth"
                 }
             }
         })
 
-        imageColorFillRateSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        viewBinding.imageColorFillRateSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) { }
             override fun onStopTrackingTouch(seekBar: SeekBar?) { }
 
@@ -304,7 +228,7 @@ class MainActivity : AppCompatActivity() {
                 if (fromUser) {
                     val requestRate = progress.toFloat() / 100.0f
                     asciiArtFilter.colorFillRate(requestRate)
-                    imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
+                    viewBinding.imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
                 }
             }
         })
@@ -317,8 +241,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onViewModelCleared() {
+        super.onViewModelCleared()
         mediaPlayer.release()
     }
 
@@ -330,6 +254,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+
+        data class Progress(
+            val progress: Long = 0L,
+            val duration: Long = 0L
+        )
+
+        data class State(
+            val playerState: tMediaPlayerState = tMediaPlayerState.NoInit,
+            val progress: Progress = Progress()
+        )
+
         const val TAG = "MainActivity"
     }
 }
