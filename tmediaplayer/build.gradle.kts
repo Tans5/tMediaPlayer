@@ -9,10 +9,14 @@ plugins {
 
 android {
     namespace = "com.tans.tmediaplayer"
-    compileSdk = 34
+    compileSdk = properties["ANDROID_COMPILE_SDK"].toString().toInt()
 
     defaultConfig {
-        minSdk = 23
+        minSdk = properties["ANDROID_MIN_SDK"].toString().toInt()
+        version = properties["VERSION_NAME"].toString()
+
+        setProperty("archivesBaseName", "tmediaplayer-${properties["VERSION_NAME"].toString()}")
+
         consumerProguardFiles("consumer-rules.pro")
         ndk {
             abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64"))
@@ -22,7 +26,7 @@ android {
     externalNativeBuild {
         cmake {
             path("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
+            version = properties["CMAKE_VERSION"].toString()
         }
     }
 
@@ -43,7 +47,7 @@ android {
         jvmTarget = "1.8"
     }
 
-    ndkVersion = "24.0.8215888"
+    ndkVersion = properties["NDK_VERSION"].toString()
 }
 
 dependencies {
