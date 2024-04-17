@@ -34,35 +34,41 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         LOGE("Avformat find stream info fail: %d", result);
         return OptFail;
     }
+
+    // Find out first audio stream and video stream.
     for (int i = 0; i < format_ctx->nb_streams; i ++) {
         auto s = format_ctx->streams[i];
         auto codec_type = s->codecpar->codec_type;
         switch (codec_type) {
             case AVMEDIA_TYPE_VIDEO:
-                LOGD("Find video stream.");
-                this->video_stream = s;
-                this->video_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
+                if (this->video_stream != nullptr) {
+                    LOGE("Find multiple video stream, skip it.");
+                } else {
+                    LOGD("Find video stream.");
+                    this->video_stream = s;
+                    this->video_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
+                }
                 break;
             case AVMEDIA_TYPE_AUDIO:
-                LOGD("Find audio stream.");
-                this->audio_stream = s;
-                this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
+                if (this->audio_stream != nullptr) {
+                    LOGE("Find multiple audio stream, skip it.");
+                } else {
+                    LOGD("Find audio stream.");
+                    this->audio_stream = s;
+                    this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
+                }
                 break;
             default:
                 break;
         }
     }
+
+    // No video stream and audio stream.
     if (video_stream == nullptr && audio_stream == nullptr) {
         LOGE("Didn't find video stream or audio stream");
         return OptFail;
     }
-    this->pkt = av_packet_alloc();
-    this->frame = av_frame_alloc();
-    if (video_duration > audio_duration) {
-        this->duration = video_duration;
-    } else {
-        this->duration = audio_duration;
-    }
+
     LOGD("Audio duration: %ld, video duration: %ld", audio_duration, video_duration);
     // Video
     if (video_stream != nullptr) {
@@ -72,6 +78,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->video_fps = av_q2d(video_stream->avg_frame_rate);
 
         if (is_request_hw) {
+            // Find android hardware codec.
             bool useHwDecoder = true;
             const char * hwCodecName;
             switch (params->codec_id) {
@@ -191,19 +198,20 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             LOGE("Open audio ctx fail: %d", result);
             return OptFail;
         }
-        this->audio_channels = av_get_channel_layout_nb_channels(audio_decoder_ctx->channel_layout);
+        this->audio_channels = audio_decoder_ctx->ch_layout.nb_channels;
         this->audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
         this->audio_simple_rate = audio_decoder_ctx->sample_rate;
         if (target_audio_channels >= 2) {
             this->audio_output_channels = 2;
-            this->audio_output_ch_layout = AV_CH_LAYOUT_STEREO;
+            this->audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
         } else {
             this->audio_output_channels = 1;
-            this->audio_output_ch_layout = AV_CH_LAYOUT_MONO;
+            this->audio_output_ch_layout = AV_CHANNEL_LAYOUT_MONO;
         }
         this->swr_ctx = swr_alloc();
-        swr_alloc_set_opts(swr_ctx, audio_output_ch_layout, audio_output_sample_fmt,audio_output_sample_rate,
-                           audio_decoder_ctx->channel_layout,audio_decoder_ctx->sample_fmt, audio_decoder_ctx->sample_rate,
+
+        swr_alloc_set_opts2(&swr_ctx, &audio_output_ch_layout, audio_output_sample_fmt,audio_output_sample_rate,
+                           &audio_decoder_ctx->ch_layout, audio_decoder_ctx->sample_fmt, audio_decoder_ctx->sample_rate,
                            0,nullptr);
         result = swr_init(swr_ctx);
         if (result < 0) {
@@ -212,6 +220,16 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         }
         LOGD("Prepare audio decoder success.");
     }
+
+    // decode need buffers.
+    this->pkt = av_packet_alloc();
+    this->frame = av_frame_alloc();
+    if (video_duration > audio_duration) {
+        this->duration = video_duration;
+    } else {
+        this->duration = audio_duration;
+    }
+
     return OptSuccess;
 }
 
@@ -219,6 +237,13 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
     return seekTo(0, nullptr, false);
 }
 
+/**
+ * Only video frame would write to videoBuffer
+ * @param targetPtsInMillis
+ * @param videoBuffer
+ * @param needDecode
+ * @return
+ */
 tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, bool needDecode) {
     if (format_ctx != nullptr) {
         if (video_stream == nullptr && audio_stream == nullptr) {
@@ -273,9 +298,11 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
         }
         int result;
         if (!skipPktRead) {
+            // If need read data to pkt from file.
             av_packet_unref(pkt);
             result = av_read_frame(format_ctx, pkt);
             if (result < 0) {
+                // No data to read, end of file.
                 if (videoDecodeBuffer != nullptr) {
                     videoDecodeBuffer->is_last_frame = true;
                     videoDecodeBuffer->pts = duration;
@@ -290,29 +317,36 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             pkt->stream_index == video_stream->index &&
             video_decoder_ctx != nullptr &&
             !skipVideo) {
+            // Send pkt data to video decoder ctx.
             result = avcodec_send_packet(video_decoder_ctx, pkt);
             if (result == AVERROR(EAGAIN)) {
+                // Next time decode no need to read pkt.
                 LOGD("Seek decode video skip read pkt");
                 skipPktRead = true;
             } else {
                 skipPktRead = false;
             }
             if (result < 0 && !skipPktRead) {
+                // Send pkt to video decoder ctx fail, do next frame seek.
                 LOGE("Seek decode video send pkt fail: %d", result);
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             av_frame_unref(frame);
+            // Decode video frame.
             result = avcodec_receive_frame(video_decoder_ctx, frame);
             if (result == AVERROR(EAGAIN)) {
                 LOGD("Seek decode video reload frame");
+                // Need more pkt data to decode current frame.
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             if (result < 0) {
+                // Decode video frame fail.
                 LOGE("Seek decode video receive frame fail: %d", result);
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             long ptsInMillis = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
             if (videoDecodeBuffer != nullptr) {
+                // Copy frame data to video decode buffer.
                 auto parseResult = parseDecodeVideoFrameToBuffer(videoDecodeBuffer);
                 if (parseResult == DecodeSuccess) {
                     LOGD("Seek decode video success: %ld", ptsInMillis);
@@ -320,8 +354,10 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             }
 
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
+                // Already seek to target pts.
                 return OptSuccess;
             } else {
+                // Need do more decode to target pts.
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
         }
@@ -330,26 +366,32 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             pkt->stream_index == audio_stream->index &&
             audio_decoder_ctx != nullptr &&
             !skipAudio) {
+            // Send pkt data to audio decoder ctx.
             result = avcodec_send_packet(audio_decoder_ctx, pkt);
             skipPktRead = result == AVERROR(EAGAIN);
             if (skipPktRead) {
                 LOGD("Seek decode audio skip read pkt");
             }
             if (result < 0 && !skipPktRead) {
+                // Send pkt data to audio decoder ctx fail.
                 LOGE("Seek decode audio send pkt fail: %d", result);
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             av_frame_unref(frame);
+            // Decode audio frame.
             result = avcodec_receive_frame(audio_decoder_ctx, frame);
             if (result < 0) {
+                // Decode audio frame fail.
                 LOGE("Seek decode audio receive frame fail: %d", result);
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             long ptsInMillis = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
             videoDecodeBuffer->pts = ptsInMillis;
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
+                // Already seek to target pts.
                 return OptSuccess;
             } else {
+                // Need do more decode to target pts.
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
         }
@@ -368,9 +410,11 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
         long start_time = get_time_millis();
         int result;
         if (!skipPktRead) {
+            // If need read data to pkt from file.
             av_packet_unref(pkt);
             result = av_read_frame(format_ctx, pkt);
             if (result < 0) {
+                // No data to read, end of file.
                 buffer->is_last_frame = true;
                 LOGD("Decode media end.");
                 return DecodeEnd;
@@ -380,27 +424,34 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
         if (video_stream != nullptr &&
             pkt->stream_index == video_stream->index &&
             video_decoder_ctx != nullptr) {
+            // Send pkt data to video decoder ctx.
             result = avcodec_send_packet(video_decoder_ctx, pkt);
             if (result == AVERROR(EAGAIN)) {
+                // Next time decode no need to read pkt.
                 LOGD("Decode video skip read pkt");
                 skipPktRead = true;
             } else {
                 skipPktRead = false;
             }
             if (result < 0 && !skipPktRead) {
+                // Send pkt to video decoder ctx fail, do next frame seek.
                 LOGE("Decode video send pkt fail: %d", result);
                 return DecodeFail;
             }
             av_frame_unref(frame);
+            // Decode video frame.
             result = avcodec_receive_frame(video_decoder_ctx, frame);
             if (result == AVERROR(EAGAIN)) {
+                // Need more pkt data to decode current frame.
                 LOGD("Decode video reload frame");
                 return decode(buffer);
             }
             if (result < 0) {
+                // Decode video frame fail.
                 LOGE("Decode video receive frame fail: %d", result);
                 return DecodeFail;
             }
+            // Copy frame data to video decode buffer.
             auto parseResult = parseDecodeVideoFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
                 LOGD("Decode video success: %ld, cost: %ld ms", buffer->pts, get_time_millis() - start_time);
@@ -410,6 +461,7 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
         if (audio_stream != nullptr &&
             pkt->stream_index == audio_stream->index &&
             audio_decoder_ctx != nullptr) {
+            // Send pkt data to audio decoder ctx.
             result = avcodec_send_packet(audio_decoder_ctx, pkt);
             skipPktRead = result == AVERROR(EAGAIN);
             if (skipPktRead) {
@@ -422,13 +474,16 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             av_frame_unref(frame);
             result = avcodec_receive_frame(audio_decoder_ctx, frame);
             if (result == AVERROR(EAGAIN)) {
+                // Need more pkt data to decode current audio frame.
                 LOGD("Decode audio reload frame");
                 return decode(buffer);
             }
             if (result < 0) {
+                // Decode audio frame fail.
                 LOGE("Decode audio receive frame fail: %d", result);
                 return DecodeFail;
             }
+            // Copy frame data to audio decode buffer.
             auto parseResult = parseDecodeAudioFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
                 LOGD("Decode audio success: %ld, buffer rgbaSize: %d, cost: %ld ms", buffer->pts, buffer->audioBuffer->size, get_time_millis() - start_time);
@@ -443,10 +498,21 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
     }
 }
 
+/**
+ * Copy image pixel data.
+ * @param dst
+ * @param src
+ * @param image_width
+ * @param image_height
+ * @param line_stride
+ * @param pixel_stride
+ */
 void copyFrameData(uint8_t * dst, uint8_t * src, int image_width, int image_height, int line_stride, int pixel_stride) {
     if ((image_width * pixel_stride) >= line_stride) {
+        // pixel row no empty data.
         memcpy(dst, src, image_width * image_height * pixel_stride);
     } else {
+        // pixel contain empty data.
         uint8_t *dst_offset = dst;
         uint8_t *src_offset = src;
         int image_line_len = image_width * pixel_stride;
@@ -458,6 +524,11 @@ void copyFrameData(uint8_t * dst, uint8_t * src, int image_width, int image_heig
     }
 }
 
+/**
+ * Convert decoded video frame buffer to tMediaDecodeBuffer
+ * @param buffer
+ * @return
+ */
 tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDecodeBuffer *buffer) {
 
     int w = frame->width;
@@ -470,6 +541,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             int ySize = w * h;
             int uSize = ySize / 4;
             int vSize = uSize;
+
+            // alloc Y buffer if need.
             if (videoBuffer->ySize != ySize || videoBuffer->yBuffer == nullptr) {
                 if (videoBuffer->yBuffer != nullptr) {
                     free(videoBuffer->yBuffer);
@@ -478,6 +551,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 videoBuffer->ySize = ySize;
             }
 
+            // alloc U buffer if need.
             if (videoBuffer->uSize != uSize || videoBuffer->uBuffer == nullptr) {
                 if (videoBuffer->uBuffer != nullptr) {
                     free(videoBuffer->uBuffer);
@@ -486,6 +560,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 videoBuffer->uSize = uSize;
             }
 
+            // // alloc V buffer if need.
             if (videoBuffer->vSize != vSize || videoBuffer->vBuffer == nullptr) {
                 if (videoBuffer->vBuffer != nullptr) {
                     free(videoBuffer->vBuffer);
@@ -496,6 +571,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             uint8_t *yBuffer = videoBuffer->yBuffer;
             uint8_t *uBuffer = videoBuffer->uBuffer;
             uint8_t *vBuffer = videoBuffer->vBuffer;
+            // Copy yuv data to video frame.
             copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
             copyFrameData(uBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 1);
             copyFrameData(vBuffer, frame->data[2], w / 2, h / 2, frame->linesize[2], 1);
@@ -506,6 +582,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         case AV_PIX_FMT_NV21: {
             int ySize = w * h;
             int uvSize = ySize / 2;
+            // alloc Y buffer if need.
             if (videoBuffer->ySize != ySize || videoBuffer->yBuffer == nullptr) {
                 if (videoBuffer->yBuffer != nullptr) {
                     free(videoBuffer->yBuffer);
@@ -514,6 +591,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 videoBuffer->ySize = ySize;
             }
 
+            // alloc UV buffer if need.
             if (videoBuffer->uvSize != uvSize || videoBuffer->uvBuffer == nullptr) {
                 if (videoBuffer->uvBuffer != nullptr) {
                     free(videoBuffer->uvBuffer);
@@ -523,7 +601,9 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             }
             uint8_t *yBuffer = videoBuffer->yBuffer;
             uint8_t *uvBuffer = videoBuffer->uvBuffer;
+            // Copy Y buffer.
             copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
+            // Copy UV buffer.
             copyFrameData(uvBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 2);
             if (frame->format == AV_PIX_FMT_NV12) {
                 videoBuffer->type = Nv12;
@@ -534,6 +614,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         }
         case AV_PIX_FMT_RGBA: {
             int rgbaSize = w * h * 4;
+            // alloc rgba data if need.
             if (videoBuffer->rgbaSize != rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
                 if (videoBuffer->rgbaBuffer != nullptr) {
                     free(videoBuffer->rgbaBuffer);
@@ -542,10 +623,12 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 videoBuffer->rgbaSize = rgbaSize;
             }
             uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
+            // Copy RGBA data.
             copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
             videoBuffer->type = Rgba;
             break;
         }
+        // Others format need to convert to RGBA.
         default: {
             if (w != video_width ||
                 h != video_height) {
@@ -570,6 +653,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                     return DecodeFail;
                 }
             }
+
+            // Alloc new RGBA frame and buffer if need.
             if (w != videoBuffer->width ||
                 h != videoBuffer->height ||
                 videoBuffer->rgbaBuffer == nullptr ||
@@ -585,11 +670,14 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 }
                 videoBuffer->rgbaFrame = av_frame_alloc();
                 videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
+                // Fill rgbaBuffer to rgbaFrame
                 av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                                      AV_PIX_FMT_RGBA, w, h, 1);
             }
+            // Convert to rgba.
             int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
             if (result < 0) {
+                // Convert fail.
                 LOGE("Decode video sws scale fail: %d", result);
                 return DecodeFail;
             }
@@ -601,11 +689,19 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
     return DecodeSuccess;
 }
 
+/**
+ * Convert decoded audio frame buffer to tMediaDecodeBuffer
+ * @param buffer
+ * @return
+ */
 tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDecodeBuffer *buffer) {
 
+    // Get current output frame contains sample size per channel.
     int output_nb_samples = (int) av_rescale_rnd(frame->nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+    // Get current output audio frame need buffer size.
     int output_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, output_nb_samples, audio_output_sample_fmt, 1);
     auto audioBuffer = buffer->audioBuffer;
+    // Alloc pcm buffer if need.
     if (audioBuffer->size != output_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
         LOGE("Decode audio change rgbaSize.");
         if (audioBuffer->pcmBuffer != nullptr) {
@@ -615,6 +711,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
     }
     audioBuffer->size = output_audio_buffer_size;
     buffer->pts = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
+    // Convert to target output pcm format data.
     int result = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), output_nb_samples,(const uint8_t **)(frame->data), frame->nb_samples);
     if (result < 0) {
         LOGE("Decode audio swr convert fail: %d", result);
@@ -635,6 +732,7 @@ tMediaDecodeBuffer * allocDecodeBuffer() {
 }
 
 void freeDecodeBuffer(tMediaDecodeBuffer *b) {
+    // Free audio buffer.
     auto audioBuffer = b->audioBuffer;
     if (audioBuffer != nullptr) {
         if (audioBuffer->pcmBuffer != nullptr) {
@@ -643,8 +741,11 @@ void freeDecodeBuffer(tMediaDecodeBuffer *b) {
         free(audioBuffer);
         b->audioBuffer = nullptr;
     }
+
+    // Free video buffer.
     auto videoBuffer = b->videoBuffer;
     if (videoBuffer != nullptr) {
+        // Free rgba.
         if (videoBuffer->rgbaFrame != nullptr) {
             av_frame_unref(videoBuffer->rgbaFrame);
             av_frame_free(&videoBuffer->rgbaFrame);
@@ -652,6 +753,8 @@ void freeDecodeBuffer(tMediaDecodeBuffer *b) {
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
         }
+
+        // Free yuv420
         if (videoBuffer->yBuffer != nullptr) {
             free(videoBuffer->yBuffer);
         }

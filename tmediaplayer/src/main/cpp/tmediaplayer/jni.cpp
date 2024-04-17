@@ -18,7 +18,6 @@ Java_com_tans_tmediaplayer_tMediaPlayer_createPlayerNative(
     auto player = new tMediaPlayerContext;
     player->jplayer = j_player;
     player->jvm = jvm;
-    player->jniEnv = env;
     return reinterpret_cast<jlong>(player);
 }
 

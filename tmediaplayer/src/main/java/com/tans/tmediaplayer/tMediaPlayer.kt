@@ -3,6 +3,7 @@ package com.tans.tmediaplayer
 import android.os.SystemClock
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.render.tMediaPlayerView
+import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -78,23 +79,30 @@ class tMediaPlayer {
         renderer.audioTrackFlush()
         renderer.removeRenderMessages()
 
-        // Create native player.
-        val nativePlayer = createPlayerNative()
-        // Load media file by native player.
-        val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
-        dispatchProgress(0L)
-        if (result == OptResult.Success) {
-            // Load media file success.
-            val mediaInfo = getMediaInfo(nativePlayer)
-            MediaLog.d(TAG, "Prepare player success: $mediaInfo")
-            dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
+
+        if (File(file).let { it.isFile && it.canRead() }) {
+            // Create native player.
+            val nativePlayer = createPlayerNative()
+            // Load media file by native player.
+            val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
+            dispatchProgress(0L)
+            if (result == OptResult.Success) {
+                // Load media file success.
+                val mediaInfo = getMediaInfo(nativePlayer)
+                MediaLog.d(TAG, "Prepare player success: $mediaInfo")
+                dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
+            } else {
+                // Load media file fail.
+                releaseNative(nativePlayer)
+                MediaLog.e(TAG, "Prepare player fail.")
+                dispatchNewState(tMediaPlayerState.Error("Prepare player fail."))
+            }
+            return result
         } else {
-            // Load media file fail.
-            releaseNative(nativePlayer)
-            MediaLog.e(TAG, "Prepare player fail.")
-            dispatchNewState(tMediaPlayerState.Error("Prepare player fail."))
+            MediaLog.e(TAG, "$file can't read.")
+            dispatchNewState(tMediaPlayerState.Error("$file can't read."))
+            return OptResult.Fail
         }
-        return result
     }
 
     /**

@@ -87,7 +87,6 @@ typedef struct tMediaPlayerContext {
     /**
      * Java
      */
-    JNIEnv* jniEnv = nullptr;
     JavaVM* jvm = nullptr;
     jobject jplayer = nullptr;
 
@@ -117,8 +116,8 @@ typedef struct tMediaPlayerContext {
     long audio_duration = 0;
     long audio_output_sample_rate = 44100;
     AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
-    int audio_output_ch_layout = 0;
-    int audio_output_channels = 0;
+    AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    int audio_output_channels = 2;
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
