@@ -56,8 +56,15 @@ enum tMediaDecodeBufferType {
     BufferTypeAudio
 };
 
+enum tMediaDecodeResult {
+    DecodeSuccess,
+    DecodeEnd,
+    DecodeFail
+};
+
 typedef struct tMediaDecodeBuffer {
     tMediaDecodeBufferType type = BufferTypeNone;
+    tMediaDecodeResult decodeResult = DecodeFail;
     bool is_last_frame = false;
     long pts;
     tMediaVideoBuffer *videoBuffer = nullptr;
@@ -67,12 +74,6 @@ typedef struct tMediaDecodeBuffer {
 enum tMediaOptResult {
     OptSuccess,
     OptFail
-};
-
-enum tMediaDecodeResult {
-    DecodeSuccess,
-    DecodeEnd,
-    DecodeFail
 };
 
 typedef struct tMediaPlayerContext {
@@ -138,6 +139,10 @@ typedef struct tMediaPlayerContext {
 } tMediaPlayerContext;
 
 tMediaDecodeBuffer* allocDecodeBuffer();
+
+tMediaDecodeBuffer* allocVideoDecodeBuffer();
+
+tMediaDecodeBuffer* allocAudioDecodeBuffer();
 
 void freeDecodeBuffer(tMediaDecodeBuffer *b);
 

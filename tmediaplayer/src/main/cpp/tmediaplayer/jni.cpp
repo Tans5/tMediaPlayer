@@ -128,6 +128,22 @@ Java_com_tans_tmediaplayer_tMediaPlayer_allocDecodeDataNative(
     return reinterpret_cast<jlong>(buffer);
 }
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_allocVideoDecodeDataNative(
+        JNIEnv * env,
+        jobject j_player) {
+    auto buffer = allocVideoDecodeBuffer();
+    return reinterpret_cast<jlong>(buffer);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_tMediaPlayer_allocAudioDecodeDataNative(
+        JNIEnv * env,
+        jobject j_player) {
+    auto buffer = allocAudioDecodeBuffer();
+    return reinterpret_cast<jlong>(buffer);
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_tans_tmediaplayer_tMediaPlayer_isVideoBufferNative(
         JNIEnv * env,

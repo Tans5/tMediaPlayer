@@ -477,6 +477,18 @@ class tMediaPlayer {
 
     private external fun allocDecodeDataNative(): Long
 
+    internal fun allocVideoDecodeDataNativeInternal(): Long {
+        return allocVideoDecodeDataNative()
+    }
+
+    private external fun allocVideoDecodeDataNative(): Long
+
+    internal fun allocAudioDecodeDataNativeInternal(): Long {
+        return allocAudioDecodeDataNative()
+    }
+
+    private external fun allocAudioDecodeDataNative(): Long
+
     internal fun isVideoBufferNativeInternal(nativeBuffer: Long): Boolean = isVideoBufferNative(nativeBuffer)
 
     private external fun isVideoBufferNative(nativeBuffer: Long): Boolean

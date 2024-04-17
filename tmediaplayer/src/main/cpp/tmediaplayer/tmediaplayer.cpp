@@ -731,6 +731,20 @@ tMediaDecodeBuffer * allocDecodeBuffer() {
     return buffer;
 }
 
+tMediaDecodeBuffer * allocVideoDecodeBuffer() {
+    auto buffer = new tMediaDecodeBuffer;
+    buffer->type = BufferTypeVideo;
+    buffer->videoBuffer = new tMediaVideoBuffer;
+    return buffer;
+}
+
+tMediaDecodeBuffer * allocAudioDecodeBuffer() {
+    auto buffer = new tMediaDecodeBuffer;
+    buffer->type = BufferTypeAudio;
+    buffer->audioBuffer = new tMediaAudioBuffer;
+    return buffer;
+}
+
 void freeDecodeBuffer(tMediaDecodeBuffer *b) {
     // Free audio buffer.
     auto audioBuffer = b->audioBuffer;
