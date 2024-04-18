@@ -697,7 +697,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
 tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDecodeBuffer *buffer) {
 
     // Get current output frame contains sample size per channel.
-    int output_nb_samples = (int) av_rescale_rnd(frame->nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+    int output_nb_samples = (int) av_rescale_rnd(frame->nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_DOWN);
     // Get current output audio frame need buffer size.
     int output_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, output_nb_samples, audio_output_sample_fmt, 1);
     auto audioBuffer = buffer->audioBuffer;

@@ -44,14 +44,14 @@ internal class tMediaPlayerRenderer(
     }
 
     private val audioTrack: AudioTrack by lazy {
-        val bufferSize = AudioTrack.getMinBufferSize(44100, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
+        val bufferSize = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
         AudioTrack(
             AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build(),
             AudioFormat.Builder()
                 .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                .setSampleRate(44100)
+                .setSampleRate(48000)
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                 .build(),
             bufferSize,
