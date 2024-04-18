@@ -47,9 +47,6 @@ internal class tMediaPlayerBufferManager(
         LinkedBlockingDeque()
     }
 
-    private val allAudioNativeBuffers: LinkedBlockingDeque<MediaBuffer> by lazy {
-        LinkedBlockingDeque()
-    }
 
     /**
      * Empty video buffers for decoder use.
@@ -65,9 +62,6 @@ internal class tMediaPlayerBufferManager(
         LinkedBlockingDeque()
     }
 
-    private val allVideoNativeBuffers: LinkedBlockingDeque<MediaBuffer> by lazy {
-        LinkedBlockingDeque()
-    }
 
     /**
      * Buffer buffer size.
@@ -87,13 +81,6 @@ internal class tMediaPlayerBufferManager(
      * Decoded buffers waiting to render.
      */
     private val renderBufferDeque: LinkedBlockingDeque<MediaBuffer> by lazy {
-        LinkedBlockingDeque()
-    }
-
-    /**
-     * All buffers including [decodeBufferDeque] and [renderBufferDeque].
-     */
-    private val allBuffers: LinkedBlockingDeque<MediaBuffer> by lazy {
         LinkedBlockingDeque()
     }
 
@@ -130,10 +117,8 @@ internal class tMediaPlayerBufferManager(
             cache
         } else {
             val nativeBuffer = player.allocAudioDecodeDataNativeInternal()
-            val buffer = MediaBuffer(nativeBuffer)
             hasAllocAudioNativeBufferSize.incrementAndGet()
-            allAudioNativeBuffers.add(buffer)
-            buffer
+            MediaBuffer(nativeBuffer)
         }
     }
 
@@ -153,7 +138,6 @@ internal class tMediaPlayerBufferManager(
         if (!isReleased.get()) {
             if (hasAllocAudioNativeBufferSize.get() > maxNativeAudioBufferSize) {
                 hasAllocAudioNativeBufferSize.decrementAndGet()
-                allAudioNativeBuffers.remove(buffer)
                 player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
             } else {
                 audioNativeDecodeBuffersDeque.push(buffer)
@@ -182,10 +166,8 @@ internal class tMediaPlayerBufferManager(
             cache
         } else {
             val nativeBuffer = player.allocVideoDecodeDataNativeInternal()
-            val buffer = MediaBuffer(nativeBuffer)
             hasAllocVideoNativeBufferSize.incrementAndGet()
-            allVideoNativeBuffers.add(buffer)
-            buffer
+            MediaBuffer(nativeBuffer)
         }
     }
 
@@ -205,7 +187,6 @@ internal class tMediaPlayerBufferManager(
         if (!isReleased.get()) {
             if (hasAllocVideoNativeBufferSize.get() > maxNativeVideoBufferSize) {
                 hasAllocVideoNativeBufferSize.decrementAndGet()
-                allVideoNativeBuffers.remove(buffer)
                 player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
             } else {
                 videoNativeDecodeBuffersDeque.push(buffer)
@@ -219,32 +200,38 @@ internal class tMediaPlayerBufferManager(
      * Clear all render buffers, call by player.
      */
     fun clearRenderData() {
-        assertReleaseState()
-        renderBufferDeque.clear()
-        decodeBufferDeque.clear()
-        decodeBufferDeque.addAll(allBuffers)
+        while (renderBufferDeque.isNotEmpty()) {
+            val b = renderBufferDeque.pollFirst()
+            if (b != null) {
+                decodeBufferDeque.push(b)
+            }
+        }
 
         // audio
-        audioNativeRenderBuffersDeque.clear()
-        audioNativeDecodeBuffersDeque.clear()
-        audioNativeDecodeBuffersDeque.addAll(allAudioNativeBuffers)
+        while (audioNativeRenderBuffersDeque.isNotEmpty()) {
+            val b = audioNativeRenderBuffersDeque.pollFirst()
+            if (b != null) {
+                audioNativeDecodeBuffersDeque.push(b)
+            }
+        }
 
         // video
-        videoNativeRenderBuffersDeque.clear()
-        videoNativeDecodeBuffersDeque.clear()
-        videoNativeDecodeBuffersDeque.addAll(allVideoNativeBuffers)
+        while (videoNativeRenderBuffersDeque.isNotEmpty()) {
+            val b = videoNativeRenderBuffersDeque.pollFirst()
+            if (b != null) {
+                videoNativeDecodeBuffersDeque.push(b)
+            }
+        }
     }
 
     /**
      * Force get a decode buffer.
      */
     fun requestDecodeBufferForce(): MediaBuffer {
-        assertReleaseState()
         return requestRenderBuffer().let {
             if (it == null) {
                 hasAllocBufferSize.addAndGet(1)
                 val result = MediaBuffer(player.allocDecodeDataNativeInternal())
-                allBuffers.add(result)
                 result
             } else {
                 it
@@ -256,16 +243,13 @@ internal class tMediaPlayerBufferManager(
      * Get decode buffer, if current buffer size great than [maxNativeBufferSize] would return null.
      */
     fun requestDecodeBuffer(): MediaBuffer? {
-        assertReleaseState()
         return if (!isReleased.get()) {
             decodeBufferDeque.pollFirst()
                 ?: if (hasAllocBufferSize.get() >= maxNativeBufferSize) {
                     null
                 } else {
                     hasAllocBufferSize.addAndGet(1)
-                    val result = MediaBuffer(player.allocDecodeDataNativeInternal())
-                    allBuffers.add(result)
-                    result
+                    MediaBuffer(player.allocDecodeDataNativeInternal())
                 }
         } else {
             null
@@ -306,7 +290,6 @@ internal class tMediaPlayerBufferManager(
                 renderBufferDeque.remove(buffer)
             }
             if (hasAllocBufferSize.get() > maxNativeBufferSize) {
-                allBuffers.remove(buffer)
                 player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
                 hasAllocBufferSize.decrementAndGet()
             } else {
@@ -376,7 +359,6 @@ internal class tMediaPlayerBufferManager(
                 }
             }
             hasAllocBufferSize.set(0)
-            allBuffers.clear()
 
             // Audio
             hasAllocAudioNativeBufferSize.set(0)
@@ -392,7 +374,6 @@ internal class tMediaPlayerBufferManager(
                     player.freeDecodeDataNativeInternal(b.nativeBuffer)
                 }
             }
-            allAudioNativeBuffers.clear()
 
             // Video
             hasAllocVideoNativeBufferSize.set(0)
@@ -408,15 +389,10 @@ internal class tMediaPlayerBufferManager(
                     player.freeDecodeDataNativeInternal(b.nativeBuffer)
                 }
             }
-            allVideoNativeBuffers.clear()
 
             // Java
             javaBuffers.clear()
         }
-    }
-
-    private fun assertReleaseState() {
-        if (isReleased.get()) error("tMediaPlayerBufferManager released.")
     }
 
 

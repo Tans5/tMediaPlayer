@@ -144,13 +144,11 @@ internal class tMediaPlayerDecoder(
                                 val start = SystemClock.uptimeMillis()
                                 val buffer = bufferManager.requestDecodeBufferForce()
                                 // Do seeking by native code.
-                                val seekResult = synchronized(buffer) {
-                                    player.seekToNativeInternal(
-                                        nativePlayer = mediaInfo.nativePlayer,
-                                        videoNativeBuffer = buffer.nativeBuffer,
-                                        targetPtsInMillis = position
-                                    ).toOptResult()
-                                }
+                                val seekResult = player.seekToNativeInternal(
+                                    nativePlayer = mediaInfo.nativePlayer,
+                                    videoNativeBuffer = buffer.nativeBuffer,
+                                    targetPtsInMillis = position
+                                ).toOptResult()
                                 val end = SystemClock.uptimeMillis()
                                 // Notify player seeking finished.
                                 player.handleSeekingBuffer(buffer, seekResult)

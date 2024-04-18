@@ -465,20 +465,18 @@ internal class tMediaPlayerRenderer(
     fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
         val state = getState()
         if (state != tMediaPlayerRendererState.Released && state != tMediaPlayerRendererState.NotInit) {
-            synchronized(b) {
-                if (getState() == tMediaPlayerRendererState.Released) {
-                    return
-                }
-                lastRequestRenderPts.set(player.getPtsNativeInternal(b.nativeBuffer))
-                if (player.isVideoBufferNativeInternal(b.nativeBuffer)) {
-                    // If current buffer is video buffer, render it with no delay.
-                    val m = Message.obtain()
-                    m.what = RENDER_VIDEO
-                    m.obj = b
-                    rendererHandler.sendMessage(m)
-                } else {
-                    bufferManager.enqueueDecodeBuffer(b)
-                }
+            if (getState() == tMediaPlayerRendererState.Released) {
+                return
+            }
+            lastRequestRenderPts.set(player.getPtsNativeInternal(b.nativeBuffer))
+            if (player.isVideoBufferNativeInternal(b.nativeBuffer)) {
+                // If current buffer is video buffer, render it with no delay.
+                val m = Message.obtain()
+                m.what = RENDER_VIDEO
+                m.obj = b
+                rendererHandler.sendMessage(m)
+            } else {
+                bufferManager.enqueueDecodeBuffer(b)
             }
         }
     }

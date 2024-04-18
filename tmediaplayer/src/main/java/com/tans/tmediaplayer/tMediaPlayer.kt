@@ -338,57 +338,55 @@ class tMediaPlayer {
      * Decoder do seeking finished.
      */
     internal fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer, result: OptResult) {
-        synchronized(b) {
-            val s = getState()
-            if (s == tMediaPlayerState.Released) { return@synchronized }
-            when (result) {
-                // Seeking success.
-                OptResult.Success -> {
-                    // Get seek buffer's pts.
-                    val pts = getPtsNativeInternal(b.nativeBuffer)
-                    // Remove waiting to render data.
-                    renderer.removeRenderMessages()
-                    // Clear audio track cache.
-                    renderer.audioTrackFlush()
-                    // Clear last render data.
-                    bufferManager.clearRenderData()
-                    // Update base pts.
-                    basePts.set(pts)
-                    // Update base time.
-                    ptsBaseTime.set(SystemClock.uptimeMillis())
-                    dispatchProgress(pts)
-                    if (isLastFrameBufferNative(b.nativeBuffer)) {
-                        // Current seek frame is last fame.
-                        val info = getMediaInfo()
-                        if (info != null) {
-                            dispatchNewState(tMediaPlayerState.PlayEnd(info))
-                            resetNative(info.nativePlayer)
+        val s = getState()
+        if (s == tMediaPlayerState.Released) { return }
+        when (result) {
+            // Seeking success.
+            OptResult.Success -> {
+                // Get seek buffer's pts.
+                val pts = getPtsNativeInternal(b.nativeBuffer)
+                // Remove waiting to render data.
+                renderer.removeRenderMessages()
+                // Clear audio track cache.
+                renderer.audioTrackFlush()
+                // Clear last render data.
+                bufferManager.clearRenderData()
+                // Update base pts.
+                basePts.set(pts)
+                // Update base time.
+                ptsBaseTime.set(SystemClock.uptimeMillis())
+                dispatchProgress(pts)
+                if (isLastFrameBufferNative(b.nativeBuffer)) {
+                    // Current seek frame is last fame.
+                    val info = getMediaInfo()
+                    if (info != null) {
+                        dispatchNewState(tMediaPlayerState.PlayEnd(info))
+                        resetNative(info.nativePlayer)
+                    }
+                    resetProgressAndBaseTime()
+                    bufferManager.enqueueDecodeBuffer(b)
+                } else {
+                    // Not last frame.
+                    // Notify renderer to handle seeking buffer.
+                    renderer.handleSeekingBuffer(b)
+                    if (s is tMediaPlayerState.Seeking) {
+                        val lastState = s.lastState
+                        if (lastState is tMediaPlayerState.Playing) {
+                            // If last state is playing, notify to decoder and renderer.
+                            decoder.decode()
+                            renderer.render()
+                            renderer.audioTrackPlay()
                         }
-                        resetProgressAndBaseTime()
-                        bufferManager.enqueueDecodeBuffer(b)
+                        dispatchNewState(lastState)
                     } else {
-                        // Not last frame.
-                        // Notify renderer to handle seeking buffer.
-                        renderer.handleSeekingBuffer(b)
-                        if (s is tMediaPlayerState.Seeking) {
-                            val lastState = s.lastState
-                            if (lastState is tMediaPlayerState.Playing) {
-                                // If last state is playing, notify to decoder and renderer.
-                                decoder.decode()
-                                renderer.render()
-                                renderer.audioTrackPlay()
-                            }
-                            dispatchNewState(lastState)
-                        } else {
-                            MediaLog.e(TAG, "Expect seeking state, but now is $s")
-                        }
+                        MediaLog.e(TAG, "Expect seeking state, but now is $s")
                     }
                 }
-                OptResult.Fail -> {
-                    // Seeking fail.
-                    if (s is tMediaPlayerState.Seeking) {
-                        dispatchNewState(s.lastState)
-                    }
+            }
+            OptResult.Fail -> {
+                // Seeking fail.
+                if (s is tMediaPlayerState.Seeking) {
+                    dispatchNewState(s.lastState)
                 }
             }
         }
