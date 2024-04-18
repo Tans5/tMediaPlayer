@@ -112,12 +112,8 @@ internal class tMediaPlayerBufferManager(
     }
 
 
-    private fun audioNativeBufferAlloced(buffer: MediaBuffer) {
-        hasAllocAudioNativeBufferSize.incrementAndGet()
-        allAudioNativeBuffers.add(buffer)
-    }
-
     /**
+     * Check if could get a new decode buffer.
      * Call by decoder, decode thread.
      */
     fun isAudioDecodeBufferCanUse(): Boolean {
@@ -125,6 +121,7 @@ internal class tMediaPlayerBufferManager(
     }
 
     /**
+     * Native player want a buffer for decode.
      * Call by player, decode thread.
      */
     fun requestAudioNativeDecodeBufferForce(): MediaBuffer {
@@ -134,12 +131,14 @@ internal class tMediaPlayerBufferManager(
         } else {
             val nativeBuffer = player.allocAudioDecodeDataNativeInternal()
             val buffer = MediaBuffer(nativeBuffer)
-            audioNativeBufferAlloced(buffer)
+            hasAllocAudioNativeBufferSize.incrementAndGet()
+            allAudioNativeBuffers.add(buffer)
             buffer
         }
     }
 
     /**
+     * Renderer want a buffer to render.
      * Call by renderer, render thread.
      */
     fun requestAudioNativeRenderBuffer(): MediaBuffer? {
@@ -147,24 +146,26 @@ internal class tMediaPlayerBufferManager(
     }
 
     /**
+     * After render finished, move buffer to encode buffers queue.
      * Call by renderer, render thread.
      */
     fun enqueueAudioNativeEncodeBuffer(buffer: MediaBuffer) {
-        if (hasAllocAudioNativeBufferSize.get() > maxNativeAudioBufferSize) {
-            hasAllocAudioNativeBufferSize.decrementAndGet()
-            allAudioNativeBuffers.remove(buffer)
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+        if (!isReleased.get()) {
+            if (hasAllocAudioNativeBufferSize.get() > maxNativeAudioBufferSize) {
+                hasAllocAudioNativeBufferSize.decrementAndGet()
+                allAudioNativeBuffers.remove(buffer)
+                player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+            } else {
+                audioNativeDecodeBuffersDeque.push(buffer)
+            }
         } else {
-            audioNativeDecodeBuffersDeque.push(buffer)
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }
     }
 
-    private fun videoNativeBufferAlloced(buffer: MediaBuffer) {
-        hasAllocVideoNativeBufferSize.incrementAndGet()
-        allVideoNativeBuffers.add(buffer)
-    }
 
     /**
+     * Check if could get a new decode buffer.
      * Call by decoder, decode thread.
      */
     fun isVideoDecodeBufferCanUse(): Boolean {
@@ -172,6 +173,7 @@ internal class tMediaPlayerBufferManager(
     }
 
     /**
+     * Native player want a buffer for decode.
      * Call by player, decode thread.
      */
     fun requestVideoNativeDecodeBufferForce(): MediaBuffer {
@@ -181,12 +183,14 @@ internal class tMediaPlayerBufferManager(
         } else {
             val nativeBuffer = player.allocVideoDecodeDataNativeInternal()
             val buffer = MediaBuffer(nativeBuffer)
-            videoNativeBufferAlloced(buffer)
+            hasAllocVideoNativeBufferSize.incrementAndGet()
+            allVideoNativeBuffers.add(buffer)
             buffer
         }
     }
 
     /**
+     * Renderer want a buffer to render.
      * Call by renderer, render thread.
      */
     fun requestVideoNativeRenderBuffer(): MediaBuffer? {
@@ -194,15 +198,20 @@ internal class tMediaPlayerBufferManager(
     }
 
     /**
+     * After render finished, move buffer to encode buffers queue.
      * Call by renderer, render thread.
      */
     fun enqueueVideoNativeEncodeBuffer(buffer: MediaBuffer) {
-        if (hasAllocVideoNativeBufferSize.get() > maxNativeVideoBufferSize) {
-            hasAllocVideoNativeBufferSize.decrementAndGet()
-            allVideoNativeBuffers.remove(buffer)
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+        if (!isReleased.get()) {
+            if (hasAllocVideoNativeBufferSize.get() > maxNativeVideoBufferSize) {
+                hasAllocVideoNativeBufferSize.decrementAndGet()
+                allVideoNativeBuffers.remove(buffer)
+                player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+            } else {
+                videoNativeDecodeBuffersDeque.push(buffer)
+            }
         } else {
-            videoNativeDecodeBuffersDeque.push(buffer)
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }
     }
 
@@ -283,6 +292,8 @@ internal class tMediaPlayerBufferManager(
             if (!renderBufferDeque.contains(buffer)) {
                 renderBufferDeque.add(buffer)
             }
+        } else {
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }
     }
 
@@ -295,16 +306,16 @@ internal class tMediaPlayerBufferManager(
                 renderBufferDeque.remove(buffer)
             }
             if (hasAllocBufferSize.get() > maxNativeBufferSize) {
-                synchronized(buffer) {
-                    allBuffers.remove(buffer)
-                    player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
-                    hasAllocBufferSize.decrementAndGet()
-                }
+                allBuffers.remove(buffer)
+                player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+                hasAllocBufferSize.decrementAndGet()
             } else {
                 if (!decodeBufferDeque.contains(buffer)) {
                     decodeBufferDeque.add(buffer)
                 }
             }
+        } else {
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }
     }
 
@@ -352,10 +363,15 @@ internal class tMediaPlayerBufferManager(
      */
     fun release() {
         if (isReleased.compareAndSet(true, false)) {
-            decodeBufferDeque.clear()
-            renderBufferDeque.clear()
-            for (b in allBuffers) {
-                synchronized(b) {
+            while (decodeBufferDeque.isNotEmpty()) {
+                val b = decodeBufferDeque.pollFirst()
+                if (b != null) {
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                }
+            }
+            while (renderBufferDeque.isNotEmpty()) {
+                val b = renderBufferDeque.pollFirst()
+                if (b != null) {
                     player.freeDecodeDataNativeInternal(b.nativeBuffer)
                 }
             }
@@ -364,10 +380,15 @@ internal class tMediaPlayerBufferManager(
 
             // Audio
             hasAllocAudioNativeBufferSize.set(0)
-            audioNativeDecodeBuffersDeque.clear()
-            audioNativeRenderBuffersDeque.clear()
-            for (b in allAudioNativeBuffers) {
-                synchronized(b) {
+            while (audioNativeDecodeBuffersDeque.isNotEmpty()) {
+                val b = audioNativeDecodeBuffersDeque.pollFirst()
+                if (b != null) {
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                }
+            }
+            while (audioNativeRenderBuffersDeque.isNotEmpty()) {
+                val b = audioNativeRenderBuffersDeque.pollFirst()
+                if (b != null) {
                     player.freeDecodeDataNativeInternal(b.nativeBuffer)
                 }
             }
@@ -375,10 +396,15 @@ internal class tMediaPlayerBufferManager(
 
             // Video
             hasAllocVideoNativeBufferSize.set(0)
-            videoNativeDecodeBuffersDeque.clear()
-            videoNativeRenderBuffersDeque.clear()
-            for (b in allVideoNativeBuffers) {
-                synchronized(b) {
+            while (videoNativeDecodeBuffersDeque.isNotEmpty()) {
+                val b = videoNativeDecodeBuffersDeque.pollFirst()
+                if (b != null) {
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                }
+            }
+            while (videoNativeRenderBuffersDeque.isNotEmpty()) {
+                val b = videoNativeRenderBuffersDeque.pollFirst()
+                if (b != null) {
                     player.freeDecodeDataNativeInternal(b.nativeBuffer)
                 }
             }

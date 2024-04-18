@@ -35,30 +35,36 @@ internal class tMediaPlayerDecoder(
         object : Handler(decoderThread.looper) {
             override fun dispatchMessage(msg: Message) {
                 super.dispatchMessage(msg)
-                val mediaInfo = player.getMediaInfo()
-                if (mediaInfo == null) {
-                    MediaLog.e(TAG, "DecoderHandler decode error media info is null.")
-                    return
-                }
-                val state = getState()
-                if (state == tMediaPlayerDecoderState.Released || state == tMediaPlayerDecoderState.NotInit) {
-                    MediaLog.e(TAG, "DecoderHandler wrong state: $state")
-                    return
-                }
-                when (msg.what) {
-                    /**
-                     * Decode media frame.
-                     */
-                    DECODE_MEDIA_FRAME -> {
-                        if (state == tMediaPlayerDecoderState.Decoding) {
-                            val buffer = bufferManager.requestDecodeBuffer()
-                            if (buffer != null) {
-                                synchronized(buffer) {
-                                    if (getState() == tMediaPlayerDecoderState.Released) { return }
+                // Decoder thread do decode need lock player.
+                synchronized(player) {
+                    val mediaInfo = player.getMediaInfo()
+                    if (mediaInfo == null) {
+                        MediaLog.e(TAG, "DecoderHandler decode error media info is null.")
+                        return
+                    }
+                    val state = getState()
+                    if (state == tMediaPlayerDecoderState.Released || state == tMediaPlayerDecoderState.NotInit) {
+                        MediaLog.e(TAG, "DecoderHandler wrong state: $state")
+                        return
+                    }
+                    when (msg.what) {
+                        /**
+                         * Decode media frame.
+                         */
+                        DECODE_MEDIA_FRAME -> {
+                            if (state == tMediaPlayerDecoderState.Decoding) {
+                                val buffer = bufferManager.requestDecodeBuffer()
+                                if (buffer != null) {
+                                    if (getState() == tMediaPlayerDecoderState.Released) {
+                                        return
+                                    }
                                     val nativePlayer = player.getMediaInfo()?.nativePlayer
                                     if (nativePlayer != null) {
                                         // Invoke native decode code.
-                                        when (player.decodeNativeInternal(nativePlayer, buffer.nativeBuffer).toDecodeResult()) {
+                                        when (player.decodeNativeInternal(
+                                            nativePlayer,
+                                            buffer.nativeBuffer
+                                        ).toDecodeResult()) {
                                             DecodeResult.Success -> {
                                                 // add buffer to waiting render.
                                                 bufferManager.enqueueRenderBuffer(buffer)
@@ -67,13 +73,17 @@ internal class tMediaPlayerDecoder(
                                                 // do next frame decode.
                                                 this.sendEmptyMessage(DECODE_MEDIA_FRAME)
                                             }
+
                                             DecodeResult.DecodeEnd -> {
                                                 // no next frame to decode.
                                                 MediaLog.d(TAG, "Decode end.")
                                                 bufferManager.enqueueRenderBuffer(buffer)
-                                                this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.DecodingEnd)
+                                                this@tMediaPlayerDecoder.state.set(
+                                                    tMediaPlayerDecoderState.DecodingEnd
+                                                )
                                                 player.decodeSuccess()
                                             }
+
                                             DecodeResult.Fail -> {
                                                 // decode fail.
                                                 bufferManager.enqueueDecodeBuffer(buffer)
@@ -85,75 +95,77 @@ internal class tMediaPlayerDecoder(
                                         bufferManager.enqueueDecodeBuffer(buffer)
                                         MediaLog.e(TAG, "Native player is null.")
                                     }
+                                } else {
+                                    // no decode buffer to use, waiting renderer release buffer.
+                                    this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.WaitingRender)
+                                    MediaLog.d(TAG, "Waiting render buffer.")
                                 }
                             } else {
-                                // no decode buffer to use, waiting renderer release buffer.
-                                this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.WaitingRender)
-                                MediaLog.d(TAG, "Waiting render buffer.")
+                                MediaLog.d(TAG, "Skip decode frame, because of state: $state")
                             }
-                        } else {
-                            MediaLog.d(TAG, "Skip decode frame, because of state: $state")
                         }
-                    }
-                    /**
-                     * Player State: Pause -> Playing.
-                     * Restart to decode.
-                     */
-                    REQUEST_DECODE -> {
-                        if (state in listOf(
-                                tMediaPlayerDecoderState.DecodingEnd,
-                                tMediaPlayerDecoderState.WaitingRender,
-                                tMediaPlayerDecoderState.Paused,
-                                tMediaPlayerDecoderState.Prepared
-                            )
-                        ) {
-                            this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.Decoding)
-                            this.sendEmptyMessage(DECODE_MEDIA_FRAME)
-                        } else {
-                            MediaLog.d(TAG, "Skip request decode, because of state: $state")
-                        }
-                    }
-
-                    /**
-                     * Player State: Playing -> Pause
-                     * Pause decode.
-                     */
-                    REQUEST_PAUSE -> {
-                        if (state == tMediaPlayerDecoderState.Decoding || state == tMediaPlayerDecoderState.WaitingRender) {
-                            this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.Paused)
-                        } else {
-                            MediaLog.d(TAG, "Skip request pause, because of state: $state")
-                        }
-                    }
-
-                    /**
-                     * Player do seeking.
-                     */
-                    SEEK_TO -> {
-                        val position = msg.obj as? Long
-                        if (position != null) {
-                            val start = SystemClock.uptimeMillis()
-                            val buffer = bufferManager.requestDecodeBufferForce()
-                            // Do seeking by native code.
-                            val seekResult = synchronized(buffer) {
-                                player.seekToNativeInternal(
-                                    nativePlayer = mediaInfo.nativePlayer,
-                                    videoNativeBuffer = buffer.nativeBuffer,
-                                    targetPtsInMillis = position
-                                ).toOptResult()
-                            }
-                            val end = SystemClock.uptimeMillis()
-                            // Notify player seeking finished.
-                            player.handleSeekingBuffer(buffer, seekResult)
-                            if (seekResult == OptResult.Success) {
-                                MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
+                        /**
+                         * Player State: Pause -> Playing.
+                         * Restart to decode.
+                         */
+                        REQUEST_DECODE -> {
+                            if (state in listOf(
+                                    tMediaPlayerDecoderState.DecodingEnd,
+                                    tMediaPlayerDecoderState.WaitingRender,
+                                    tMediaPlayerDecoderState.Paused,
+                                    tMediaPlayerDecoderState.Prepared
+                                )
+                            ) {
+                                this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.Decoding)
+                                this.sendEmptyMessage(DECODE_MEDIA_FRAME)
                             } else {
-                                MediaLog.e(TAG, "Seek to $position fail, cost ${end - start} ms.")
-                                bufferManager.enqueueDecodeBuffer(buffer)
+                                MediaLog.d(TAG, "Skip request decode, because of state: $state")
                             }
                         }
+
+                        /**
+                         * Player State: Playing -> Pause
+                         * Pause decode.
+                         */
+                        REQUEST_PAUSE -> {
+                            if (state == tMediaPlayerDecoderState.Decoding || state == tMediaPlayerDecoderState.WaitingRender) {
+                                this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.Paused)
+                            } else {
+                                MediaLog.d(TAG, "Skip request pause, because of state: $state")
+                            }
+                        }
+
+                        /**
+                         * Player do seeking.
+                         */
+                        SEEK_TO -> {
+                            val position = msg.obj as? Long
+                            if (position != null) {
+                                val start = SystemClock.uptimeMillis()
+                                val buffer = bufferManager.requestDecodeBufferForce()
+                                // Do seeking by native code.
+                                val seekResult = synchronized(buffer) {
+                                    player.seekToNativeInternal(
+                                        nativePlayer = mediaInfo.nativePlayer,
+                                        videoNativeBuffer = buffer.nativeBuffer,
+                                        targetPtsInMillis = position
+                                    ).toOptResult()
+                                }
+                                val end = SystemClock.uptimeMillis()
+                                // Notify player seeking finished.
+                                player.handleSeekingBuffer(buffer, seekResult)
+                                if (seekResult == OptResult.Success) {
+                                    MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
+                                } else {
+                                    MediaLog.e(TAG, "Seek to $position fail, cost ${end - start} ms.")
+                                    bufferManager.enqueueDecodeBuffer(buffer)
+                                }
+                            } else {
+                                MediaLog.e(TAG, "Seek wrong arg: ${msg.obj}")
+                            }
+                        }
+                        else -> {}
                     }
-                    else -> {}
                 }
             }
         }
