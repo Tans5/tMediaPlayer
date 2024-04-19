@@ -594,10 +594,24 @@ class tMediaPlayer {
     }
 
     /**
+     * Call by native code, enqueue video decode buffer on decode thread.
+     */
+    fun enqueueVideoEncodeBufferFromNative(nativeBuffer: Long) {
+        return bufferManager.enqueueVideoNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+    }
+
+    /**
      * Call by native code, request audio decode buffer on decode thread.
      */
     fun requestAudioDecodeBufferFromNative(): Long {
         return bufferManager.requestAudioNativeDecodeBufferForce()
+    }
+
+    /**
+     * Call by native code, enqueue audio decode buffer on decode thread.
+     */
+    fun enqueueAudioEncodeBufferFromNative(nativeBuffer: Long) {
+        return bufferManager.enqueueAudioNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
     }
 
     companion object {

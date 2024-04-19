@@ -20,8 +20,10 @@ Java_com_tans_tmediaplayer_tMediaPlayer_createPlayerNative(
     player->jplayer = env->NewGlobalRef(j_player);
     player->jplayerClazz = static_cast<jclass>(env->NewGlobalRef(
             env->FindClass("com/tans/tmediaplayer/tMediaPlayer")));
-    player->callAudioBufferMethodId = env->GetMethodID(player->jplayerClazz, "requestAudioDecodeBufferFromNative","()J");
-    player->callVideoBufferMethodId = env->GetMethodID(player->jplayerClazz, "requestVideoDecodeBufferFromNative","()J");
+    player->callRequestAudioBufferMethodId = env->GetMethodID(player->jplayerClazz, "requestAudioDecodeBufferFromNative", "()J");
+    player->callRequestVideoBufferMethodId = env->GetMethodID(player->jplayerClazz, "requestVideoDecodeBufferFromNative", "()J");
+    player->callRequestAudioBufferMethodId = env->GetMethodID(player->jplayerClazz, "enqueueAudioEncodeBufferFromNative", "(J)V");
+    player->callRequestVideoBufferMethodId = env->GetMethodID(player->jplayerClazz, "enqueueVideoEncodeBufferFromNative", "(J)V");
     return reinterpret_cast<jlong>(player);
 }
 
@@ -453,7 +455,9 @@ Java_com_tans_tmediaplayer_tMediaPlayer_releaseNative(
     env->DeleteGlobalRef(player->jplayerClazz);
     player->jplayerClazz = nullptr;
     player->jvm = nullptr;
-    player->callVideoBufferMethodId = nullptr;
-    player->callAudioBufferMethodId = nullptr;
+    player->callRequestVideoBufferMethodId = nullptr;
+    player->callRequestAudioBufferMethodId = nullptr;
+    player->callEnqueueVideoBufferMethodId = nullptr;
+    player->callEnqueueAudioBufferMethodId = nullptr;
     player->release();
 }

@@ -90,8 +90,10 @@ typedef struct tMediaPlayerContext {
     JavaVM* jvm = nullptr;
     jobject jplayer = nullptr;
     jclass jplayerClazz = nullptr;
-    jmethodID callVideoBufferMethodId = nullptr;
-    jmethodID callAudioBufferMethodId = nullptr;
+    jmethodID callRequestVideoBufferMethodId = nullptr;
+    jmethodID callRequestAudioBufferMethodId = nullptr;
+    jmethodID callEnqueueVideoBufferMethodId = nullptr;
+    jmethodID callEnqueueAudioBufferMethodId = nullptr;
 
     /**
      * Video
@@ -140,6 +142,10 @@ typedef struct tMediaPlayerContext {
     tMediaDecodeBuffer* requestVideoDecodeBufferFromJava();
 
     tMediaDecodeBuffer* requestAudioDecodeBufferFromJava();
+
+    void enqueueVideoEncodeBufferFromJava(tMediaDecodeBuffer *buffer);
+
+    void enqueueAudioEncodeBufferFromJava(tMediaDecodeBuffer *buffer);
 
     void release();
 } tMediaPlayerContext;

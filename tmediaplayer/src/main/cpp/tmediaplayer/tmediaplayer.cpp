@@ -411,7 +411,12 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
                 // No data to read, end of file.
                 tMediaDecodeBuffer * buffer = nullptr;
                 if (lastBuffer != nullptr) {
-                    buffer = lastBuffer;
+                    if (lastBuffer->type == BufferTypeAudio) {
+                        buffer = lastBuffer;
+                    } else {
+                        enqueueVideoEncodeBufferFromJava(lastBuffer);
+                        buffer = requestAudioDecodeBufferFromJava();
+                    }
                 } else {
                     buffer = requestAudioDecodeBufferFromJava();
                 }
@@ -427,7 +432,12 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             video_decoder_ctx != nullptr) {
             tMediaDecodeBuffer * buffer = nullptr;
             if (lastBuffer != nullptr) {
-                buffer = lastBuffer;
+                if (lastBuffer->type == BufferTypeVideo) {
+                    buffer = lastBuffer;
+                } else {
+                    enqueueAudioEncodeBufferFromJava(lastBuffer);
+                    buffer = requestVideoDecodeBufferFromJava();
+                }
             } else {
                 buffer = requestVideoDecodeBufferFromJava();
             }
@@ -474,7 +484,12 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             audio_decoder_ctx != nullptr) {
             tMediaDecodeBuffer * buffer = nullptr;
             if (lastBuffer != nullptr) {
-                buffer = lastBuffer;
+                if (lastBuffer->type == BufferTypeAudio) {
+                    buffer = lastBuffer;
+                } else {
+                    enqueueVideoEncodeBufferFromJava(lastBuffer);
+                    buffer = requestAudioDecodeBufferFromJava();
+                }
             } else {
                 buffer = requestAudioDecodeBufferFromJava();
             }
@@ -514,7 +529,12 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
         LOGE("Decode unknown pkt");
         tMediaDecodeBuffer * buffer = nullptr;
         if (lastBuffer != nullptr) {
-            buffer = lastBuffer;
+            if (lastBuffer->type == BufferTypeAudio) {
+                buffer = lastBuffer;
+            } else {
+                enqueueVideoEncodeBufferFromJava(lastBuffer);
+                buffer = requestAudioDecodeBufferFromJava();
+            }
         } else {
             buffer = requestAudioDecodeBufferFromJava();
         }
@@ -524,7 +544,12 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
         LOGE("Decode wrong player context.");
         tMediaDecodeBuffer * buffer = nullptr;
         if (lastBuffer != nullptr) {
-            buffer = lastBuffer;
+            if (lastBuffer->type == BufferTypeAudio) {
+                buffer = lastBuffer;
+            } else {
+                enqueueVideoEncodeBufferFromJava(lastBuffer);
+                buffer = requestAudioDecodeBufferFromJava();
+            }
         } else {
             buffer = requestAudioDecodeBufferFromJava();
         }
@@ -760,15 +785,27 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
 tMediaDecodeBuffer* tMediaPlayerContext::requestVideoDecodeBufferFromJava() {
     JNIEnv *jniEnv;
     jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
-    jlong bufferPointer = jniEnv->CallLongMethod(jplayer, callVideoBufferMethodId);
+    jlong bufferPointer = jniEnv->CallLongMethod(jplayer, callRequestVideoBufferMethodId);
     return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
 }
 
 tMediaDecodeBuffer* tMediaPlayerContext::requestAudioDecodeBufferFromJava() {
     JNIEnv *jniEnv;
     jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
-    jlong bufferPointer = jniEnv->CallLongMethod(jplayer, callAudioBufferMethodId);
+    jlong bufferPointer = jniEnv->CallLongMethod(jplayer, callRequestAudioBufferMethodId);
     return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
+}
+
+void tMediaPlayerContext::enqueueVideoEncodeBufferFromJava(tMediaDecodeBuffer *buffer) {
+    JNIEnv *jniEnv;
+    jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
+    jniEnv->CallVoidMethod(jplayer, callEnqueueVideoBufferMethodId, reinterpret_cast<jlong>(buffer));
+}
+
+void tMediaPlayerContext::enqueueAudioEncodeBufferFromJava(tMediaDecodeBuffer *buffer) {
+    JNIEnv *jniEnv;
+    jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
+    jniEnv->CallVoidMethod(jplayer, callEnqueueAudioBufferMethodId, reinterpret_cast<jlong>(buffer));
 }
 
 tMediaDecodeBuffer * allocVideoDecodeBuffer() {
