@@ -423,13 +423,12 @@ Java_com_tans_tmediaplayer_tMediaPlayer_seekToNative(
         JNIEnv * env,
         jobject j_player,
         jlong player_l,
-        jlong buffer_l,
+        jlong video_buffer_l,
+        jlong audio_buffer_l,
         jlong targetPtsInMillis) {
     auto player = reinterpret_cast<tMediaPlayerContext *>(player_l);
-    tMediaDecodeBuffer* buffer = nullptr;
-    if (buffer_l != 0) {
-        buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
-    }
+    tMediaDecodeBuffer* videoBuffer = reinterpret_cast<tMediaDecodeBuffer *>(video_buffer_l);
+    tMediaDecodeBuffer* audioBuffer = reinterpret_cast<tMediaDecodeBuffer *>(video_buffer_l);
     return player->seekTo((long) targetPtsInMillis, buffer, true);
 }
 

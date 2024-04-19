@@ -234,7 +234,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
 }
 
 tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
-    return seekTo(0, nullptr, false);
+    return seekTo(0, nullptr, nullptr, false);
 }
 
 /**
@@ -244,9 +244,7 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
  * @param needDecode
  * @return
  */
-tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, bool needDecode) {
-    auto mVideoBuffer = requestVideoDecodeBufferFromJava();
-    auto audioBuffer = requestAudioDecodeBufferFromJava();
+tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, tMediaDecodeBuffer* audioBuffer, bool needDecode) {
     if (format_ctx != nullptr) {
         if (video_stream == nullptr && audio_stream == nullptr) {
             return OptFail;
@@ -276,11 +274,11 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                 if (!needDecode) {
                     return OptSuccess;
                 } else {
-                    if (videoBuffer != nullptr) {
-                        videoBuffer->is_last_frame = false;
-                        videoBuffer->type = BufferTypeNone;
-                    }
-                    return decodeForSeek(targetPtsInMillis, videoBuffer, 40, audio_reset_result < 0, video_reset_result < 0);
+                    videoBuffer->decodeResult = DecodeFail;
+                    audioBuffer->decodeResult = DecodeFail;
+                    videoBuffer->is_last_frame = false;
+                    audioBuffer->is_last_frame = false;
+                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 40, audio_reset_result < 0, video_reset_result < 0);
                 }
             } else {
                 return OptFail;
@@ -291,13 +289,10 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
     }
 }
 
-tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMediaDecodeBuffer* videoDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo) {
+tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMediaDecodeBuffer* videoDecodeBuffer, tMediaDecodeBuffer* audioDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo) {
     if (pkt != nullptr &&
         frame != nullptr &&
         format_ctx != nullptr) {
-        if (videoDecodeBuffer != nullptr) {
-            videoDecodeBuffer->is_last_frame = false;
-        }
         int result;
         if (!skipPktRead) {
             // If need read data to pkt from file.
@@ -305,10 +300,8 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             result = av_read_frame(format_ctx, pkt);
             if (result < 0) {
                 // No data to read, end of file.
-                if (videoDecodeBuffer != nullptr) {
-                    videoDecodeBuffer->is_last_frame = true;
-                    videoDecodeBuffer->pts = duration;
-                }
+                audioDecodeBuffer->is_last_frame = true;
+                audioDecodeBuffer->pts = duration;
                 LOGE("Seek decode media end");
                 return OptSuccess;
             }
@@ -331,7 +324,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             if (result < 0 && !skipPktRead) {
                 // Send pkt to video decoder ctx fail, do next frame seek.
                 LOGE("Seek decode video send pkt fail: %d", result);
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             av_frame_unref(frame);
             // Decode video frame.
@@ -339,12 +332,12 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             if (result == AVERROR(EAGAIN)) {
                 LOGD("Seek decode video reload frame");
                 // Need more pkt data to decode current frame.
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             if (result < 0) {
                 // Decode video frame fail.
                 LOGE("Seek decode video receive frame fail: %d", result);
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             long ptsInMillis = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
             if (videoDecodeBuffer != nullptr) {
@@ -353,6 +346,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                 if (parseResult == DecodeSuccess) {
                     LOGD("Seek decode video success: %ld", ptsInMillis);
                 }
+                videoDecodeBuffer->decodeResult = parseResult;
             }
 
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
@@ -360,7 +354,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
                 return OptSuccess;
             } else {
                 // Need do more decode to target pts.
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
         }
 
@@ -377,7 +371,7 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             if (result < 0 && !skipPktRead) {
                 // Send pkt data to audio decoder ctx fail.
                 LOGE("Seek decode audio send pkt fail: %d", result);
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             av_frame_unref(frame);
             // Decode audio frame.
@@ -385,19 +379,20 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             if (result < 0) {
                 // Decode audio frame fail.
                 LOGE("Seek decode audio receive frame fail: %d", result);
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
             long ptsInMillis = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
-            videoDecodeBuffer->pts = ptsInMillis;
+            auto parseResult = parseDecodeAudioFrameToBuffer(audioDecodeBuffer);
+            audioDecodeBuffer->decodeResult = parseResult;
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
                 // Already seek to target pts.
                 return OptSuccess;
             } else {
                 // Need do more decode to target pts.
-                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
             }
         }
-        return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+        return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
     }
     return OptFail;
 }
