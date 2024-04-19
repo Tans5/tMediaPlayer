@@ -245,6 +245,8 @@ tMediaOptResult tMediaPlayerContext::resetDecodeProgress() {
  * @return
  */
 tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, bool needDecode) {
+    auto mVideoBuffer = requestVideoDecodeBufferFromJava();
+    auto audioBuffer = requestAudioDecodeBufferFromJava();
     if (format_ctx != nullptr) {
         if (video_stream == nullptr && audio_stream == nullptr) {
             return OptFail;
@@ -724,18 +726,14 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
 tMediaDecodeBuffer* tMediaPlayerContext::requestVideoDecodeBufferFromJava() {
     JNIEnv *jniEnv;
     jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
-    jclass jPlayerClass = jniEnv->FindClass("com/tans/tmediaplayer/tMediaPlayer");
-    jmethodID jPlayerMethodId = jniEnv->GetMethodID(jPlayerClass, "requestVideoDecodeBufferFromNative","()J");
-    jlong bufferPointer = jniEnv->CallLongMethodV(jplayer, jPlayerMethodId, nullptr);
+    jlong bufferPointer = jniEnv->CallLongMethod(jplayer, callVideoBufferMethodId);
     return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
 }
 
 tMediaDecodeBuffer* tMediaPlayerContext::requestAudioDecodeBufferFromJava() {
     JNIEnv *jniEnv;
     jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
-    jclass jPlayerClass = jniEnv->FindClass("com/tans/tmediaplayer/tMediaPlayer");
-    jmethodID jPlayerMethodId = jniEnv->GetMethodID(jPlayerClass, "requestAudioDecodeBufferFromNative","()J");
-    jlong bufferPointer = jniEnv->CallLongMethodV(jplayer, jPlayerMethodId, nullptr);
+    jlong bufferPointer = jniEnv->CallLongMethod(jplayer, callAudioBufferMethodId);
     return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
 }
 
