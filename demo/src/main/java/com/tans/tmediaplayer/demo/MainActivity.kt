@@ -1,8 +1,10 @@
 package com.tans.tmediaplayer.demo
 
+import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.SeekBar
+import androidx.activity.addCallback
 import com.tans.tmediaplayer.OptResult
 import com.tans.tmediaplayer.demo.databinding.ActivityMainBinding
 import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
@@ -43,6 +45,13 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
     private fun View.show() {
         if (isInvisible()) {
             this.visibility = View.VISIBLE
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback {
+            finish()
         }
     }
 

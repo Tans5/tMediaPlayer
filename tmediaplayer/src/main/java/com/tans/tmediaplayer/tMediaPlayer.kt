@@ -579,6 +579,21 @@ class tMediaPlayer {
 
     private external fun releaseNative(nativePlayer: Long)
 
+
+    /**
+     * Call by native code, request video decode buffer on decode thread.
+     */
+    fun requestVideoDecodeBufferFromNative(): Long {
+        return bufferManager.requestVideoNativeDecodeBufferForce()
+    }
+
+    /**
+     * Call by native code, request audio decode buffer on decode thread.
+     */
+    fun requestAudioDecodeBufferFromNative(): Long {
+        return bufferManager.requestAudioNativeDecodeBufferForce()
+    }
+
     companion object {
         init {
             System.loadLibrary("tmediaplayer")

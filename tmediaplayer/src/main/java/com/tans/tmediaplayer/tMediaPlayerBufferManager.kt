@@ -111,14 +111,13 @@ internal class tMediaPlayerBufferManager(
      * Native player want a buffer for decode.
      * Call by player, decode thread.
      */
-    fun requestAudioNativeDecodeBufferForce(): MediaBuffer {
+    fun requestAudioNativeDecodeBufferForce(): Long {
         val cache = audioNativeDecodeBuffersDeque.pollFirst()
         return if (cache != null) {
-            cache
+            cache.nativeBuffer
         } else {
-            val nativeBuffer = player.allocAudioDecodeDataNativeInternal()
             hasAllocAudioNativeBufferSize.incrementAndGet()
-            MediaBuffer(nativeBuffer)
+            player.allocAudioDecodeDataNativeInternal()
         }
     }
 
@@ -160,14 +159,13 @@ internal class tMediaPlayerBufferManager(
      * Native player want a buffer for decode.
      * Call by player, decode thread.
      */
-    fun requestVideoNativeDecodeBufferForce(): MediaBuffer {
+    fun requestVideoNativeDecodeBufferForce(): Long {
         val cache = videoNativeDecodeBuffersDeque.pollFirst()
         return if (cache != null) {
-            cache
+            cache.nativeBuffer
         } else {
-            val nativeBuffer = player.allocVideoDecodeDataNativeInternal()
             hasAllocVideoNativeBufferSize.incrementAndGet()
-            MediaBuffer(nativeBuffer)
+            player.allocVideoDecodeDataNativeInternal()
         }
     }
 

@@ -721,6 +721,24 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
     return DecodeSuccess;
 }
 
+tMediaDecodeBuffer* tMediaPlayerContext::requestVideoDecodeBufferFromJava() {
+    JNIEnv *jniEnv;
+    jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
+    jclass jPlayerClass = jniEnv->FindClass("com/tans/tmediaplayer/tMediaPlayer");
+    jmethodID jPlayerMethodId = jniEnv->GetMethodID(jPlayerClass, "requestVideoDecodeBufferFromNative","()J");
+    jlong bufferPointer = jniEnv->CallLongMethodV(jplayer, jPlayerMethodId, nullptr);
+    return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
+}
+
+tMediaDecodeBuffer* tMediaPlayerContext::requestAudioDecodeBufferFromJava() {
+    JNIEnv *jniEnv;
+    jvm->GetEnv((void **)&jniEnv, JNI_VERSION_1_6);
+    jclass jPlayerClass = jniEnv->FindClass("com/tans/tmediaplayer/tMediaPlayer");
+    jmethodID jPlayerMethodId = jniEnv->GetMethodID(jPlayerClass, "requestAudioDecodeBufferFromNative","()J");
+    jlong bufferPointer = jniEnv->CallLongMethodV(jplayer, jPlayerMethodId, nullptr);
+    return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
+}
+
 tMediaDecodeBuffer * allocDecodeBuffer() {
     auto buffer = new tMediaDecodeBuffer;
     auto audioBuffer = new tMediaAudioBuffer;

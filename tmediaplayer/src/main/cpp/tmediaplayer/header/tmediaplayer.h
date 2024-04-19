@@ -135,6 +135,10 @@ typedef struct tMediaPlayerContext {
 
     tMediaDecodeResult parseDecodeAudioFrameToBuffer(tMediaDecodeBuffer *buffer);
 
+    tMediaDecodeBuffer* requestVideoDecodeBufferFromJava();
+
+    tMediaDecodeBuffer* requestAudioDecodeBufferFromJava();
+
     void release();
 } tMediaPlayerContext;
 
