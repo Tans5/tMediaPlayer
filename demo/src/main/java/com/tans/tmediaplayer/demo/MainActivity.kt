@@ -17,6 +17,7 @@ import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -30,7 +31,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
         tMediaPlayer()
     }
 
-    private val fileName = "bad-apple.mp4"
+    private val fileName = "gokuraku2.mp4"
 
     private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE
 
@@ -80,6 +81,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
             val loadResult = mediaPlayer.prepare(testVideoFile.absolutePath)
             when (loadResult) {
                 OptResult.Success -> {
+                    delay(100)
                     mediaPlayer.play()
                     Log.d(TAG, "Load media file success.")
                 }
