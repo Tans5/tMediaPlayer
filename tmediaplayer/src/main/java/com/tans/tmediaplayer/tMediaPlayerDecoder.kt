@@ -166,21 +166,26 @@ internal class tMediaPlayerDecoder(
                             val position = msg.obj as? Long
                             if (position != null) {
                                 val start = SystemClock.uptimeMillis()
-                                val buffer = bufferManager.requestDecodeBufferForce()
+                                val videoBuffer = tMediaPlayerBufferManager.Companion.MediaBuffer(bufferManager.requestVideoNativeDecodeBufferForce())
+                                val audioBuffer = tMediaPlayerBufferManager.Companion.MediaBuffer(bufferManager.requestAudioNativeDecodeBufferForce())
                                 // Do seeking by native code.
                                 val seekResult = player.seekToNativeInternal(
                                     nativePlayer = mediaInfo.nativePlayer,
-                                    videoNativeBuffer = buffer.nativeBuffer,
+                                    videoNativeBuffer = videoBuffer.nativeBuffer,
+                                    audioNativeBuffer = audioBuffer.nativeBuffer,
                                     targetPtsInMillis = position
                                 ).toOptResult()
                                 val end = SystemClock.uptimeMillis()
                                 // Notify player seeking finished.
-                                player.handleSeekingBuffer(buffer, seekResult)
+                                player.handleSeekingBuffer(
+                                    videoBuffer = videoBuffer,
+                                    audioBuffer = audioBuffer,
+                                    result = seekResult
+                                )
                                 if (seekResult == OptResult.Success) {
                                     MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
                                 } else {
                                     MediaLog.e(TAG, "Seek to $position fail, cost ${end - start} ms.")
-                                    bufferManager.enqueueDecodeBuffer(buffer)
                                 }
                             } else {
                                 MediaLog.e(TAG, "Seek wrong arg: ${msg.obj}")

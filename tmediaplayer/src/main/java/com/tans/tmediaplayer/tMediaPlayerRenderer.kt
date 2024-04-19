@@ -141,7 +141,7 @@ internal class tMediaPlayerRenderer(
                                     } else {
                                         // Current frame is last frame, Last frame always is audio frame.
 
-                                        bufferManager.enqueueDecodeBuffer(audioRenderBuffer)
+                                        bufferManager.enqueueAudioNativeEncodeBuffer(audioRenderBuffer)
                                         val pts = lastRequestRenderPts.get() + 10
                                         this.sendEmptyMessageDelayed(
                                             RENDER_END,
@@ -202,10 +202,6 @@ internal class tMediaPlayerRenderer(
                             // Remove pending.
                             pendingRenderVideoBuffers.remove(buffer)
                             MediaLog.d(TAG, "Render Video.")
-                            val ls = getState()
-                            if (ls == tMediaPlayerRendererState.Released || ls == tMediaPlayerRendererState.NotInit) {
-                                return
-                            }
                             val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
                             // Notify to player update progress.
                             player.dispatchProgress(progress)
@@ -341,8 +337,6 @@ internal class tMediaPlayerRenderer(
                             // Remove pending.
                             pendingRenderAudioBuffers.remove(buffer)
                             MediaLog.d(TAG, "Render Audio.")
-                            val ls = getState()
-                            if (ls == tMediaPlayerRendererState.Released || ls == tMediaPlayerRendererState.NotInit) { return }
                             val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
                             player.dispatchProgress(progress)
                             val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
@@ -460,22 +454,37 @@ internal class tMediaPlayerRenderer(
     /**
      * Render seek success buffer data.
      */
-    fun handleSeekingBuffer(b: tMediaPlayerBufferManager.Companion.MediaBuffer) {
+    fun handleSeekingBuffer(
+        videoBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer,
+        audioBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer,
+        pts: Long) {
         val state = getState()
         if (state != tMediaPlayerRendererState.Released && state != tMediaPlayerRendererState.NotInit) {
-            if (getState() == tMediaPlayerRendererState.Released) {
-                return
-            }
-            lastRequestRenderPts.set(player.getPtsNativeInternal(b.nativeBuffer))
-            if (player.isVideoBufferNativeInternal(b.nativeBuffer)) {
-                // If current buffer is video buffer, render it with no delay.
+            lastRequestRenderPts.set(pts)
+            // Video
+            if (player.getBufferResultNativeInternal(videoBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
                 val m = Message.obtain()
                 m.what = RENDER_VIDEO
-                m.obj = b
+                m.obj = videoBuffer
+                pendingRenderVideoBuffers.add(videoBuffer)
                 rendererHandler.sendMessage(m)
             } else {
-                bufferManager.enqueueDecodeBuffer(b)
+                bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
             }
+
+            // Audio
+            if (player.getBufferResultNativeInternal(audioBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
+                val m = Message.obtain()
+                m.what = RENDER_AUDIO
+                m.obj = audioBuffer
+                pendingRenderAudioBuffers.add(audioBuffer)
+                rendererHandler.sendMessage(m)
+            } else {
+                bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
+            }
+        } else {
+            bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
+            bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
         }
     }
 

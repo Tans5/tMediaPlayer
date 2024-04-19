@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicInteger
 @Suppress("ClassName")
 internal class tMediaPlayerBufferManager(
     private val player: tMediaPlayer,
-    private val maxNativeBufferSize: Int,
     private val maxNativeAudioBufferSize: Int = 30,
     private val maxNativeVideoBufferSize: Int = 10) {
 
@@ -62,27 +61,6 @@ internal class tMediaPlayerBufferManager(
         LinkedBlockingDeque()
     }
 
-
-    /**
-     * Buffer buffer size.
-     */
-    private val hasAllocBufferSize: AtomicInteger by lazy {
-        AtomicInteger(0)
-    }
-
-    /**
-     * Empty Buffers for decoder use.
-     */
-    private val decodeBufferDeque: LinkedBlockingDeque<MediaBuffer> by lazy {
-        LinkedBlockingDeque()
-    }
-
-    /**
-     * Decoded buffers waiting to render.
-     */
-    private val renderBufferDeque: LinkedBlockingDeque<MediaBuffer> by lazy {
-        LinkedBlockingDeque()
-    }
 
     /**
      * Buffer for java use.
@@ -222,12 +200,6 @@ internal class tMediaPlayerBufferManager(
      * Clear all render buffers, call by player.
      */
     fun clearRenderData() {
-        while (renderBufferDeque.isNotEmpty()) {
-            val b = renderBufferDeque.pollFirst()
-            if (b != null) {
-                decodeBufferDeque.push(b)
-            }
-        }
 
         // audio
         while (audioNativeRenderBuffersDeque.isNotEmpty()) {
@@ -243,51 +215,6 @@ internal class tMediaPlayerBufferManager(
             if (b != null) {
                 videoNativeDecodeBuffersDeque.push(b)
             }
-        }
-    }
-
-    /**
-     * Force get a decode buffer.
-     */
-    fun requestDecodeBufferForce(): MediaBuffer {
-        return requestRenderBuffer().let {
-            if (it == null) {
-                hasAllocBufferSize.addAndGet(1)
-                val result = MediaBuffer(player.allocDecodeDataNativeInternal())
-                result
-            } else {
-                it
-            }
-        }
-    }
-
-    /**
-     * Get render buffer
-     */
-    fun requestRenderBuffer(): MediaBuffer? = if (isReleased.get()) {
-        null
-    } else {
-        renderBufferDeque.pollFirst()
-    }
-
-    /**
-     * When renderer finished rendering, move buffer to [renderBufferDeque], waiting decoder use it.
-     */
-    fun enqueueDecodeBuffer(buffer: MediaBuffer) {
-        if (!isReleased.get()) {
-            if (renderBufferDeque.contains(buffer)) {
-                renderBufferDeque.remove(buffer)
-            }
-            if (hasAllocBufferSize.get() > maxNativeBufferSize) {
-                player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
-                hasAllocBufferSize.decrementAndGet()
-            } else {
-                if (!decodeBufferDeque.contains(buffer)) {
-                    decodeBufferDeque.add(buffer)
-                }
-            }
-        } else {
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }
     }
 
@@ -335,19 +262,6 @@ internal class tMediaPlayerBufferManager(
      */
     fun release() {
         if (isReleased.compareAndSet(true, false)) {
-            while (decodeBufferDeque.isNotEmpty()) {
-                val b = decodeBufferDeque.pollFirst()
-                if (b != null) {
-                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
-                }
-            }
-            while (renderBufferDeque.isNotEmpty()) {
-                val b = renderBufferDeque.pollFirst()
-                if (b != null) {
-                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
-                }
-            }
-            hasAllocBufferSize.set(0)
 
             // Audio
             hasAllocAudioNativeBufferSize.set(0)
