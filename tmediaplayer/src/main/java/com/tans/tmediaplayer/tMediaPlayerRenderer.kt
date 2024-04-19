@@ -11,7 +11,6 @@ import com.tans.tmediaplayer.render.tMediaPlayerView
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -125,7 +124,7 @@ internal class tMediaPlayerRenderer(
 
                                 // Audio
                                 if (audioRenderBuffer != null) {
-                                    if (player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
+                                    if (!player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
                                         // Audio frame.
                                         val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
                                         // Calculate current frame render delay.
@@ -541,9 +540,9 @@ internal class tMediaPlayerRenderer(
         private const val TAG = "tMediaPlayerRender"
 
         private val audioTrackExecutor: Executor by lazy {
-            Executors.newSingleThreadExecutor(ThreadFactory {
+            Executors.newSingleThreadExecutor {
                 Thread(it, "tMediaTrackAudioTrackThread")
-            })
+            }
         }
     }
 
