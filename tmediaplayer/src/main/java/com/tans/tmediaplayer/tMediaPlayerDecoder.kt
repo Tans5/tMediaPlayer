@@ -53,46 +53,70 @@ internal class tMediaPlayerDecoder(
                          */
                         DECODE_MEDIA_FRAME -> {
                             if (state == tMediaPlayerDecoderState.Decoding) {
-                                val buffer = bufferManager.requestDecodeBuffer()
-                                if (buffer != null) {
-                                    if (getState() == tMediaPlayerDecoderState.Released) {
-                                        return
-                                    }
+                                if (bufferManager.isVideoDecodeBufferCanUse() && bufferManager.isAudioDecodeBufferCanUse()) {
                                     val nativePlayer = player.getMediaInfo()?.nativePlayer
                                     if (nativePlayer != null) {
+
                                         // Invoke native decode code.
-                                        when (player.decodeNativeInternal(
-                                            nativePlayer,
-                                            buffer.nativeBuffer
-                                        ).toDecodeResult()) {
-                                            DecodeResult.Success -> {
-                                                // add buffer to waiting render.
-                                                bufferManager.enqueueRenderBuffer(buffer)
-                                                // notify player.
-                                                player.decodeSuccess()
-                                                // do next frame decode.
-                                                this.sendEmptyMessage(DECODE_MEDIA_FRAME)
+                                        val nativeBuffer = player.decodeNativeInternal(nativePlayer)
+                                        val isVideo = player.isVideoBufferNativeInternal(nativeBuffer)
+                                        val decodeResult = player.getBufferResultNativeInternal(nativeBuffer).toDecodeResult()
+
+                                        if (isVideo) {
+                                            // Video Frame
+                                            when (decodeResult) {
+                                                DecodeResult.Success -> {
+                                                    // add buffer to waiting render.
+                                                    bufferManager.enqueueVideoNativeRenderBuffer(
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    // notify player.
+                                                    player.decodeSuccess()
+                                                    // do next frame decode.
+                                                    this.sendEmptyMessage(DECODE_MEDIA_FRAME)
+                                                }
+                                                DecodeResult.Fail -> {
+                                                    // decode fail.
+                                                    bufferManager.enqueueVideoNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    MediaLog.e(TAG, "Decode video fail.")
+                                                    this.sendEmptyMessage(DECODE_MEDIA_FRAME)
+                                                }
+                                                else -> {
+
+                                                }
                                             }
 
-                                            DecodeResult.DecodeEnd -> {
-                                                // no next frame to decode.
-                                                MediaLog.d(TAG, "Decode end.")
-                                                bufferManager.enqueueRenderBuffer(buffer)
-                                                this@tMediaPlayerDecoder.state.set(
-                                                    tMediaPlayerDecoderState.DecodingEnd
-                                                )
-                                                player.decodeSuccess()
-                                            }
-
-                                            DecodeResult.Fail -> {
-                                                // decode fail.
-                                                bufferManager.enqueueDecodeBuffer(buffer)
-                                                MediaLog.e(TAG, "Decode fail.")
-                                                this.sendEmptyMessage(DECODE_MEDIA_FRAME)
+                                        } else {
+                                            // Audio Frame
+                                            when (decodeResult) {
+                                                DecodeResult.Success -> {
+                                                    // add buffer to waiting render.
+                                                    bufferManager.enqueueAudioNativeRenderBuffer(
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    // notify player.
+                                                    player.decodeSuccess()
+                                                    // do next frame decode.
+                                                    this.sendEmptyMessage(DECODE_MEDIA_FRAME)
+                                                }
+                                                // Last frame must be audio buffer.
+                                                DecodeResult.DecodeEnd -> {
+                                                    // no next frame to decode.
+                                                    MediaLog.d(TAG, "Decode end.")
+                                                    bufferManager.enqueueAudioNativeRenderBuffer(
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    this@tMediaPlayerDecoder.state.set(
+                                                        tMediaPlayerDecoderState.DecodingEnd
+                                                    )
+                                                    player.decodeSuccess()
+                                                }
+                                                DecodeResult.Fail -> {
+                                                    // decode fail.
+                                                    bufferManager.enqueueAudioNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    MediaLog.e(TAG, "Decode audio fail.")
+                                                    this.sendEmptyMessage(DECODE_MEDIA_FRAME)
+                                                }
                                             }
                                         }
                                     } else {
-                                        bufferManager.enqueueDecodeBuffer(buffer)
                                         MediaLog.e(TAG, "Native player is null.")
                                     }
                                 } else {

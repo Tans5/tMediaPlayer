@@ -146,6 +146,18 @@ internal class tMediaPlayerBufferManager(
         }
     }
 
+    /**
+     * After decode success, enqueue.
+     * Call by decoder, decoder thread.
+     */
+    fun enqueueAudioNativeRenderBuffer(buffer: MediaBuffer) {
+        if (!isReleased.get()) {
+            audioNativeRenderBuffersDeque.push(buffer)
+        } else {
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+        }
+    }
+
 
     /**
      * Check if could get a new decode buffer.
@@ -195,6 +207,18 @@ internal class tMediaPlayerBufferManager(
     }
 
     /**
+     * After decode success, enqueue.
+     * Call by decoder, decoder thread.
+     */
+    fun enqueueVideoNativeRenderBuffer(buffer: MediaBuffer) {
+        if (!isReleased.get()) {
+            videoNativeRenderBuffersDeque.push(buffer)
+        } else {
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+        }
+    }
+
+    /**
      * Clear all render buffers, call by player.
      */
     fun clearRenderData() {
@@ -238,45 +262,12 @@ internal class tMediaPlayerBufferManager(
     }
 
     /**
-     * Get decode buffer, if current buffer size great than [maxNativeBufferSize] would return null.
-     */
-    fun requestDecodeBuffer(): MediaBuffer? {
-        return if (!isReleased.get()) {
-            decodeBufferDeque.pollFirst()
-                ?: if (hasAllocBufferSize.get() >= maxNativeBufferSize) {
-                    null
-                } else {
-                    hasAllocBufferSize.addAndGet(1)
-                    MediaBuffer(player.allocDecodeDataNativeInternal())
-                }
-        } else {
-            null
-        }
-    }
-
-    /**
      * Get render buffer
      */
     fun requestRenderBuffer(): MediaBuffer? = if (isReleased.get()) {
         null
     } else {
         renderBufferDeque.pollFirst()
-    }
-
-    /**
-     * When decoder finish decode, move it to [renderBufferDeque], waiting to render.
-     */
-    fun enqueueRenderBuffer(buffer: MediaBuffer) {
-        if (!isReleased.get()) {
-            if (decodeBufferDeque.contains(buffer)) {
-                decodeBufferDeque.remove(buffer)
-            }
-            if (!renderBufferDeque.contains(buffer)) {
-                renderBufferDeque.add(buffer)
-            }
-        } else {
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
-        }
     }
 
     /**

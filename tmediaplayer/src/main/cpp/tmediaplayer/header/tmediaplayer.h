@@ -51,7 +51,6 @@ typedef struct tMediaAudioBuffer {
 } tMediaAudioBuffer;
 
 enum tMediaDecodeBufferType {
-    BufferTypeNone,
     BufferTypeVideo,
     BufferTypeAudio
 };
@@ -63,7 +62,7 @@ enum tMediaDecodeResult {
 };
 
 typedef struct tMediaDecodeBuffer {
-    tMediaDecodeBufferType type = BufferTypeNone;
+    tMediaDecodeBufferType type = BufferTypeAudio;
     tMediaDecodeResult decodeResult = DecodeFail;
     bool is_last_frame = false;
     long pts;
@@ -132,7 +131,7 @@ typedef struct tMediaPlayerContext {
 
     tMediaOptResult decodeForSeek(long targetPtsMillis, tMediaDecodeBuffer* videoDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo);
 
-    tMediaDecodeResult decode(tMediaDecodeBuffer *buffer);
+    tMediaDecodeBuffer* decode(tMediaDecodeBuffer *lastBuffer);
 
     tMediaDecodeResult parseDecodeVideoFrameToBuffer(tMediaDecodeBuffer *buffer);
 

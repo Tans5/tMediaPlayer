@@ -103,56 +103,55 @@ internal class tMediaPlayerRenderer(
                      */
                     CALCULATE_RENDER_MEDIA_FRAME -> {
                         if (state == tMediaPlayerRendererState.Rendering) {
-                            val buffer = bufferManager.requestRenderBuffer()
-                            if (buffer != null) {
+                            val videoRenderBuffer = bufferManager.requestVideoNativeRenderBuffer()
+                            val audioRenderBuffer = bufferManager.requestAudioNativeRenderBuffer()
+                            if (videoRenderBuffer != null || audioRenderBuffer != null) {
                                 // Contain data to render.
+                                // Video
+                                if (videoRenderBuffer != null) {
+                                    // Video frame
+                                    val pts = player.getPtsNativeInternal(videoRenderBuffer.nativeBuffer)
+                                    // Calculate current frame render delay.
+                                    val delay = player.calculateRenderDelay(pts)
+                                    val m = Message.obtain()
+                                    m.what = RENDER_VIDEO
+                                    m.obj = videoRenderBuffer
+                                    lastRequestRenderPts.set(pts)
+                                    // Add to render task.
+                                    this.sendMessageDelayed(m, delay)
+                                    // Add to pending.
+                                    pendingRenderVideoBuffers.push(videoRenderBuffer)
+                                }
 
-                                if (getState() == tMediaPlayerRendererState.Released) {
-                                    bufferManager.enqueueDecodeBuffer(buffer)
-                                } else {
-                                    if (player.isLastFrameBufferNativeInternal(buffer.nativeBuffer)) {
-                                        // Current frame is last frame.
+                                // Audio
+                                if (audioRenderBuffer != null) {
+                                    if (player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
+                                        // Audio frame.
+                                        val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
+                                        // Calculate current frame render delay.
+                                        val delay = player.calculateRenderDelay(pts)
+                                        val m = Message.obtain()
+                                        m.what = RENDER_AUDIO
+                                        m.obj = audioRenderBuffer
+                                        lastRequestRenderPts.set(pts)
+                                        // Add to render task.
+                                        this.sendMessageDelayed(m, delay)
+                                        // Add to pending.
+                                        pendingRenderAudioBuffers.push(audioRenderBuffer)
+                                    } else {
+                                        // Current frame is last frame, Last frame always is audio frame.
 
-                                        bufferManager.enqueueDecodeBuffer(buffer)
+                                        bufferManager.enqueueDecodeBuffer(audioRenderBuffer)
                                         val pts = lastRequestRenderPts.get() + 10
                                         this.sendEmptyMessageDelayed(
                                             RENDER_END,
                                             player.calculateRenderDelay(pts)
                                         )
-                                    } else {
-                                        // Not last frame.
-
-                                        if (player.isVideoBufferNativeInternal(buffer.nativeBuffer)) {
-                                            // Video frame
-                                            val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
-                                            // Calculate current frame render delay.
-                                            val delay = player.calculateRenderDelay(pts)
-                                            val m = Message.obtain()
-                                            m.what = RENDER_VIDEO
-                                            m.obj = buffer
-                                            lastRequestRenderPts.set(pts)
-                                            // Add to render task.
-                                            this.sendMessageDelayed(m, delay)
-                                            // Add to pending.
-                                            pendingRenderVideoBuffers.push(buffer)
-                                        } else {
-                                            // Audio frame.
-                                            val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
-                                            // Calculate current frame render delay.
-                                            val delay = player.calculateRenderDelay(pts)
-                                            val m = Message.obtain()
-                                            m.what = RENDER_AUDIO
-                                            m.obj = buffer
-                                            lastRequestRenderPts.set(pts)
-                                            // Add to render task.
-                                            this.sendMessageDelayed(m, delay)
-                                            // Add to pending.
-                                            pendingRenderAudioBuffers.push(buffer)
-                                        }
-                                        // Do next task.
-                                        this.sendEmptyMessage(CALCULATE_RENDER_MEDIA_FRAME)
                                     }
                                 }
+
+                                // Do next task.
+                                this.sendEmptyMessage(CALCULATE_RENDER_MEDIA_FRAME)
                             } else {
                                 // No data to render, waiting decoder.
                                 this@tMediaPlayerRenderer.state.set(tMediaPlayerRendererState.WaitingDecoder)
@@ -214,8 +213,7 @@ internal class tMediaPlayerRenderer(
                             if (view != null) {
                                 // Contain playerView to render.
                                 val width = player.getVideoWidthNativeInternal(buffer.nativeBuffer)
-                                val height =
-                                    player.getVideoHeightNativeInternal(buffer.nativeBuffer)
+                                val height = player.getVideoHeightNativeInternal(buffer.nativeBuffer)
                                 // Render different image type.
                                 when (player.getVideoFrameTypeNativeInternal(buffer.nativeBuffer)
                                     .toImageRawType()) {
@@ -327,7 +325,7 @@ internal class tMediaPlayerRenderer(
                                     }
                                 }
                             }
-                            bufferManager.enqueueDecodeBuffer(buffer)
+                            bufferManager.enqueueVideoNativeEncodeBuffer(buffer)
                             // Notify to player render success.
                             player.renderSuccess()
                         }
@@ -359,7 +357,7 @@ internal class tMediaPlayerRenderer(
                                     bufferManager.enqueueJavaBuffer(javaBuffer)
                                 }
                             }
-                            bufferManager.enqueueDecodeBuffer(buffer)
+                            bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
                             player.renderSuccess()
                         }
                         Unit
@@ -506,18 +504,14 @@ internal class tMediaPlayerRenderer(
         // Move pending render buffer to decode.
         while (pendingRenderVideoBuffers.isNotEmpty()) {
             val b = pendingRenderVideoBuffers.pollFirst()
-            if (b == null) {
-                break
-            } else {
-                bufferManager.enqueueDecodeBuffer(b)
+            if (b != null) {
+                bufferManager.enqueueVideoNativeRenderBuffer(b)
             }
         }
         while (pendingRenderAudioBuffers.isNotEmpty()) {
             val b = pendingRenderAudioBuffers.pollFirst()
-            if (b == null) {
-                break
-            } else {
-                bufferManager.enqueueDecodeBuffer(b)
+            if (b != null) {
+                bufferManager.enqueueAudioNativeRenderBuffer(b)
             }
         }
     }

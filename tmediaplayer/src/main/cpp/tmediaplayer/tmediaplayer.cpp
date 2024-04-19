@@ -402,13 +402,10 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
     return OptFail;
 }
 
-tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
+tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) {
     if (pkt != nullptr &&
         frame != nullptr &&
-        format_ctx != nullptr &&
-        buffer != nullptr) {
-        buffer->is_last_frame = false;
-        buffer->type = BufferTypeNone;
+        format_ctx != nullptr) {
         long start_time = get_time_millis();
         int result;
         if (!skipPktRead) {
@@ -417,15 +414,29 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             result = av_read_frame(format_ctx, pkt);
             if (result < 0) {
                 // No data to read, end of file.
+                tMediaDecodeBuffer * buffer = nullptr;
+                if (lastBuffer != nullptr) {
+                    buffer = lastBuffer;
+                } else {
+                    buffer = requestAudioDecodeBufferFromJava();
+                }
+                buffer->decodeResult = DecodeEnd;
                 buffer->is_last_frame = true;
                 LOGD("Decode media end.");
-                return DecodeEnd;
+                return buffer;
             }
         }
         skipPktRead = false;
         if (video_stream != nullptr &&
             pkt->stream_index == video_stream->index &&
             video_decoder_ctx != nullptr) {
+            tMediaDecodeBuffer * buffer = nullptr;
+            if (lastBuffer != nullptr) {
+                buffer = lastBuffer;
+            } else {
+                buffer = requestVideoDecodeBufferFromJava();
+            }
+            buffer->is_last_frame = false;
             // Send pkt data to video decoder ctx.
             result = avcodec_send_packet(video_decoder_ctx, pkt);
             if (result == AVERROR(EAGAIN)) {
@@ -438,7 +449,8 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             if (result < 0 && !skipPktRead) {
                 // Send pkt to video decoder ctx fail, do next frame seek.
                 LOGE("Decode video send pkt fail: %d", result);
-                return DecodeFail;
+                buffer->decodeResult = DecodeFail;
+                return buffer;
             }
             av_frame_unref(frame);
             // Decode video frame.
@@ -451,18 +463,27 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             if (result < 0) {
                 // Decode video frame fail.
                 LOGE("Decode video receive frame fail: %d", result);
-                return DecodeFail;
+                buffer->decodeResult = DecodeFail;
+                return buffer;
             }
             // Copy frame data to video decode buffer.
             auto parseResult = parseDecodeVideoFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
                 LOGD("Decode video success: %ld, cost: %ld ms", buffer->pts, get_time_millis() - start_time);
             }
-            return parseResult;
+            buffer->decodeResult = parseResult;
+            return buffer;
         }
         if (audio_stream != nullptr &&
             pkt->stream_index == audio_stream->index &&
             audio_decoder_ctx != nullptr) {
+            tMediaDecodeBuffer * buffer = nullptr;
+            if (lastBuffer != nullptr) {
+                buffer = lastBuffer;
+            } else {
+                buffer = requestAudioDecodeBufferFromJava();
+            }
+            buffer->is_last_frame = false;
             // Send pkt data to audio decoder ctx.
             result = avcodec_send_packet(audio_decoder_ctx, pkt);
             skipPktRead = result == AVERROR(EAGAIN);
@@ -471,7 +492,8 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             }
             if (result < 0 && !skipPktRead) {
                 LOGE("Decode audio send pkt fail: %d", result);
-                return DecodeFail;
+                buffer->decodeResult = DecodeFail;
+                return buffer;
             }
             av_frame_unref(frame);
             result = avcodec_receive_frame(audio_decoder_ctx, frame);
@@ -483,20 +505,37 @@ tMediaDecodeResult tMediaPlayerContext::decode(tMediaDecodeBuffer* buffer) {
             if (result < 0) {
                 // Decode audio frame fail.
                 LOGE("Decode audio receive frame fail: %d", result);
-                return DecodeFail;
+                buffer->decodeResult = DecodeFail;
+                return buffer;
             }
             // Copy frame data to audio decode buffer.
             auto parseResult = parseDecodeAudioFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
                 LOGD("Decode audio success: %ld, buffer rgbaSize: %d, cost: %ld ms", buffer->pts, buffer->audioBuffer->size, get_time_millis() - start_time);
             }
-            return parseResult;
+            buffer->decodeResult = parseResult;
+            return buffer;
         }
         LOGE("Decode unknown pkt");
-        return DecodeFail;
+        tMediaDecodeBuffer * buffer = nullptr;
+        if (lastBuffer != nullptr) {
+            buffer = lastBuffer;
+        } else {
+            buffer = requestAudioDecodeBufferFromJava();
+        }
+        buffer->decodeResult = DecodeFail;
+        return buffer;
     } else {
         LOGE("Decode wrong player context.");
-        return DecodeFail;
+        tMediaDecodeBuffer * buffer = nullptr;
+        if (lastBuffer != nullptr) {
+            buffer = lastBuffer;
+        } else {
+            buffer = requestAudioDecodeBufferFromJava();
+        }
+        buffer->decodeResult = DecodeFail;
+        buffer->is_last_frame = false;
+        return buffer;
     }
 }
 

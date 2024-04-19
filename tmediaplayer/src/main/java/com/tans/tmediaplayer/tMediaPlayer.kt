@@ -487,6 +487,12 @@ class tMediaPlayer {
 
     private external fun allocAudioDecodeDataNative(): Long
 
+    internal fun getBufferResultNativeInternal(nativeBuffer: Long): Int {
+        return getBufferResultNative(nativeBuffer)
+    }
+
+    private external fun getBufferResultNative(nativeBuffer: Long): Int
+
     internal fun isVideoBufferNativeInternal(nativeBuffer: Long): Boolean = isVideoBufferNative(nativeBuffer)
 
     private external fun isVideoBufferNative(nativeBuffer: Long): Boolean
@@ -567,11 +573,11 @@ class tMediaPlayer {
 
     private external fun resetNative(nativePlayer: Long): Int
 
-    internal fun decodeNativeInternal(nativePlayer: Long, nativeBuffer: Long): Int {
-        return decodeNative(nativePlayer, nativeBuffer)
+    internal fun decodeNativeInternal(nativePlayer: Long): Long {
+        return decodeNative(nativePlayer)
     }
 
-    private external fun decodeNative(nativePlayer: Long, nativeBuffer: Long): Int
+    private external fun decodeNative(nativePlayer: Long): Long
 
     internal fun seekToNativeInternal(nativePlayer: Long, videoNativeBuffer: Long, targetPtsInMillis: Long): Int = seekToNative(nativePlayer, videoNativeBuffer, targetPtsInMillis)
 
