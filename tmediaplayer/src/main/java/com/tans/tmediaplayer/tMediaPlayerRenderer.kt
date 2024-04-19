@@ -202,8 +202,10 @@ internal class tMediaPlayerRenderer(
                             pendingRenderVideoBuffers.remove(buffer)
                             MediaLog.d(TAG, "Render Video.")
                             val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
-                            // Notify to player update progress.
-                            player.dispatchProgress(progress)
+                            if (msg.arg1 != 1) {
+                                // Notify to player update progress.
+                                player.dispatchProgress(progress)
+                            }
                             val view = playerView.get()
                             if (view != null) {
                                 // Contain playerView to render.
@@ -337,7 +339,9 @@ internal class tMediaPlayerRenderer(
                             pendingRenderAudioBuffers.remove(buffer)
                             MediaLog.d(TAG, "Render Audio.")
                             val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
-                            player.dispatchProgress(progress)
+                            if (msg.arg1 != 1) {
+                                player.dispatchProgress(progress)
+                            }
                             val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
                             val javaBuffer = bufferManager.requestJavaBuffer(size)
                             player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
@@ -465,6 +469,8 @@ internal class tMediaPlayerRenderer(
                 val m = Message.obtain()
                 m.what = RENDER_VIDEO
                 m.obj = videoBuffer
+                // Ignore progress update
+                m.arg1 = 1
                 pendingRenderVideoBuffers.add(videoBuffer)
                 rendererHandler.sendMessage(m)
             } else {
@@ -476,6 +482,8 @@ internal class tMediaPlayerRenderer(
                 val m = Message.obtain()
                 m.what = RENDER_AUDIO
                 m.obj = audioBuffer
+                // Ignore progress update
+                m.arg1 = 1
                 pendingRenderAudioBuffers.add(audioBuffer)
                 rendererHandler.sendMessage(m)
             } else {

@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class tMediaPlayerBufferManager(
     private val player: tMediaPlayer,
     private val maxNativeAudioBufferSize: Int = 30,
-    private val maxNativeVideoBufferSize: Int = 10) {
+    private val maxNativeVideoBufferSize: Int = 10,
+    private val singleSizeJavaBufferSize: Int = 5) {
 
     private val isReleased: AtomicBoolean by lazy {
         AtomicBoolean(false)
@@ -226,6 +227,9 @@ internal class tMediaPlayerBufferManager(
             if (it == null) {
                 val l = LinkedBlockingDeque<JavaBuffer>()
                 javaBuffers[size] = l
+                repeat(singleSizeJavaBufferSize) {
+                    l.push(JavaBuffer(size = size, bytes = ByteArray(size)))
+                }
                 l
             } else {
                 it
@@ -253,7 +257,9 @@ internal class tMediaPlayerBufferManager(
                     it
                 }
             }
-            cacheList.push(javaBuffer)
+            if (cacheList.size < singleSizeJavaBufferSize) {
+                cacheList.addLast(javaBuffer)
+            }
         }
     }
 

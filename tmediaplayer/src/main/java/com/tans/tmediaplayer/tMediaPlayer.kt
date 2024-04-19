@@ -341,14 +341,15 @@ class tMediaPlayer {
     internal fun handleSeekingBuffer(
         videoBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer,
         audioBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer,
-        result: OptResult) {
+        result: OptResult,
+        targetProgress: Long) {
         val s = getState()
         if (s == tMediaPlayerState.Released) { return }
         when (result) {
             // Seeking success.
             OptResult.Success -> {
                 // Get seek buffer's pts.
-                val pts = getPtsNativeInternal(videoBuffer.nativeBuffer).coerceAtLeast(getPtsNativeInternal(audioBuffer.nativeBuffer))
+
                 // Remove waiting to render data.
                 renderer.removeRenderMessages()
                 // Clear audio track cache.
@@ -356,10 +357,10 @@ class tMediaPlayer {
                 // Clear last render data.
                 bufferManager.clearRenderData()
                 // Update base pts.
-                basePts.set(pts)
+                basePts.set(targetProgress)
                 // Update base time.
                 ptsBaseTime.set(SystemClock.uptimeMillis())
-                dispatchProgress(pts)
+                dispatchProgress(targetProgress)
                 if (isLastFrameBufferNative(audioBuffer.nativeBuffer)) {
                     // Current seek frame is last fame.
                     val info = getMediaInfo()
@@ -373,7 +374,7 @@ class tMediaPlayer {
                 } else {
                     // Not last frame.
                     // Notify renderer to handle seeking buffer.
-                    renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer, pts = pts)
+                    renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer, pts = targetProgress)
                     if (s is tMediaPlayerState.Seeking) {
                         val lastState = s.lastState
                         if (lastState is tMediaPlayerState.Playing) {

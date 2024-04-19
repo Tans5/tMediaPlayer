@@ -180,7 +180,8 @@ internal class tMediaPlayerDecoder(
                                 player.handleSeekingBuffer(
                                     videoBuffer = videoBuffer,
                                     audioBuffer = audioBuffer,
-                                    result = seekResult
+                                    result = seekResult,
+                                    targetProgress = position
                                 )
                                 if (seekResult == OptResult.Success) {
                                     MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
