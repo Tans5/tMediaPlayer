@@ -764,7 +764,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
     auto audioBuffer = buffer->audioBuffer;
     // Alloc pcm buffer if need.
     if (audioBuffer->size != output_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
-        LOGE("Decode audio change rgbaSize.");
+        LOGE("Decode audio change bufferSize, buffer size=%d, need size=%d", audioBuffer->size, output_audio_buffer_size);
         if (audioBuffer->pcmBuffer != nullptr) {
             free(audioBuffer->pcmBuffer);
         }
