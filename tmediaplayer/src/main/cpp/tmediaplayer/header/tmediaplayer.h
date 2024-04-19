@@ -144,8 +144,6 @@ typedef struct tMediaPlayerContext {
     void release();
 } tMediaPlayerContext;
 
-tMediaDecodeBuffer* allocDecodeBuffer();
-
 tMediaDecodeBuffer* allocVideoDecodeBuffer();
 
 tMediaDecodeBuffer* allocAudioDecodeBuffer();

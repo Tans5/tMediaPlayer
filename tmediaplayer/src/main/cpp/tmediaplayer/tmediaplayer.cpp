@@ -771,16 +771,6 @@ tMediaDecodeBuffer* tMediaPlayerContext::requestAudioDecodeBufferFromJava() {
     return reinterpret_cast<tMediaDecodeBuffer *>(bufferPointer);
 }
 
-tMediaDecodeBuffer * allocDecodeBuffer() {
-    auto buffer = new tMediaDecodeBuffer;
-    auto audioBuffer = new tMediaAudioBuffer;
-    buffer->audioBuffer = audioBuffer;
-
-    auto videoBuffer = new tMediaVideoBuffer;
-    buffer->videoBuffer = videoBuffer;
-    return buffer;
-}
-
 tMediaDecodeBuffer * allocVideoDecodeBuffer() {
     auto buffer = new tMediaDecodeBuffer;
     buffer->type = BufferTypeVideo;

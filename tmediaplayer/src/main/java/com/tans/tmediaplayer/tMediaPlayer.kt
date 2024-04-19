@@ -475,12 +475,6 @@ class tMediaPlayer {
 
     private external fun audioDurationNative(nativePlayer: Long): Long
 
-    internal fun allocDecodeDataNativeInternal(): Long {
-        return allocDecodeDataNative()
-    }
-
-    private external fun allocDecodeDataNative(): Long
-
     internal fun allocVideoDecodeDataNativeInternal(): Long {
         return allocVideoDecodeDataNative()
     }
