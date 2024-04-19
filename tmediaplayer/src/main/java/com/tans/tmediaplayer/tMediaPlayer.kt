@@ -5,6 +5,7 @@ import androidx.annotation.Keep
 import com.tans.tmediaplayer.render.tMediaPlayerView
 import java.io.File
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
@@ -476,12 +477,16 @@ class tMediaPlayer {
     private external fun audioDurationNative(nativePlayer: Long): Long
 
     internal fun allocVideoDecodeDataNativeInternal(): Long {
+        val bufferSize = bufferSize.incrementAndGet()
+        MediaLog.d(TAG, "BufferSize: $bufferSize")
         return allocVideoDecodeDataNative()
     }
 
     private external fun allocVideoDecodeDataNative(): Long
 
     internal fun allocAudioDecodeDataNativeInternal(): Long {
+        val bufferSize = bufferSize.incrementAndGet()
+        MediaLog.d(TAG, "BufferSize: $bufferSize")
         return allocAudioDecodeDataNative()
     }
 
@@ -566,6 +571,8 @@ class tMediaPlayer {
     private external fun getAudioFrameSizeNative(nativeBuffer: Long): Int
 
     internal fun freeDecodeDataNativeInternal(nativeBuffer: Long) {
+        val bufferSize = bufferSize.decrementAndGet()
+        MediaLog.d(TAG, "BufferSize: $bufferSize")
         freeDecodeDataNative(nativeBuffer)
     }
 
@@ -624,5 +631,7 @@ class tMediaPlayer {
                 Thread(it, "tMediaPlayerCallbackThread")
             }
         }
+
+        private val bufferSize: AtomicInteger = AtomicInteger(0)
     }
 }

@@ -261,7 +261,7 @@ internal class tMediaPlayerBufferManager(
      * Release all java buffers and native buffers, call by player.
      */
     fun release() {
-        if (isReleased.compareAndSet(true, false)) {
+        if (isReleased.compareAndSet(false, true)) {
 
             // Audio
             hasAllocAudioNativeBufferSize.set(0)
