@@ -24,7 +24,7 @@ class tMediaPlayer {
     }
 
     private val bufferManager: tMediaPlayerBufferManager by lazy {
-        tMediaPlayerBufferManager(this, 40)
+        tMediaPlayerBufferManager(this)
     }
 
     private val decoder: tMediaPlayerDecoder by lazy {
@@ -373,8 +373,6 @@ class tMediaPlayer {
                     bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
                 } else {
                     // Not last frame.
-                    // Notify renderer to handle seeking buffer.
-                    renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer, pts = targetProgress)
                     if (s is tMediaPlayerState.Seeking) {
                         val lastState = s.lastState
                         if (lastState is tMediaPlayerState.Playing) {
@@ -382,9 +380,16 @@ class tMediaPlayer {
                             decoder.decode()
                             renderer.render()
                             renderer.audioTrackPlay()
+                            bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
+                            bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
+                        } else {
+                            // Notify renderer to handle seeking buffer, if current state not playing.
+                            renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer, pts = targetProgress)
                         }
                         dispatchNewState(lastState)
                     } else {
+                        bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
+                        bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
                         MediaLog.e(TAG, "Expect seeking state, but now is $s")
                     }
                 }
