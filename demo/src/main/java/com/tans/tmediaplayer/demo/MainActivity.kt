@@ -201,16 +201,19 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
 
         viewBinding.asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
             viewBinding.playerView.enableAsciiArtFilter(isChecked)
+            viewBinding.playerView.requestRender()
         }
 
         val asciiArtFilter = viewBinding.playerView.getAsciiArtImageFilter()
 
         viewBinding.charReverseSw.setOnCheckedChangeListener { _, isChecked ->
             asciiArtFilter.reverseChar(isChecked)
+            viewBinding.playerView.requestRender()
         }
 
         viewBinding.colorReverseSw.setOnCheckedChangeListener { _, isChecked ->
             asciiArtFilter.reverseColor(isChecked)
+            viewBinding.playerView.requestRender()
         }
 
         viewBinding.charWidthSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -221,6 +224,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
                 if (fromUser) {
                     val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()).toInt()
                     asciiArtFilter.setCharLineWidth(requestWidth)
+                    viewBinding.playerView.requestRender()
                     viewBinding.charWidthTv.text = "Char Width: $requestWidth"
                 }
             }
@@ -235,6 +239,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
                     val requestRate = progress.toFloat() / 100.0f
                     asciiArtFilter.colorFillRate(requestRate)
                     viewBinding.imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
+                    viewBinding.playerView.requestRender()
                 }
             }
         })
