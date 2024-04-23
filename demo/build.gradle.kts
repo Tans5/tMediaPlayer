@@ -2,6 +2,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -50,6 +51,9 @@ dependencies {
     implementation(libs.coroutines.android)
 
     implementation(libs.tuiutils)
+
+    implementation(libs.glide)
+    ksp(libs.glide.codegen)
 
     implementation(project(":tmediaplayer"))
 
