@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.player
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -7,7 +7,7 @@ import android.media.AudioTrack
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
-import com.tans.tmediaplayer.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
@@ -72,7 +72,9 @@ internal class tMediaPlayerRenderer(
         }.apply { start() }
     }
 
-    private val state: AtomicReference<tMediaPlayerRendererState> by lazy { AtomicReference(tMediaPlayerRendererState.NotInit) }
+    private val state: AtomicReference<tMediaPlayerRendererState> by lazy { AtomicReference(
+        tMediaPlayerRendererState.NotInit
+    ) }
 
 
     private val lastRequestRenderPts: AtomicLong by lazy {

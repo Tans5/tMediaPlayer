@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.18.1)
 project("tmediaplayer")
 
 
-#################################ffmepg#########################################
+################################# ffmepg start #########################################
 add_library( libavcodec
         SHARED
         IMPORTED )
@@ -58,20 +58,16 @@ set_target_properties( libswscale
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswscale.so )
 
-#################################ffmepg#########################################
+################################# ffmepg end #########################################
 
 
-#################################tmediaplayer#########################################
+################################# tmediaplayer start #########################################
 
 #file(GLOB examples_src
 #        examples/*.c)
 
-add_library( # Sets the name of the library.
-        tmediaplayer
-
-        # Sets the library as a shared library.
-        SHARED
-
+add_library(
+        tmediaplayer SHARED
         # tmediaplayer
         tmediaplayer/media_time.cpp
         tmediaplayer/tmediaplayer.cpp
@@ -114,4 +110,26 @@ target_link_libraries( # Specifies the target library.
         libswresample
         libswscale)
 
-#################################tmediaplayer#########################################
+################################# tmediaplayer end #########################################
+
+
+################################# tmediaframeloader start ####################################
+add_library(
+        tmediaframeloader SHARED
+        tmediaframeloader/jni.cpp
+        tmediaframeloader/tmediaframeloader.cpp
+)
+
+target_include_directories(
+        tmediaframeloader PUBLIC
+        ffmpeg/header
+        tmediaframeloader/header
+        tmediaplayer/header
+)
+
+target_link_libraries(
+        tmediaframeloader
+        tmediaplayer
+)
+
+################################# tmediaframeloader end ####################################

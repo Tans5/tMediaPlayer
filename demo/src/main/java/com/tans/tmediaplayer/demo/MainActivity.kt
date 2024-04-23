@@ -5,13 +5,14 @@ import android.util.Log
 import android.view.View
 import android.widget.SeekBar
 import androidx.activity.addCallback
-import com.tans.tmediaplayer.OptResult
+import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.demo.databinding.ActivityMainBinding
-import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
-import com.tans.tmediaplayer.tMediaPlayer
-import com.tans.tmediaplayer.tMediaPlayerListener
-import com.tans.tmediaplayer.tMediaPlayerState
-import com.tans.tmediaplayer.render.tMediaPlayerView
+import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
+import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
+import com.tans.tmediaplayer.player.tMediaPlayer
+import com.tans.tmediaplayer.player.tMediaPlayerListener
+import com.tans.tmediaplayer.player.tMediaPlayerState
+import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import com.tans.tuiutils.activity.BaseCoroutineStateActivity
 import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks
@@ -94,6 +95,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
     }
 
     override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
+        tMediaFrameLoader
         val viewBinding = ActivityMainBinding.bind(contentView)
 
         mediaPlayer.attachPlayerView(viewBinding.playerView)

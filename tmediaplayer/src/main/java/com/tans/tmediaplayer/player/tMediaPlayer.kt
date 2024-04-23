@@ -1,8 +1,8 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.player
 
 import android.os.SystemClock
 import androidx.annotation.Keep
-import com.tans.tmediaplayer.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -197,7 +197,10 @@ class tMediaPlayer {
         val mediaInfo = getMediaInfo()
         return if (mediaInfo != null && seekingState != null) {
             if (position !in 0 .. mediaInfo.duration) {
-                MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
+                MediaLog.e(
+                    TAG,
+                    "Wrong seek position: $position, for duration: ${mediaInfo.duration}"
+                )
                 OptResult.Fail
             } else {
                 decoder.pause()
@@ -610,7 +613,11 @@ class tMediaPlayer {
      * Call by native code, enqueue video decode buffer on decode thread.
      */
     fun enqueueVideoEncodeBufferFromNative(nativeBuffer: Long) {
-        return bufferManager.enqueueVideoNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+        return bufferManager.enqueueVideoNativeEncodeBuffer(
+            tMediaPlayerBufferManager.Companion.MediaBuffer(
+                nativeBuffer
+            )
+        )
     }
 
     /**
@@ -624,7 +631,11 @@ class tMediaPlayer {
      * Call by native code, enqueue audio decode buffer on decode thread.
      */
     fun enqueueAudioEncodeBufferFromNative(nativeBuffer: Long) {
-        return bufferManager.enqueueAudioNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+        return bufferManager.enqueueAudioNativeEncodeBuffer(
+            tMediaPlayerBufferManager.Companion.MediaBuffer(
+                nativeBuffer
+            )
+        )
     }
 
     companion object {

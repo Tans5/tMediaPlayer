@@ -1,17 +1,17 @@
-package com.tans.tmediaplayer.render
+package com.tans.tmediaplayer.player.render
 
 import android.content.Context
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.AttributeSet
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.MediaLog
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.render.filter.AsciiArtImageFilter
-import com.tans.tmediaplayer.render.filter.FilterImageTexture
-import com.tans.tmediaplayer.render.texconverter.RgbaImageTextureConverter
-import com.tans.tmediaplayer.render.texconverter.Yuv420pImageTextureConverter
-import com.tans.tmediaplayer.render.texconverter.Yuv420spImageTextureConverter
+import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
+import com.tans.tmediaplayer.player.render.filter.FilterImageTexture
+import com.tans.tmediaplayer.player.render.texconverter.RgbaImageTextureConverter
+import com.tans.tmediaplayer.player.render.texconverter.Yuv420pImageTextureConverter
+import com.tans.tmediaplayer.player.render.texconverter.Yuv420spImageTextureConverter
 import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10

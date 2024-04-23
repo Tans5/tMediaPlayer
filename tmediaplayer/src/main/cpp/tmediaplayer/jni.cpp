@@ -1,16 +1,16 @@
 //
 // Created by pengcheng.tan on 2023/7/13.
 //
-#include <tmediaplayer.h>
 #include <jni.h>
 #include <string>
+#include "tmediaplayer.h"
 extern "C" {
 #include "libavcodec/jni.h"
 }
 
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_createPlayerNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_createPlayerNative(
         JNIEnv * env,
         jobject j_player) {
     JavaVM * jvm = nullptr;
@@ -19,7 +19,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_createPlayerNative(
     player->jvm = jvm;
     player->jplayer = env->NewGlobalRef(j_player);
     player->jplayerClazz = static_cast<jclass>(env->NewGlobalRef(
-            env->FindClass("com/tans/tmediaplayer/tMediaPlayer")));
+            env->FindClass("com/tans/tmediaplayer/player/tMediaPlayer")));
     player->callRequestAudioBufferMethodId = env->GetMethodID(player->jplayerClazz, "requestAudioDecodeBufferFromNative", "()J");
     player->callRequestVideoBufferMethodId = env->GetMethodID(player->jplayerClazz, "requestVideoDecodeBufferFromNative", "()J");
     player->callEnqueueAudioBufferMethodId = env->GetMethodID(player->jplayerClazz, "enqueueAudioEncodeBufferFromNative", "(J)V");
@@ -28,7 +28,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_createPlayerNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_prepareNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_prepareNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player,
@@ -45,7 +45,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_prepareNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_durationNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_durationNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -54,7 +54,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_durationNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_videoWidthNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoWidthNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -63,7 +63,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_videoWidthNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_videoHeightNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoHeightNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -72,7 +72,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_videoHeightNative(
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_videoFpsNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoFpsNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -81,7 +81,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_videoFpsNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_videoDurationNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDurationNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -90,7 +90,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_videoDurationNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_audioChannelsNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioChannelsNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -99,7 +99,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_audioChannelsNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_audioPreSampleBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioPreSampleBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -108,7 +108,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_audioPreSampleBytesNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_audioSampleRateNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioSampleRateNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -117,7 +117,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_audioSampleRateNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_audioDurationNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDurationNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -127,7 +127,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_audioDurationNative(
 
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_allocVideoDecodeDataNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_allocVideoDecodeDataNative(
         JNIEnv * env,
         jobject j_player) {
     auto buffer = allocVideoDecodeBuffer();
@@ -135,7 +135,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_allocVideoDecodeDataNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_allocAudioDecodeDataNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_allocAudioDecodeDataNative(
         JNIEnv * env,
         jobject j_player) {
     auto buffer = allocAudioDecodeBuffer();
@@ -143,7 +143,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_allocAudioDecodeDataNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getBufferResultNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getBufferResultNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -152,7 +152,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getBufferResultNative(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_isVideoBufferNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_isVideoBufferNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -161,7 +161,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_isVideoBufferNative(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_isLastFrameBufferNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_isLastFrameBufferNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -170,7 +170,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_isLastFrameBufferNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoWidthNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoWidthNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -183,7 +183,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoWidthNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoHeightNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoHeightNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -196,7 +196,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoHeightNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getPtsNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getPtsNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -205,7 +205,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getPtsNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameTypeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameTypeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -218,7 +218,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameTypeNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaSizeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameRgbaSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -235,7 +235,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaSizeNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameRgbaBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
@@ -250,7 +250,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameRgbaBytesNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameYSizeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameYSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -267,7 +267,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameYSizeNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameYBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameYBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
@@ -282,7 +282,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameYBytesNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUSizeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameUSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -299,7 +299,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUSizeNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameUBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
@@ -314,7 +314,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUBytesNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameVSizeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameVSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -331,7 +331,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameVSizeNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameVBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameVBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
@@ -346,7 +346,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameVBytesNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUVSizeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameUVSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -363,7 +363,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUVSizeNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUVBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameUVBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
@@ -378,7 +378,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getVideoFrameUVBytesNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getAudioFrameBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l,
@@ -391,7 +391,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameBytesNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameSizeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getAudioFrameSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -404,7 +404,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_getAudioFrameSizeNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_freeDecodeDataNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_freeDecodeDataNative(
         JNIEnv * env,
         jobject j_player,
         jlong buffer_l) {
@@ -413,7 +413,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_freeDecodeDataNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_seekToNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_seekToNative(
         JNIEnv * env,
         jobject j_player,
         jlong player_l,
@@ -427,7 +427,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_seekToNative(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_decodeNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_decodeNative(
         JNIEnv * env,
         jobject j_player,
         jlong player_l) {
@@ -436,7 +436,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_decodeNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_resetNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_resetNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
@@ -445,7 +445,7 @@ Java_com_tans_tmediaplayer_tMediaPlayer_resetNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_tMediaPlayer_releaseNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {

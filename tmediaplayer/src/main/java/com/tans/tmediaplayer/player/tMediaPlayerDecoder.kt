@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.player
 
 import android.os.Handler
 import android.os.HandlerThread
@@ -68,7 +68,10 @@ internal class tMediaPlayerDecoder(
                                                 DecodeResult.Success -> {
                                                     // add buffer to waiting render.
                                                     bufferManager.enqueueVideoNativeRenderBuffer(
-                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(
+                                                            nativeBuffer
+                                                        )
+                                                    )
                                                     // notify player.
                                                     player.decodeSuccess()
                                                     // do next frame decode.
@@ -76,7 +79,11 @@ internal class tMediaPlayerDecoder(
                                                 }
                                                 DecodeResult.Fail -> {
                                                     // decode fail.
-                                                    bufferManager.enqueueVideoNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    bufferManager.enqueueVideoNativeEncodeBuffer(
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(
+                                                            nativeBuffer
+                                                        )
+                                                    )
                                                     MediaLog.e(TAG, "Decode video fail.")
                                                     this.sendEmptyMessage(DECODE_MEDIA_FRAME)
                                                 }
@@ -91,7 +98,10 @@ internal class tMediaPlayerDecoder(
                                                 DecodeResult.Success -> {
                                                     // add buffer to waiting render.
                                                     bufferManager.enqueueAudioNativeRenderBuffer(
-                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(
+                                                            nativeBuffer
+                                                        )
+                                                    )
                                                     // notify player.
                                                     player.decodeSuccess()
                                                     // do next frame decode.
@@ -102,7 +112,10 @@ internal class tMediaPlayerDecoder(
                                                     // no next frame to decode.
                                                     MediaLog.d(TAG, "Decode end.")
                                                     bufferManager.enqueueAudioNativeRenderBuffer(
-                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(
+                                                            nativeBuffer
+                                                        )
+                                                    )
                                                     this@tMediaPlayerDecoder.state.set(
                                                         tMediaPlayerDecoderState.DecodingEnd
                                                     )
@@ -110,7 +123,11 @@ internal class tMediaPlayerDecoder(
                                                 }
                                                 DecodeResult.Fail -> {
                                                     // decode fail.
-                                                    bufferManager.enqueueAudioNativeEncodeBuffer(tMediaPlayerBufferManager.Companion.MediaBuffer(nativeBuffer))
+                                                    bufferManager.enqueueAudioNativeEncodeBuffer(
+                                                        tMediaPlayerBufferManager.Companion.MediaBuffer(
+                                                            nativeBuffer
+                                                        )
+                                                    )
                                                     MediaLog.e(TAG, "Decode audio fail.")
                                                     this.sendEmptyMessage(DECODE_MEDIA_FRAME)
                                                 }
@@ -166,8 +183,10 @@ internal class tMediaPlayerDecoder(
                             val position = msg.obj as? Long
                             if (position != null) {
                                 val start = SystemClock.uptimeMillis()
-                                val videoBuffer = tMediaPlayerBufferManager.Companion.MediaBuffer(bufferManager.requestVideoNativeDecodeBufferForce())
-                                val audioBuffer = tMediaPlayerBufferManager.Companion.MediaBuffer(bufferManager.requestAudioNativeDecodeBufferForce())
+                                val videoBuffer =
+                                    tMediaPlayerBufferManager.Companion.MediaBuffer(bufferManager.requestVideoNativeDecodeBufferForce())
+                                val audioBuffer =
+                                    tMediaPlayerBufferManager.Companion.MediaBuffer(bufferManager.requestAudioNativeDecodeBufferForce())
                                 // Do seeking by native code.
                                 val seekResult = player.seekToNativeInternal(
                                     nativePlayer = mediaInfo.nativePlayer,
@@ -184,9 +203,15 @@ internal class tMediaPlayerDecoder(
                                     targetProgress = position
                                 )
                                 if (seekResult == OptResult.Success) {
-                                    MediaLog.d(TAG, "Seek to $position success, cost: ${end - start} ms.")
+                                    MediaLog.d(
+                                        TAG,
+                                        "Seek to $position success, cost: ${end - start} ms."
+                                    )
                                 } else {
-                                    MediaLog.e(TAG, "Seek to $position fail, cost ${end - start} ms.")
+                                    MediaLog.e(
+                                        TAG,
+                                        "Seek to $position fail, cost ${end - start} ms."
+                                    )
                                 }
                             } else {
                                 MediaLog.e(TAG, "Seek wrong arg: ${msg.obj}")
@@ -199,7 +224,9 @@ internal class tMediaPlayerDecoder(
         }
     }
 
-    private val state: AtomicReference<tMediaPlayerDecoderState> by lazy { AtomicReference(tMediaPlayerDecoderState.NotInit) }
+    private val state: AtomicReference<tMediaPlayerDecoderState> by lazy { AtomicReference(
+        tMediaPlayerDecoderState.NotInit
+    ) }
 
     /**
      * Init decoder

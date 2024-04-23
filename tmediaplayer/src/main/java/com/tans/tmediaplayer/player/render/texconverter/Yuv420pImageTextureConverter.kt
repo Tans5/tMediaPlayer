@@ -1,16 +1,16 @@
-package com.tans.tmediaplayer.render.texconverter
+package com.tans.tmediaplayer.player.render.texconverter
 
 import android.content.Context
 import android.opengl.GLES30
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.MediaLog
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.render.compileShaderProgram
-import com.tans.tmediaplayer.render.glGenBuffers
-import com.tans.tmediaplayer.render.glGenTextureAndSetDefaultParams
-import com.tans.tmediaplayer.render.glGenVertexArrays
-import com.tans.tmediaplayer.render.offScreenRender
-import com.tans.tmediaplayer.render.tMediaPlayerView
-import com.tans.tmediaplayer.render.toGlBuffer
+import com.tans.tmediaplayer.player.render.compileShaderProgram
+import com.tans.tmediaplayer.player.render.glGenBuffers
+import com.tans.tmediaplayer.player.render.glGenTextureAndSetDefaultParams
+import com.tans.tmediaplayer.player.render.glGenVertexArrays
+import com.tans.tmediaplayer.player.render.offScreenRender
+import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.render.toGlBuffer
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 

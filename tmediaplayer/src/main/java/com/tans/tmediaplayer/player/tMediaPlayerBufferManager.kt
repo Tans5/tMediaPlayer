@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.player
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingDeque

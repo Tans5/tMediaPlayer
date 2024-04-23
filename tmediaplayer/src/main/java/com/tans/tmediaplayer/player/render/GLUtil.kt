@@ -1,11 +1,9 @@
-package com.tans.tmediaplayer.render
+package com.tans.tmediaplayer.player.render
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.opengl.GLES30
-import android.opengl.GLES31
 import android.util.Log
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.MediaLog
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer

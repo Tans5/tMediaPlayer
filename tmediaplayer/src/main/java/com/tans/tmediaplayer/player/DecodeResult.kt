@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.player
 
 enum class DecodeResult { Success, DecodeEnd, Fail }
 fun Int.toDecodeResult(): DecodeResult {

@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer
+package com.tans.tmediaplayer.player
 
 data class MediaInfo(
     internal val nativePlayer: Long,
