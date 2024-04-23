@@ -85,6 +85,7 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     // decode need buffers.
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
+    this->videoBuffer = new tMediaVideoBuffer;
     return OptSuccess;
 }
 
