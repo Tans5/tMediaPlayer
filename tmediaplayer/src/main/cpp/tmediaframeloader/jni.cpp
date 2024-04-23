@@ -50,6 +50,15 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getFrameNative(
     return loader->getFrame(position, needRealTime);
 }
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_videoDurationNative(
+        JNIEnv * env,
+        jobject j_loader,
+        jlong native_loader) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    return loader->video_duration;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_videoWidthNative(
         JNIEnv * env,

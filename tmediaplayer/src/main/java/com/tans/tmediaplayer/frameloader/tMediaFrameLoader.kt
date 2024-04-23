@@ -5,6 +5,8 @@ import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.player.toOptResult
 import java.io.File
 import java.nio.ByteBuffer
+import kotlin.math.max
+import kotlin.math.min
 
 @Suppress("ClassName")
 object tMediaFrameLoader {
@@ -25,9 +27,10 @@ object tMediaFrameLoader {
                 if (result != OptResult.Success) {
                     return null
                 }
+                val videoDuration = videoDurationNative(nativeLoader)
                 result = getFrameNative(
                     nativeFrameLoader = nativeLoader,
-                    position = position,
+                    position = min(max(0, position), videoDuration),
                     needRealTime = needRealTime
                 ).toOptResult()
                 if (result != OptResult.Success) {
@@ -54,6 +57,8 @@ object tMediaFrameLoader {
     private external fun prepareNative(nativeFrameLoader: Long, filePath: String): Int
 
     private external fun getFrameNative(nativeFrameLoader: Long, position: Long, needRealTime: Boolean): Int
+
+    private external fun videoDurationNative(nativeFrameLoader: Long): Long
 
     private external fun videoWidthNative(nativeFrameLoader: Long): Int
 
