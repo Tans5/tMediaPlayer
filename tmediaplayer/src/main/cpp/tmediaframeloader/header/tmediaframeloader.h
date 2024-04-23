@@ -25,9 +25,15 @@ typedef struct tMediaFrameLoaderContext {
     bool skipPktRead = false;
 
     /**
+     * Java
+     */
+     JavaVM *jvm = nullptr;
+
+    /**
      * Video
      */
     AVStream *video_stream = nullptr;
+    long video_duration = 0;
     const AVCodec *video_decoder = nullptr;
     SwsContext * sws_ctx = nullptr;
     int video_width = 0;
@@ -35,6 +41,9 @@ typedef struct tMediaFrameLoaderContext {
     AVCodecContext *video_decoder_ctx = nullptr;
     tMediaVideoBuffer *videoBuffer = nullptr;
 
+    tMediaOptResult prepare(const char * media_file);
+
+    void release();
 } tMediaFrameLoaderContext;
 
 #endif //TMEDIAPLAYER_TMEDIAFRAMELOADER_H
