@@ -25,6 +25,9 @@ class MediaImageModule : AppGlideModule() {
             Bitmap::class.java,
             Bitmap::class.java,
             BitmapResourceDecoder())
+
+        // Encoder
+        registry.append(Bitmap::class.java, BitmapEncoder(glide.arrayPool))
     }
 
 }

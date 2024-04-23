@@ -1,6 +1,8 @@
 package com.tans.tmediaplayer.demo.glide
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import com.bumptech.glide.Priority
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.Options
@@ -8,7 +10,6 @@ import com.bumptech.glide.load.data.DataFetcher
 import com.bumptech.glide.load.model.ModelLoader
 import com.bumptech.glide.load.model.ModelLoaderFactory
 import com.bumptech.glide.load.model.MultiModelLoaderFactory
-import java.lang.Exception
 
 class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
     override fun buildLoadData(
@@ -28,7 +29,10 @@ class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
         override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in Bitmap>) {
             // TODO: not impl
             println("Load model=$model")
-            callback.onLoadFailed(Exception("Not impl"))
+            val bitmap = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.RED)
+            callback.onDataReady(bitmap)
         }
 
         override fun cleanup() {  }
