@@ -50,6 +50,43 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getFrameNative(
     return loader->getFrame(position, needRealTime);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_videoWidthNative(
+        JNIEnv * env,
+        jobject j_loader,
+        jlong native_loader) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    return loader->video_width;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_videoHeightNative(
+        JNIEnv * env,
+        jobject j_loader,
+        jlong native_loader) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    return loader->video_height;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoFrameRgbaSizeNative(
+        JNIEnv * env,
+        jobject j_loader,
+        jlong native_loader) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    return loader->videoBuffer->rgbaSize;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoFrameRgbaBytesNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_loader,
+        jbyteArray j_bytes) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    env->SetByteArrayRegion(j_bytes, 0, loader->videoBuffer->rgbaSize,
+                            reinterpret_cast<const jbyte *>(loader->videoBuffer->rgbaBuffer));
+}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_releaseNative(
