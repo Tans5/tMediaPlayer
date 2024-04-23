@@ -28,9 +28,13 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
                 if (this->video_stream != nullptr) {
                     LOGE("Find multiple video stream, skip it.");
                 } else {
-                    LOGD("Find video stream.");
                     this->video_stream = s;
-                    this->video_duration = (long) ((double) s->duration * av_q2d(s->time_base) *1000L);
+                    if (s->nb_frames > 1) {
+                        this->video_duration = (long) ((double) s->duration * av_q2d(s->time_base) *1000L);
+                    } else {
+                        this->video_duration = 0;
+                    }
+                    LOGD("Find video stream: duration=%ld", video_duration);
                 }
                 break;
             default:
@@ -98,7 +102,7 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool need
                 LOGE("Wrong frame position: %ld, duration: %ld", framePosition, video_duration);
                 return OptFail;
             }
-            if (video_stream != nullptr) {
+            if (video_stream != nullptr && framePosition > 0) {
                 avcodec_flush_buffers(video_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(framePosition * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
                 int video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
