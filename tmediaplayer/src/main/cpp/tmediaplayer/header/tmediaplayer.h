@@ -156,4 +156,6 @@ tMediaDecodeBuffer* allocAudioDecodeBuffer();
 
 void freeDecodeBuffer(tMediaDecodeBuffer *b);
 
+void copyFrameData(uint8_t * dst, uint8_t * src, int image_width, int image_height, int line_stride, int pixel_stride);
+
 #endif //TMEDIAPLAYER_TMEDIAPLAYER_H

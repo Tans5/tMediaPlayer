@@ -88,6 +88,162 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     return OptSuccess;
 }
 
+tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool needRealTime) {
+    if (format_ctx != nullptr) {
+        if (video_stream == nullptr) {
+            return OptFail;
+        } else {
+            if (framePosition > video_duration || framePosition < 0) {
+                LOGE("Wrong frame position: %ld, duration: %ld", framePosition, video_duration);
+                return OptFail;
+            }
+            if (video_stream != nullptr) {
+                avcodec_flush_buffers(video_decoder_ctx);
+                int64_t seekTimestamp = av_rescale_q(framePosition * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
+                int video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+                if (video_reset_result < 0) {
+                    LOGE("Seek video progress fail: %d", video_reset_result);
+                    return OptFail;
+                }
+            }
+            return decodeForGetFrame(framePosition, 40.0, needRealTime);
+        }
+    } else {
+        return OptFail;
+    }
+}
+
+tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, double minStepInMillis, bool needRealTime) {
+    if (pkt != nullptr &&
+        frame != nullptr &&
+        format_ctx != nullptr) {
+        int result;
+        if (!skipPktRead) {
+            // If need read data to pkt from file.
+            av_packet_unref(pkt);
+            result = av_read_frame(format_ctx, pkt);
+            if (result < 0) {
+                // No data to read, end of file.
+                LOGE("Seek decode media end");
+                return OptFail;
+            }
+        }
+        skipPktRead = false;
+
+        if (video_stream != nullptr &&
+            pkt->stream_index == video_stream->index &&
+            video_decoder_ctx != nullptr) {
+            // Send pkt data to video decoder ctx.
+            result = avcodec_send_packet(video_decoder_ctx, pkt);
+            if (result == AVERROR(EAGAIN)) {
+                // Next time decode no need to read pkt.
+                LOGD("Seek decode video skip read pkt");
+                skipPktRead = true;
+            } else {
+                skipPktRead = false;
+            }
+            if (result < 0 && !skipPktRead) {
+                // Send pkt to video decoder ctx fail, do next frame seek.
+                LOGE("Seek decode video send pkt fail: %d", result);
+                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+            }
+            av_frame_unref(frame);
+            // Decode video frame.
+            result = avcodec_receive_frame(video_decoder_ctx, frame);
+            if (result == AVERROR(EAGAIN)) {
+                LOGD("Seek decode video reload frame");
+                // Need more pkt data to decode current frame.
+                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+            }
+            if (result < 0) {
+                // Decode video frame fail.
+                LOGE("Seek decode video receive frame fail: %d", result);
+                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+            }
+            long ptsInMillis = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
+            auto parseResult = parseDecodeVideoFrameToBuffer();
+            if (parseResult == OptFail) {
+                return OptFail;
+            }
+            if (needRealTime) {
+                if (framePosition - ptsInMillis < minStepInMillis) {
+                    // Already seek to target pts.
+                    return OptSuccess;
+                } else {
+                    // Need do more decode to target pts.
+                    return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+                }
+            } else {
+                return OptSuccess;
+            }
+        } else {
+            return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+        }
+    }
+    return OptFail;
+}
+
+tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
+    int w = frame->width;
+    int h = frame->height;
+    videoBuffer->width = w;
+    videoBuffer->height = h;
+
+    if (w != video_width ||
+        h != video_height) {
+        LOGE("Decode video change rgbaSize, recreate sws ctx.");
+        if (sws_ctx != nullptr) {
+            sws_freeContext(sws_ctx);
+        }
+
+        this->sws_ctx = sws_getContext(
+                w,
+                h,
+                (AVPixelFormat) frame->format,
+                w,
+                h,
+                AV_PIX_FMT_RGBA,
+                SWS_BICUBIC,
+                nullptr,
+                nullptr,
+                nullptr);
+        if (sws_ctx == nullptr) {
+            LOGE("Decode video fail, sws ctx create fail.");
+            return OptFail;
+        }
+    }
+
+    // Alloc new RGBA frame and buffer if need.
+    if (w != videoBuffer->width ||
+        h != videoBuffer->height ||
+        videoBuffer->rgbaBuffer == nullptr ||
+        videoBuffer->rgbaFrame == nullptr) {
+        LOGE("Decode video create new buffer.");
+        videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
+        if (videoBuffer->rgbaBuffer != nullptr) {
+            free(videoBuffer->rgbaBuffer);
+        }
+        if (videoBuffer->rgbaFrame != nullptr) {
+            av_frame_free(&(videoBuffer->rgbaFrame));
+            videoBuffer->rgbaFrame = nullptr;
+        }
+        videoBuffer->rgbaFrame = av_frame_alloc();
+        videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
+        // Fill rgbaBuffer to rgbaFrame
+        av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
+                             AV_PIX_FMT_RGBA, w, h, 1);
+    }
+    // Convert to rgba.
+    int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+    if (result < 0) {
+        // Convert fail.
+        LOGE("Decode video sws scale fail: %d", result);
+        return OptFail;
+    }
+    videoBuffer->type = Rgba;
+    return OptSuccess;
+}
+
 void tMediaFrameLoaderContext::release() {
     if (pkt != nullptr) {
         av_packet_unref(pkt);

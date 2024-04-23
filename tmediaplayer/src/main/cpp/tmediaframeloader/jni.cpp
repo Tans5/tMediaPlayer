@@ -36,6 +36,20 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_prepareNative(
     return loader->prepare(file_path_chars);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getFrameNative(
+        JNIEnv * env,
+        jobject j_frame_loader,
+        jlong native_loader,
+        jlong position,
+        jboolean needRealTime) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext*>(native_loader);
+    if (loader == nullptr) {
+        return OptFail;
+    }
+    return loader->getFrame(position, needRealTime);
+}
+
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_releaseNative(

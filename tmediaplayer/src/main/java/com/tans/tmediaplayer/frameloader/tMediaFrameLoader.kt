@@ -11,5 +11,7 @@ object tMediaFrameLoader {
 
     private external fun prepareNative(nativeFrameLoader: Long, filePath: String): Int
 
+    private external fun getFrameNative(nativeFrameLoader: Long, position: Long, needRealTime: Boolean): Int
+
     private external fun releaseNative(nativeFrameLoader: Long)
 }

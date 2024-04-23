@@ -21,7 +21,6 @@ typedef struct tMediaFrameLoaderContext {
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
     AVFrame *frame = nullptr;
-    long duration = 0;
     bool skipPktRead = false;
 
     /**
@@ -42,6 +41,12 @@ typedef struct tMediaFrameLoaderContext {
     tMediaVideoBuffer *videoBuffer = nullptr;
 
     tMediaOptResult prepare(const char * media_file);
+
+    tMediaOptResult getFrame(long framePosition, bool needRealTime);
+
+    tMediaOptResult decodeForGetFrame(long framePosition, double minStepInMillis, bool needRealTime);
+
+    tMediaOptResult parseDecodeVideoFrameToBuffer();
 
     void release();
 } tMediaFrameLoaderContext;
