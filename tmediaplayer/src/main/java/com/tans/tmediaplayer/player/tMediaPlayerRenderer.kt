@@ -204,17 +204,17 @@ internal class tMediaPlayerRenderer(
                         if (buffer != null) {
                             // Remove pending.
                             pendingRenderVideoBuffers.remove(buffer)
-                            MediaLog.d(TAG, "Render Video.")
-                            val progress = player.getPtsNativeInternal(buffer.nativeBuffer)
-                            if (msg.arg1 != 1) {
-                                // Notify to player update progress.
-                                player.dispatchProgress(progress)
-                            }
+
                             val view = playerView.get()
                             if (view != null) {
                                 val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
                                 val currentPosition = player.getProgress()
                                 if (pts >= currentPosition || pts == 0L) {
+                                    MediaLog.d(TAG, "Render Video: $pts")
+                                    if (msg.arg1 != 1) {
+                                        // Notify to player update progress.
+                                        player.dispatchProgress(pts)
+                                    }
                                     // Contain playerView to render.
                                     val width = player.getVideoWidthNativeInternal(buffer.nativeBuffer)
                                     val height = player.getVideoHeightNativeInternal(buffer.nativeBuffer)
