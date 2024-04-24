@@ -197,10 +197,7 @@ class tMediaPlayer {
         val mediaInfo = getMediaInfo()
         return if (mediaInfo != null && seekingState != null) {
             if (position !in 0 .. mediaInfo.duration) {
-                MediaLog.e(
-                    TAG,
-                    "Wrong seek position: $position, for duration: ${mediaInfo.duration}"
-                )
+                MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
                 decoder.pause()
@@ -399,9 +396,7 @@ class tMediaPlayer {
             }
             OptResult.Fail -> {
                 // Seeking fail.
-                if (s is tMediaPlayerState.Seeking) {
-                    dispatchNewState(s.lastState)
-                }
+                dispatchNewState(tMediaPlayerState.Error("Seek error."))
                 bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
                 bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
             }

@@ -112,16 +112,23 @@ internal class tMediaPlayerRenderer(
                                 if (videoRenderBuffer != null) {
                                     // Video frame
                                     val pts = player.getPtsNativeInternal(videoRenderBuffer.nativeBuffer)
-                                    // Calculate current frame render delay.
-                                    val delay = player.calculateRenderDelay(pts)
-                                    val m = Message.obtain()
-                                    m.what = RENDER_VIDEO
-                                    m.obj = videoRenderBuffer
-                                    lastRequestRenderPts.set(pts)
-                                    // Add to render task.
-                                    this.sendMessageDelayed(m, delay)
-                                    // Add to pending.
-                                    pendingRenderVideoBuffers.push(videoRenderBuffer)
+                                    val currentPosition = player.getProgress()
+                                    if (pts >= currentPosition) {
+                                        // Calculate current frame render delay.
+                                        val delay = player.calculateRenderDelay(pts)
+                                        val m = Message.obtain()
+                                        m.what = RENDER_VIDEO
+                                        m.obj = videoRenderBuffer
+                                        lastRequestRenderPts.set(pts)
+                                        // Add to render task.
+                                        this.sendMessageDelayed(m, delay)
+                                        // Add to pending.
+                                        pendingRenderVideoBuffers.push(videoRenderBuffer)
+                                    } else {
+                                        // Skip render, because pts behind current player position.
+                                        MediaLog.e(TAG, "Skip render video frame: pts=$pts, currentPosition=$currentPosition")
+                                        bufferManager.enqueueVideoNativeEncodeBuffer(videoRenderBuffer)
+                                    }
                                 }
 
                                 // Audio
@@ -129,16 +136,23 @@ internal class tMediaPlayerRenderer(
                                     if (!player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
                                         // Audio frame.
                                         val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
-                                        // Calculate current frame render delay.
-                                        val delay = player.calculateRenderDelay(pts)
-                                        val m = Message.obtain()
-                                        m.what = RENDER_AUDIO
-                                        m.obj = audioRenderBuffer
-                                        lastRequestRenderPts.set(pts)
-                                        // Add to render task.
-                                        this.sendMessageDelayed(m, delay)
-                                        // Add to pending.
-                                        pendingRenderAudioBuffers.push(audioRenderBuffer)
+                                        val currentPosition = player.getProgress()
+                                        if (pts >= currentPosition) {
+                                            // Calculate current frame render delay.
+                                            val delay = player.calculateRenderDelay(pts)
+                                            val m = Message.obtain()
+                                            m.what = RENDER_AUDIO
+                                            m.obj = audioRenderBuffer
+                                            lastRequestRenderPts.set(pts)
+                                            // Add to render task.
+                                            this.sendMessageDelayed(m, delay)
+                                            // Add to pending.
+                                            pendingRenderAudioBuffers.push(audioRenderBuffer)
+                                        } else {
+                                            // Skip render, because pts behind current player position.
+                                            MediaLog.e(TAG, "Skip render audio frame: pts=$pts, currentPosition=$currentPosition")
+                                            bufferManager.enqueueAudioNativeEncodeBuffer(audioRenderBuffer)
+                                        }
                                     } else {
                                         // Current frame is last frame, Last frame always is audio frame.
 
