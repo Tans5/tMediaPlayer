@@ -363,6 +363,7 @@ class tMediaPlayer {
         }
         resetProgressAndBaseTime()
         bufferManager.clearRenderData()
+        renderer.removeRenderMessages()
         val np = getMediaInfo()?.nativePlayer
         if (np != null) {
             // Reset native player decode progress.
