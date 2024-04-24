@@ -105,7 +105,11 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         AVCodecParameters *params = video_stream->codecpar;
         this->video_width = params->width;
         this->video_height = params->height;
-        this->video_fps = av_q2d(video_stream->avg_frame_rate);
+        auto frameRate = video_stream->avg_frame_rate;
+        this->video_fps = 0.0;
+        if (frameRate.den != 0) {
+            this->video_fps = av_q2d(frameRate);
+        }
         this->video_codec_id = params->codec_id;
         if (is_request_hw) {
             // Find android hardware codec.

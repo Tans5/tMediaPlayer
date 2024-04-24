@@ -108,7 +108,7 @@ typedef struct tMediaPlayerContext {
     SwsContext * sws_ctx = nullptr;
     int video_width = 0;
     int video_height = 0;
-    double video_fps = 0;
+    double video_fps = 0.0;
     long video_duration = 0;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
