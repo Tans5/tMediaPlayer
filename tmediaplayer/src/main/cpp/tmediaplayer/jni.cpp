@@ -403,6 +403,42 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_durationNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->duration;
 }
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_containVideoStreamNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->video_stream != nullptr;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_containAudioStreamNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->audio_stream != nullptr;
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getMetadataNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    char ** metadata = player->metadata;
+    jclass stringClazz = static_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
+    jobjectArray  jarray = static_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(player->metadataCount * 2, stringClazz, nullptr)));
+    for (int i = 0; i < player->metadataCount; i ++) {
+        jstring key = static_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2])));
+        jstring value = static_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2 + 1])));
+        env->SetObjectArrayElement(jarray, i * 2, key);
+        env->SetObjectArrayElement(jarray, i * 2 + 1, value);
+    }
+    return jarray;
+}
 // endregion
 
 
@@ -442,6 +478,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDurationNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->video_duration;
 }
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoCodecIdNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->video_codec_id;
+}
 // endregion
 
 
@@ -480,5 +525,14 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDurationNative(
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->audio_duration;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioCodecIdNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->audio_codec_id;
 }
 // endregion

@@ -5,7 +5,7 @@ import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.AttributeSet
-import com.tans.tmediaplayer.player.MediaLog
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.render.filter.FilterImageTexture

@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer
 
 import android.util.Log
 

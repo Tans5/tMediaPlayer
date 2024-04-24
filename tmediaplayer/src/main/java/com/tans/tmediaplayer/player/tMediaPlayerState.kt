@@ -1,5 +1,7 @@
 package com.tans.tmediaplayer.player
 
+import com.tans.tmediaplayer.player.model.MediaInfo
+
 @Suppress("ClassName")
 sealed class tMediaPlayerState {
 

@@ -2,6 +2,10 @@ package com.tans.tmediaplayer.player
 
 import android.os.SystemClock
 import androidx.annotation.Keep
+import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.model.AudioStreamInfo
+import com.tans.tmediaplayer.player.model.MediaInfo
+import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.io.File
 import java.util.concurrent.Executors
@@ -308,17 +312,41 @@ class tMediaPlayer {
     }
 
     private fun getMediaInfo(nativePlayer: Long): MediaInfo {
+        val metadata = mutableMapOf<String, String>()
+        val metaDataArray = getMetadataNative(nativePlayer)
+        repeat(metaDataArray.size / 2) {
+            val key = metaDataArray[it * 2]
+            val value = metaDataArray[it * 2 + 1]
+            metadata[key] = value
+        }
+        val audioStreamInfo: AudioStreamInfo? = if (containAudioStreamNative(nativePlayer)) {
+            AudioStreamInfo(
+                audioChannels = audioChannelsNative(nativePlayer),
+                audioSimpleRate = audioSampleRateNative(nativePlayer),
+                audioPreSampleBytes = audioPreSampleBytesNative(nativePlayer),
+                audioDuration = audioDurationNative(nativePlayer),
+                audioCodecId = audioCodecIdNative(nativePlayer)
+            )
+        } else {
+            null
+        }
+        val videoStreamInfo: VideoStreamInfo? = if (containVideoStreamNative(nativePlayer)) {
+            VideoStreamInfo(
+                videoWidth = videoWidthNative(nativePlayer),
+                videoHeight = videoHeightNative(nativePlayer),
+                videoFps = videoFpsNative(nativePlayer),
+                videoDuration = videoDurationNative(nativePlayer),
+                videoCodecId = videoCodecIdNative(nativePlayer)
+            )
+        } else {
+            null
+        }
         return MediaInfo(
             nativePlayer = nativePlayer,
             duration = durationNative(nativePlayer),
-            videoWidth = videoWidthNative(nativePlayer),
-            videoHeight = videoHeightNative(nativePlayer),
-            videoFps = videoFpsNative(nativePlayer),
-            videoDuration = videoDurationNative(nativePlayer),
-            audioChannels = audioChannelsNative(nativePlayer),
-            audioSimpleRate = audioSampleRateNative(nativePlayer),
-            audioPreSampleBytes = audioPreSampleBytesNative(nativePlayer),
-            audioDuration = audioDurationNative(nativePlayer)
+            metadata = metadata,
+            audioStreamInfo = audioStreamInfo,
+            videoStreamInfo = videoStreamInfo
         )
     }
 
@@ -601,6 +629,12 @@ class tMediaPlayer {
 
     // region Native media file info
     private external fun durationNative(nativePlayer: Long): Long
+
+    private external fun containVideoStreamNative(nativePlayer: Long): Boolean
+
+    private external fun containAudioStreamNative(nativePlayer: Long): Boolean
+
+    private external fun getMetadataNative(nativePlayer: Long): Array<String>
     // endregion
 
 
@@ -612,6 +646,8 @@ class tMediaPlayer {
     private external fun videoFpsNative(nativePlayer: Long): Double
 
     private external fun videoDurationNative(nativePlayer: Long): Long
+
+    private external fun videoCodecIdNative(nativePlayer: Long): Int
     // endregion
 
 
@@ -623,6 +659,8 @@ class tMediaPlayer {
     private external fun audioSampleRateNative(nativePlayer: Long): Int
 
     private external fun audioDurationNative(nativePlayer: Long): Long
+
+    private external fun audioCodecIdNative(nativePlayer: Long): Int
     // endregion
 
 

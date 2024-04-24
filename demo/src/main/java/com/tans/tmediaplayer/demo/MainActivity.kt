@@ -82,6 +82,8 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
             val loadResult = mediaPlayer.prepare(testVideoFile.absolutePath)
             when (loadResult) {
                 OptResult.Success -> {
+                    val mediaInfo = mediaPlayer.getMediaInfo()
+                    Log.d(TAG, "MediaInfo=$mediaInfo")
                     delay(100)
                     mediaPlayer.play()
                     Log.d(TAG, "Load media file success.")

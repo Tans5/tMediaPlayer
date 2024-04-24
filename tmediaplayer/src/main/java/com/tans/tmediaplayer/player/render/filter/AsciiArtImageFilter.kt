@@ -9,7 +9,7 @@ import android.graphics.PorterDuff
 import android.opengl.GLES30
 import android.os.SystemClock
 import androidx.annotation.FloatRange
-import com.tans.tmediaplayer.player.MediaLog
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.render.compileShaderProgram
 import com.tans.tmediaplayer.player.render.glGenBuffers
