@@ -29,6 +29,32 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
     }
+    AVDictionaryEntry *metadataLocal = nullptr;
+    int metadataCountLocal = 0;
+    while ((metadataLocal = av_dict_get(format_ctx->metadata, "", metadataLocal, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
+        LOGD("Metadata %s=%s", metadataLocal->key, metadataLocal->value);
+        metadataCountLocal ++;
+    }
+    LOGD("Metadata count: %d", metadataCountLocal);
+    this->metadataCount = metadataCountLocal;
+    if (metadataCount > 0) {
+        this->metadata = static_cast<char **>(malloc(metadataCount * 2 * sizeof(char *)));
+        metadataLocal = nullptr;
+        for (int i = 0; i < metadataCount; i ++) {
+            metadataLocal = av_dict_get(format_ctx->metadata, "", metadataLocal, AV_DICT_IGNORE_SUFFIX);
+            int keyLen = strlen(metadataLocal->key);
+            int valueLen = strlen(metadataLocal->value);
+            char *key = static_cast<char *>(malloc((keyLen + 1) * sizeof(char)));
+            char *value = static_cast<char *>(malloc((valueLen + 1) * sizeof(char)));
+            memcpy(key, metadataLocal->key, keyLen);
+            key[keyLen] = '\0';
+            memcpy(value, metadataLocal->value, valueLen);
+            value[valueLen] = '\0';
+            metadata[i * 2] = key;
+            metadata[i * 2 + 1] = value;
+        }
+    }
+
     result = avformat_find_stream_info(format_ctx, nullptr);
     if (result < 0) {
         LOGE("Avformat find stream info fail: %d", result);
@@ -80,7 +106,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->video_width = params->width;
         this->video_height = params->height;
         this->video_fps = av_q2d(video_stream->avg_frame_rate);
-
+        this->video_codec_id = params->codec_id;
         if (is_request_hw) {
             // Find android hardware codec.
             bool useHwDecoder = true;
@@ -182,6 +208,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     // Audio
     if (audio_stream != nullptr) {
         auto params = audio_stream->codecpar;
+        this->audio_codec_id = params->codec_id;
         this->audio_decoder = avcodec_find_decoder(params->codec_id);
         if (!audio_decoder) {
             LOGE("Didn't find audio decoder.");
@@ -872,33 +899,53 @@ void tMediaPlayerContext::release() {
     if (pkt != nullptr) {
         av_packet_unref(pkt);
         av_packet_free(&pkt);
+        pkt = nullptr;
     }
     if (format_ctx != nullptr) {
         avformat_close_input(&format_ctx);
         avformat_free_context(format_ctx);
+        format_ctx = nullptr;
     }
     if (frame != nullptr) {
         av_frame_free(&frame);
+        frame = nullptr;
+    }
+
+    // metadata
+    if (metadata != nullptr) {
+        for (int i = 0; i < metadataCount; i ++) {
+            char *key = metadata[i * 2];
+            char *value = metadata[i * 2 + 1];
+            free(key);
+            free(value);
+            metadata[i * 2] = nullptr;
+            metadata[i * 2 + 1] = nullptr;
+        }
+        free(metadata);
     }
 
     // Video Release.
     if (video_decoder_ctx != nullptr) {
         avcodec_close(video_decoder_ctx);
         avcodec_free_context(&video_decoder_ctx);
+        video_decoder_ctx = nullptr;
     }
 
     if (sws_ctx != nullptr) {
         sws_freeContext(sws_ctx);
+        sws_ctx = nullptr;
     }
 
     // Audio free.
     if (audio_decoder_ctx != nullptr) {
         avcodec_close(audio_decoder_ctx);
         avcodec_free_context(&audio_decoder_ctx);
+        audio_decoder_ctx = nullptr;
     }
 
     if (swr_ctx != nullptr) {
         swr_free(&swr_ctx);
+        swr_ctx = nullptr;
     }
     free(this);
     LOGD("Release media player");

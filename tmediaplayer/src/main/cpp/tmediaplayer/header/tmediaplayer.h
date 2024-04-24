@@ -84,6 +84,10 @@ typedef struct tMediaPlayerContext {
     long duration = 0;
     bool skipPktRead = false;
 
+
+    int metadataCount = 0;
+    char ** metadata = nullptr;
+
     /**
      * Java
      */
@@ -106,6 +110,7 @@ typedef struct tMediaPlayerContext {
     int video_height = 0;
     double video_fps = 0;
     long video_duration = 0;
+    AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
 
     /**
@@ -123,6 +128,7 @@ typedef struct tMediaPlayerContext {
     AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
     AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
     int audio_output_channels = 2;
+    AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
 
 
     tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
