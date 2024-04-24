@@ -55,6 +55,7 @@ class tMediaPlayer {
         AtomicLong(0L)
     }
 
+    // region Player public methods
     fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
@@ -260,20 +261,6 @@ class tMediaPlayer {
         return getMediaInfoByState(getState())
     }
 
-    private fun getMediaInfoByState(state: tMediaPlayerState): MediaInfo? {
-        return when (state) {
-            tMediaPlayerState.NoInit -> null
-            is tMediaPlayerState.Error -> null
-            is tMediaPlayerState.Released -> null
-            is tMediaPlayerState.Paused -> state.mediaInfo
-            is tMediaPlayerState.PlayEnd -> state.mediaInfo
-            is tMediaPlayerState.Playing -> state.mediaInfo
-            is tMediaPlayerState.Prepared -> state.mediaInfo
-            is tMediaPlayerState.Stopped -> state.mediaInfo
-            is tMediaPlayerState.Seeking -> getMediaInfoByState(state.lastState)
-        }
-    }
-
     fun setListener(l: tMediaPlayerListener?) {
         listener.set(l)
         l?.onPlayerState(getState())
@@ -302,6 +289,23 @@ class tMediaPlayer {
     }
 
     fun getProgress(): Long = progress.get()
+    // endregion
+
+
+    // region Player internal methods.
+    private fun getMediaInfoByState(state: tMediaPlayerState): MediaInfo? {
+        return when (state) {
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Error -> null
+            is tMediaPlayerState.Released -> null
+            is tMediaPlayerState.Paused -> state.mediaInfo
+            is tMediaPlayerState.PlayEnd -> state.mediaInfo
+            is tMediaPlayerState.Playing -> state.mediaInfo
+            is tMediaPlayerState.Prepared -> state.mediaInfo
+            is tMediaPlayerState.Stopped -> state.mediaInfo
+            is tMediaPlayerState.Seeking -> getMediaInfoByState(state.lastState)
+        }
+    }
 
     private fun getMediaInfo(nativePlayer: Long): MediaInfo {
         return MediaInfo(
@@ -457,28 +461,38 @@ class tMediaPlayer {
         basePts.set(0L)
         ptsBaseTime.set(0L)
     }
+    // endregion
 
+
+    // region Native player control methods.
     private external fun createPlayerNative(): Long
 
     private external fun prepareNative(nativePlayer: Long, file: String, requestHw: Boolean, targetAudioChannels: Int): Int
 
-    private external fun durationNative(nativePlayer: Long): Long
+    private external fun resetNative(nativePlayer: Long): Int
 
-    private external fun videoWidthNative(nativePlayer: Long): Int
+    internal fun decodeNativeInternal(nativePlayer: Long): Long {
+        return decodeNative(nativePlayer)
+    }
 
-    private external fun videoHeightNative(nativePlayer: Long): Int
+    private external fun decodeNative(nativePlayer: Long): Long
 
-    private external fun videoFpsNative(nativePlayer: Long): Double
+    internal fun seekToNativeInternal(nativePlayer: Long, videoNativeBuffer: Long, audioNativeBuffer: Long, targetPtsInMillis: Long): Int = seekToNative(nativePlayer, videoNativeBuffer, audioNativeBuffer, targetPtsInMillis)
 
-    private external fun videoDurationNative(nativePlayer: Long): Long
+    private external fun seekToNative(nativePlayer: Long, videoNativeBuffer: Long, audioNativeBuffer: Long, targetPtsInMillis: Long): Int
 
-    private external fun audioChannelsNative(nativePlayer: Long): Int
+    private external fun releaseNative(nativePlayer: Long)
+    // endregion
 
-    private external fun audioPreSampleBytesNative(nativePlayer: Long): Int
 
-    private external fun audioSampleRateNative(nativePlayer: Long): Int
+    // region Native buffer alloc and free.
+    internal fun allocAudioDecodeDataNativeInternal(): Long {
+        val bufferSize = bufferSize.incrementAndGet()
+        MediaLog.d(TAG, "BufferSize: $bufferSize")
+        return allocAudioDecodeDataNative()
+    }
 
-    private external fun audioDurationNative(nativePlayer: Long): Long
+    private external fun allocAudioDecodeDataNative(): Long
 
     internal fun allocVideoDecodeDataNativeInternal(): Long {
         val bufferSize = bufferSize.incrementAndGet()
@@ -488,27 +502,33 @@ class tMediaPlayer {
 
     private external fun allocVideoDecodeDataNative(): Long
 
-    internal fun allocAudioDecodeDataNativeInternal(): Long {
-        val bufferSize = bufferSize.incrementAndGet()
+    internal fun freeDecodeDataNativeInternal(nativeBuffer: Long) {
+        val bufferSize = bufferSize.decrementAndGet()
         MediaLog.d(TAG, "BufferSize: $bufferSize")
-        return allocAudioDecodeDataNative()
+        freeDecodeDataNative(nativeBuffer)
     }
 
-    private external fun allocAudioDecodeDataNative(): Long
+    private external fun freeDecodeDataNative(nativeBuffer: Long)
+    // endregion
 
+
+    // region Native common buffer info
     internal fun getBufferResultNativeInternal(nativeBuffer: Long): Int {
         return getBufferResultNative(nativeBuffer)
     }
 
     private external fun getBufferResultNative(nativeBuffer: Long): Int
 
+    internal fun getPtsNativeInternal(nativeBuffer: Long): Long = getPtsNative(nativeBuffer)
+
+    private external fun getPtsNative(nativeBuffer: Long): Long
+    // endregion
+
+
+    // region Native video buffer info
     internal fun isVideoBufferNativeInternal(nativeBuffer: Long): Boolean = isVideoBufferNative(nativeBuffer)
 
     private external fun isVideoBufferNative(nativeBuffer: Long): Boolean
-
-    internal fun isLastFrameBufferNativeInternal(nativeBuffer: Long): Boolean = isLastFrameBufferNative(nativeBuffer)
-
-    private external fun isLastFrameBufferNative(nativeBuffer: Long): Boolean
 
     internal fun getVideoWidthNativeInternal(nativeBuffer: Long): Int = getVideoWidthNative(nativeBuffer)
 
@@ -517,10 +537,6 @@ class tMediaPlayer {
     internal fun getVideoHeightNativeInternal(nativeBuffer: Long): Int = getVideoHeightNative(nativeBuffer)
 
     private external fun getVideoHeightNative(nativeBuffer: Long): Int
-
-    internal fun getPtsNativeInternal(nativeBuffer: Long): Long = getPtsNative(nativeBuffer)
-
-    private external fun getPtsNative(nativeBuffer: Long): Long
 
     internal fun getVideoFrameTypeNativeInternal(nativeBuffer: Long): Int = getVideoFrameTypeNative(nativeBuffer)
 
@@ -565,6 +581,13 @@ class tMediaPlayer {
     internal fun getVideoFrameUVBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameUVBytesNative(nativeBuffer, bytes)
 
     private external fun getVideoFrameUVBytesNative(nativeBuffer: Long, bytes: ByteArray)
+    // endregion
+
+
+    // region Native audio buffer info
+    internal fun isLastFrameBufferNativeInternal(nativeBuffer: Long): Boolean = isLastFrameBufferNative(nativeBuffer)
+
+    private external fun isLastFrameBufferNative(nativeBuffer: Long): Boolean
 
     internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getAudioFrameBytesNative(nativeBuffer, bytes)
 
@@ -573,30 +596,37 @@ class tMediaPlayer {
     internal fun getAudioFrameSizeNativeInternal(nativeBuffer: Long): Int = getAudioFrameSizeNative(nativeBuffer)
 
     private external fun getAudioFrameSizeNative(nativeBuffer: Long): Int
-
-    internal fun freeDecodeDataNativeInternal(nativeBuffer: Long) {
-        val bufferSize = bufferSize.decrementAndGet()
-        MediaLog.d(TAG, "BufferSize: $bufferSize")
-        freeDecodeDataNative(nativeBuffer)
-    }
-
-    private external fun freeDecodeDataNative(nativeBuffer: Long)
-
-    private external fun resetNative(nativePlayer: Long): Int
-
-    internal fun decodeNativeInternal(nativePlayer: Long): Long {
-        return decodeNative(nativePlayer)
-    }
-
-    private external fun decodeNative(nativePlayer: Long): Long
-
-    internal fun seekToNativeInternal(nativePlayer: Long, videoNativeBuffer: Long, audioNativeBuffer: Long, targetPtsInMillis: Long): Int = seekToNative(nativePlayer, videoNativeBuffer, audioNativeBuffer, targetPtsInMillis)
-
-    private external fun seekToNative(nativePlayer: Long, videoNativeBuffer: Long, audioNativeBuffer: Long, targetPtsInMillis: Long): Int
-
-    private external fun releaseNative(nativePlayer: Long)
+    // endregion
 
 
+    // region Native media file info
+    private external fun durationNative(nativePlayer: Long): Long
+    // endregion
+
+
+    // region Native video stream info
+    private external fun videoWidthNative(nativePlayer: Long): Int
+
+    private external fun videoHeightNative(nativePlayer: Long): Int
+
+    private external fun videoFpsNative(nativePlayer: Long): Double
+
+    private external fun videoDurationNative(nativePlayer: Long): Long
+    // endregion
+
+
+    // region Native audio stream info
+    private external fun audioChannelsNative(nativePlayer: Long): Int
+
+    private external fun audioPreSampleBytesNative(nativePlayer: Long): Int
+
+    private external fun audioSampleRateNative(nativePlayer: Long): Int
+
+    private external fun audioDurationNative(nativePlayer: Long): Long
+    // endregion
+
+
+    // region Native player call java
     /**
      * Call by native code, request video decode buffer on decode thread.
      */
@@ -632,6 +662,7 @@ class tMediaPlayer {
             )
         )
     }
+    // endregion
 
     companion object {
         init {
