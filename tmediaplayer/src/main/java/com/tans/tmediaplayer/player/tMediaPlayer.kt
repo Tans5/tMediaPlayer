@@ -92,7 +92,7 @@ class tMediaPlayer {
             val nativePlayer = createPlayerNative()
             // Load media file by native player.
             val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
-            dispatchProgress(0L)
+            dispatchProgress(0L, true)
             if (result == OptResult.Success) {
                 // Load media file success.
                 val mediaInfo = getMediaInfo(nativePlayer)
@@ -395,7 +395,7 @@ class tMediaPlayer {
                 basePts.set(targetProgress)
                 // Update base time.
                 ptsBaseTime.set(SystemClock.uptimeMillis())
-                dispatchProgress(targetProgress)
+                dispatchProgress(targetProgress, true)
                 if (isLastFrameBufferNative(audioBuffer.nativeBuffer)) {
                     // Current seek frame is last fame.
                     val info = getMediaInfo()
@@ -419,7 +419,7 @@ class tMediaPlayer {
                             bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
                         } else {
                             // Notify renderer to handle seeking buffer, if current state not playing.
-                            renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer, pts = targetProgress)
+                            renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer)
                         }
                         dispatchNewState(lastState)
                     } else {
@@ -447,17 +447,22 @@ class tMediaPlayer {
         return max(0, ptsLen - timeLen)
     }
 
-    internal fun dispatchProgress(progress: Long) {
+    internal fun dispatchProgress(progress: Long, updateForce: Boolean = false) {
         val state = getState()
         if (state !is tMediaPlayerState.PlayEnd && state !is tMediaPlayerState.Error && state !is tMediaPlayerState.Stopped) {
-            val info = getMediaInfo()
-            val lp = lastUpdateProgress.get()
-            this.progress.set(progress)
-            if (info != null && abs(progress - lp) > 80) {
-                lastUpdateProgress.set(progress)
-                callbackExecutor.execute {
-                    listener.get()?.onProgressUpdate(progress, info.duration)
+            val currentProcess = this.progress.get()
+            if (currentProcess <= progress || updateForce) {
+                val info = getMediaInfo()
+                val lp = lastUpdateProgress.get()
+                this.progress.set(progress)
+                if (info != null && abs(progress - lp) > 80) {
+                    lastUpdateProgress.set(progress)
+                    callbackExecutor.execute {
+                        listener.get()?.onProgressUpdate(progress, info.duration)
+                    }
                 }
+            } else {
+                MediaLog.e(TAG, "Skip update progress, updateProgress=$progress, currentProgress=$currentProcess")
             }
         }
     }

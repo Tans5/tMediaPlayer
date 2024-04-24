@@ -43,6 +43,14 @@ internal class tMediaPlayerRenderer(
         LinkedBlockingDeque()
     }
 
+    private val lastAudioRenderPts: AtomicLong by lazy {
+        AtomicLong(0L)
+    }
+
+    private val lastVideoRenderPts: AtomicLong by lazy {
+        AtomicLong(0L)
+    }
+
     private val audioTrack: AudioTrack by lazy {
         val bufferSize = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
         AudioTrack(
@@ -76,11 +84,6 @@ internal class tMediaPlayerRenderer(
     private val state: AtomicReference<tMediaPlayerRendererState> by lazy { AtomicReference(
         tMediaPlayerRendererState.NotInit
     ) }
-
-
-    private val lastRequestRenderPts: AtomicLong by lazy {
-        AtomicLong(0)
-    }
 
     // Renderer handler.
     private val rendererHandler: Handler by lazy {
@@ -118,7 +121,6 @@ internal class tMediaPlayerRenderer(
                                     val m = Message.obtain()
                                     m.what = RENDER_VIDEO
                                     m.obj = videoRenderBuffer
-                                    lastRequestRenderPts.set(pts)
                                     // Add to render task.
                                     this.sendMessageDelayed(m, delay)
                                     // Add to pending.
@@ -136,7 +138,6 @@ internal class tMediaPlayerRenderer(
                                         val m = Message.obtain()
                                         m.what = RENDER_AUDIO
                                         m.obj = audioRenderBuffer
-                                        lastRequestRenderPts.set(pts)
                                         // Add to render task.
                                         this.sendMessageDelayed(m, delay)
                                         // Add to pending.
@@ -145,7 +146,7 @@ internal class tMediaPlayerRenderer(
                                         // Current frame is last frame, Last frame always is audio frame.
 
                                         bufferManager.enqueueAudioNativeEncodeBuffer(audioRenderBuffer)
-                                        val pts = lastRequestRenderPts.get() + 10
+                                        val pts = (player.getMediaInfo()?.duration ?: 0L) + 50L
                                         this.sendEmptyMessageDelayed(
                                             RENDER_END,
                                             player.calculateRenderDelay(pts)
@@ -207,14 +208,13 @@ internal class tMediaPlayerRenderer(
 
                             val view = playerView.get()
                             if (view != null) {
+                                val lastRenderPts = lastVideoRenderPts.get()
                                 val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
-                                val currentPosition = player.getProgress()
-                                if (pts >= currentPosition || pts == 0L) {
+                                if (pts >= lastRenderPts) {
+                                    lastVideoRenderPts.set(pts)
                                     MediaLog.d(TAG, "Render Video: $pts")
-                                    if (msg.arg1 != 1) {
-                                        // Notify to player update progress.
-                                        player.dispatchProgress(pts)
-                                    }
+                                    // Notify to player update progress.
+                                    player.dispatchProgress(pts)
                                     // Contain playerView to render.
                                     val width = player.getVideoWidthNativeInternal(buffer.nativeBuffer)
                                     val height = player.getVideoHeightNativeInternal(buffer.nativeBuffer)
@@ -330,7 +330,7 @@ internal class tMediaPlayerRenderer(
                                     }
                                 } else {
                                     // Skip render, because pts behind current player position.
-                                    MediaLog.e(TAG, "Skip render video frame: pts=$pts, currentPosition=$currentPosition")
+                                    MediaLog.e(TAG, "Skip render video frame: pts=$pts, currentPosition=$lastRenderPts")
                                 }
                             }
                             bufferManager.enqueueVideoNativeEncodeBuffer(buffer)
@@ -348,13 +348,12 @@ internal class tMediaPlayerRenderer(
                         if (buffer != null) {
                             // Remove pending.
                             pendingRenderAudioBuffers.remove(buffer)
-                            val currentPosition = player.getProgress()
+                            val lastRenderPts = lastAudioRenderPts.get()
                             val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
-                            if (pts >= currentPosition || pts == 0L) {
-                                MediaLog.d(TAG, "Render Audio.")
-                                if (msg.arg1 != 1) {
-                                    player.dispatchProgress(pts)
-                                }
+                            if (pts >= lastRenderPts) {
+                                lastAudioRenderPts.set(pts)
+                                MediaLog.d(TAG, "Render Audio: $pts")
+                                player.dispatchProgress(pts)
                                 val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
                                 val javaBuffer = bufferManager.requestJavaBuffer(size)
                                 player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
@@ -369,7 +368,7 @@ internal class tMediaPlayerRenderer(
                                 }
                             } else {
                                 // Skip render, because pts behind current player position.
-                                MediaLog.e(TAG, "Skip render audio frame: pts=$pts, currentPosition=$currentPosition")
+                                MediaLog.e(TAG, "Skip render audio frame: pts=$pts, lastRenderPts=$lastRenderPts")
                             }
                             bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
                             player.renderSuccess()
@@ -401,7 +400,8 @@ internal class tMediaPlayerRenderer(
         rendererHandler.removeMessages(REQUEST_PAUSE)
         removeRenderMessages()
         rendererHandler.removeMessages(RENDER_END)
-        lastRequestRenderPts.set(0L)
+        lastVideoRenderPts.set(0L)
+        lastAudioRenderPts.set(0L)
         state.set(tMediaPlayerRendererState.Prepared)
     }
 
@@ -476,18 +476,14 @@ internal class tMediaPlayerRenderer(
      */
     fun handleSeekingBuffer(
         videoBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer,
-        audioBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer,
-        pts: Long) {
+        audioBuffer: tMediaPlayerBufferManager.Companion.MediaBuffer) {
         val state = getState()
         if (state != tMediaPlayerRendererState.Released && state != tMediaPlayerRendererState.NotInit) {
-            lastRequestRenderPts.set(pts)
             // Video
             if (player.getBufferResultNativeInternal(videoBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
                 val m = Message.obtain()
                 m.what = RENDER_VIDEO
                 m.obj = videoBuffer
-                // Ignore progress update
-                m.arg1 = 1
                 pendingRenderVideoBuffers.add(videoBuffer)
                 rendererHandler.sendMessage(m)
             } else {
@@ -499,8 +495,6 @@ internal class tMediaPlayerRenderer(
                 val m = Message.obtain()
                 m.what = RENDER_AUDIO
                 m.obj = audioBuffer
-                // Ignore progress update
-                m.arg1 = 1
                 pendingRenderAudioBuffers.add(audioBuffer)
                 rendererHandler.sendMessage(m)
             } else {
@@ -522,7 +516,8 @@ internal class tMediaPlayerRenderer(
         rendererThread.quitSafely()
         audioTrack.release()
         this.state.set(tMediaPlayerRendererState.Released)
-        lastRequestRenderPts.set(0L)
+        lastVideoRenderPts.set(0L)
+        lastAudioRenderPts.set(0L)
         playerView.set(null)
     }
 
@@ -533,6 +528,8 @@ internal class tMediaPlayerRenderer(
         // Remove handler messages.
         rendererHandler.removeMessages(RENDER_VIDEO)
         rendererHandler.removeMessages(RENDER_AUDIO)
+        lastVideoRenderPts.set(0L)
+        lastAudioRenderPts.set(0L)
 
         // Move pending render buffer to decode.
         while (pendingRenderVideoBuffers.isNotEmpty()) {
