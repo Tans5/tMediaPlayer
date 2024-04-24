@@ -5,5 +5,5 @@ data class AudioStreamInfo(
     val audioSimpleRate: Int,
     val audioPreSampleBytes: Int,
     val audioDuration: Long,
-    val audioCodecId: Int
+    val audioCodec: FFmpegCodec
 )

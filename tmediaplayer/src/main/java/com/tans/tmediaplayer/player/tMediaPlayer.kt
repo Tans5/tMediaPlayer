@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.model.AudioStreamInfo
+import com.tans.tmediaplayer.player.model.FFmpegCodec
 import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
@@ -320,23 +321,25 @@ class tMediaPlayer {
             metadata[key] = value
         }
         val audioStreamInfo: AudioStreamInfo? = if (containAudioStreamNative(nativePlayer)) {
+            val codecId = audioCodecIdNative(nativePlayer)
             AudioStreamInfo(
                 audioChannels = audioChannelsNative(nativePlayer),
                 audioSimpleRate = audioSampleRateNative(nativePlayer),
                 audioPreSampleBytes = audioPreSampleBytesNative(nativePlayer),
                 audioDuration = audioDurationNative(nativePlayer),
-                audioCodecId = audioCodecIdNative(nativePlayer)
+                audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN
             )
         } else {
             null
         }
         val videoStreamInfo: VideoStreamInfo? = if (containVideoStreamNative(nativePlayer)) {
+            val codecId = videoCodecIdNative(nativePlayer)
             VideoStreamInfo(
                 videoWidth = videoWidthNative(nativePlayer),
                 videoHeight = videoHeightNative(nativePlayer),
                 videoFps = videoFpsNative(nativePlayer),
                 videoDuration = videoDurationNative(nativePlayer),
-                videoCodecId = videoCodecIdNative(nativePlayer)
+                videoCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN
             )
         } else {
             null
