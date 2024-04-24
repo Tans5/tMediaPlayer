@@ -12,7 +12,7 @@
         android:name=".MyApp"
         android:theme="@style/Theme.TMediaPlayer">
         <activity
-            android:name=".MainActivity"
+            android:name=".PlayerActivity"
             android:exported="true"
             android:screenOrientation="landscape"
             android:configChanges="screenSize|orientation">

@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.SeekBar
 import androidx.activity.addCallback
 import com.tans.tmediaplayer.player.OptResult
-import com.tans.tmediaplayer.demo.databinding.ActivityMainBinding
+import com.tans.tmediaplayer.demo.databinding.PlayerActivityBinding
 import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
 import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.tMediaPlayer
@@ -24,9 +24,9 @@ import java.io.File
 import java.io.FileOutputStream
 
 @FullScreenStyle
-class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(State()) {
+class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State>(State()) {
 
-    override val layoutId: Int = R.layout.activity_main
+    override val layoutId: Int = R.layout.player_activity
 
     private val mediaPlayer: tMediaPlayer by lazyViewModelField("mediaPlayer") {
         tMediaPlayer()
@@ -98,7 +98,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
 
     override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
         tMediaFrameLoader
-        val viewBinding = ActivityMainBinding.bind(contentView)
+        val viewBinding = PlayerActivityBinding.bind(contentView)
 
         mediaPlayer.attachPlayerView(viewBinding.playerView)
 

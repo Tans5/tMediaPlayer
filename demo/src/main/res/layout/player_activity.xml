@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:id="@+id/root_layout"
     android:keepScreenOn="true"
-    tools:context=".MainActivity">
+    tools:context=".PlayerActivity">
 
     <com.tans.tmediaplayer.player.render.tMediaPlayerView
         android:id="@+id/player_view"

@@ -1,8 +1,6 @@
 package com.tans.tmediaplayer.demo.glide
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
 import com.bumptech.glide.Priority
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.Options
@@ -10,6 +8,9 @@ import com.bumptech.glide.load.data.DataFetcher
 import com.bumptech.glide.load.model.ModelLoader
 import com.bumptech.glide.load.model.ModelLoaderFactory
 import com.bumptech.glide.load.model.MultiModelLoaderFactory
+import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
+import java.lang.Exception
+import java.util.concurrent.Semaphore
 
 class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
     override fun buildLoadData(
@@ -27,12 +28,14 @@ class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
 
     class MediaImageDataFetcher(private val model: MediaImageModel) : DataFetcher<Bitmap> {
         override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in Bitmap>) {
-            // TODO: not impl
-            println("Load model=$model")
-            val bitmap = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            canvas.drawColor(Color.RED)
-            callback.onDataReady(bitmap)
+            loadSemaphore.acquire()
+            val bitmap = tMediaFrameLoader.loadMediaFileFrame(model.mediaFilePath, model.targetPosition)
+            if (bitmap != null) {
+                callback.onDataReady(bitmap)
+            } else {
+                callback.onLoadFailed(Exception("tMediaFrameLoader load $model fail."))
+            }
+            loadSemaphore.release()
         }
 
         override fun cleanup() {  }
@@ -51,6 +54,11 @@ class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
             }
 
             override fun teardown() {}
+        }
+
+        // Max 5 load jobs.
+        private val loadSemaphore: Semaphore by lazy {
+            Semaphore(5)
         }
     }
 }
