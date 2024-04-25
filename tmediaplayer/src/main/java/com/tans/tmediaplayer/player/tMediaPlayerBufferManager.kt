@@ -131,7 +131,7 @@ internal class tMediaPlayerBufferManager(
      */
     fun enqueueAudioNativeRenderBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
-            audioNativeRenderBuffersDeque.push(buffer)
+            audioNativeRenderBuffersDeque.addLast(buffer)
         } else {
             player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }
@@ -191,7 +191,7 @@ internal class tMediaPlayerBufferManager(
      */
     fun enqueueVideoNativeRenderBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
-            videoNativeRenderBuffersDeque.push(buffer)
+            videoNativeRenderBuffersDeque.addLast(buffer)
         } else {
             player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
         }

@@ -120,11 +120,10 @@ internal class tMediaPlayerRenderer(
                                     val delay = player.calculateRenderDelay(pts)
                                     val m = Message.obtain()
                                     m.what = RENDER_VIDEO
-                                    m.obj = videoRenderBuffer
+                                    // Add to pending.
+                                    pendingRenderVideoBuffers.addLast(videoRenderBuffer)
                                     // Add to render task.
                                     this.sendMessageDelayed(m, delay)
-                                    // Add to pending.
-                                    pendingRenderVideoBuffers.push(videoRenderBuffer)
                                 }
 
                                 // Audio
@@ -137,11 +136,10 @@ internal class tMediaPlayerRenderer(
                                         val delay = player.calculateRenderDelay(pts)
                                         val m = Message.obtain()
                                         m.what = RENDER_AUDIO
-                                        m.obj = audioRenderBuffer
+                                        // Add to pending.
+                                        pendingRenderAudioBuffers.addLast(audioRenderBuffer)
                                         // Add to render task.
                                         this.sendMessageDelayed(m, delay)
-                                        // Add to pending.
-                                        pendingRenderAudioBuffers.push(audioRenderBuffer)
                                     } else {
                                         // Current frame is last frame, Last frame always is audio frame.
 
@@ -201,11 +199,8 @@ internal class tMediaPlayerRenderer(
                      * Render video.
                      */
                     RENDER_VIDEO -> {
-                        val buffer = msg.obj as? tMediaPlayerBufferManager.Companion.MediaBuffer
+                        val buffer = pendingRenderVideoBuffers.pollFirst()
                         if (buffer != null) {
-                            // Remove pending.
-                            pendingRenderVideoBuffers.remove(buffer)
-
                             val view = playerView.get()
                             if (view != null) {
                                 val lastRenderPts = lastVideoRenderPts.get()
@@ -344,7 +339,7 @@ internal class tMediaPlayerRenderer(
                      * Render audio.
                      */
                     RENDER_AUDIO -> {
-                        val buffer = msg.obj as? tMediaPlayerBufferManager.Companion.MediaBuffer
+                        val buffer = pendingRenderAudioBuffers.pollFirst()
                         if (buffer != null) {
                             // Remove pending.
                             pendingRenderAudioBuffers.remove(buffer)
@@ -483,8 +478,7 @@ internal class tMediaPlayerRenderer(
             if (player.getBufferResultNativeInternal(videoBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
                 val m = Message.obtain()
                 m.what = RENDER_VIDEO
-                m.obj = videoBuffer
-                pendingRenderVideoBuffers.add(videoBuffer)
+                pendingRenderVideoBuffers.addLast(videoBuffer)
                 rendererHandler.sendMessage(m)
             } else {
                 bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
@@ -494,8 +488,7 @@ internal class tMediaPlayerRenderer(
             if (player.getBufferResultNativeInternal(audioBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
                 val m = Message.obtain()
                 m.what = RENDER_AUDIO
-                m.obj = audioBuffer
-                pendingRenderAudioBuffers.add(audioBuffer)
+                pendingRenderAudioBuffers.addLast(audioBuffer)
                 rendererHandler.sendMessage(m)
             } else {
                 bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
