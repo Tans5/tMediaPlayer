@@ -796,7 +796,12 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             videoBuffer->type = Rgba;
         }
     }
-    buffer->pts = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
+    auto time_base = video_stream->time_base;
+    if (time_base.den > 0 && frame->pts > 0) {
+        buffer->pts = (long) ((double)frame->pts * av_q2d(time_base) * 1000L);
+    } else {
+        buffer->pts = 0L;
+    }
     buffer->type = BufferTypeVideo;
     return DecodeSuccess;
 }
@@ -822,7 +827,12 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
         audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(output_audio_buffer_size));
     }
     audioBuffer->size = output_audio_buffer_size;
-    buffer->pts = (long) ((double)frame->pts * av_q2d(audio_stream->time_base) * 1000L);
+    auto time_base = audio_stream->time_base;
+    if (time_base.den > 0 && frame->pts > 0) {
+        buffer->pts = (long) ((double)frame->pts * av_q2d(time_base) * 1000L);
+    } else {
+        buffer->pts = 0L;
+    }
     // Convert to target output pcm format data.
     int result = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), output_nb_samples,(const uint8_t **)(frame->data), frame->nb_samples);
     if (result < 0) {
