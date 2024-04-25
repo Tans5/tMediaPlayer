@@ -326,7 +326,7 @@ class tMediaPlayer {
             AudioStreamInfo(
                 audioChannels = audioChannelsNative(nativePlayer),
                 audioSimpleRate = audioSampleRateNative(nativePlayer),
-                audioPreSampleBytes = audioPreSampleBytesNative(nativePlayer),
+                audioPerSampleBytes = audioPerSampleBytesNative(nativePlayer),
                 audioDuration = audioDurationNative(nativePlayer),
                 audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN
             )
@@ -688,7 +688,7 @@ class tMediaPlayer {
     // region Native audio stream info
     private external fun audioChannelsNative(nativePlayer: Long): Int
 
-    private external fun audioPreSampleBytesNative(nativePlayer: Long): Int
+    private external fun audioPerSampleBytesNative(nativePlayer: Long): Int
 
     private external fun audioSampleRateNative(nativePlayer: Long): Int
 

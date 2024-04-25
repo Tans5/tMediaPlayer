@@ -501,12 +501,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioChannelsNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_player_tMediaPlayer_audioPreSampleBytesNative(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioPerSampleBytesNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    return player->audio_pre_sample_bytes;
+    return player->audio_per_sample_bytes;
 }
 
 extern "C" JNIEXPORT jint JNICALL

@@ -234,7 +234,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             return OptFail;
         }
         this->audio_channels = audio_decoder_ctx->ch_layout.nb_channels;
-        this->audio_pre_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
+        this->audio_per_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
         this->audio_simple_rate = audio_decoder_ctx->sample_rate;
         if (target_audio_channels >= 2) {
             this->audio_output_channels = 2;

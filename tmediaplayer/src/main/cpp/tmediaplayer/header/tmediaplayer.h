@@ -121,7 +121,7 @@ typedef struct tMediaPlayerContext {
     AVCodecContext *audio_decoder_ctx = nullptr;
     SwrContext *swr_ctx = nullptr;
     int audio_channels = 0;
-    int audio_pre_sample_bytes = 0;
+    int audio_per_sample_bytes = 0;
     int audio_simple_rate = 0;
     long audio_duration = 0;
     long audio_output_sample_rate = 48000;
