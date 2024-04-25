@@ -313,7 +313,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     audioBuffer->decodeResult = DecodeFail;
                     videoBuffer->is_last_frame = false;
                     audioBuffer->is_last_frame = false;
-                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 40, audio_reset_result < 0, video_reset_result < 0);
+                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 100, audio_reset_result < 0, video_reset_result < 0);
                 }
             } else {
                 return OptFail;
@@ -386,7 +386,15 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
 
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
                 // Already seek to target pts.
-                return OptSuccess;
+                if (skipAudio) {
+                    return OptSuccess;
+                } else {
+                    if (audioDecodeBuffer->decodeResult == DecodeSuccess) {
+                        return OptSuccess;
+                    } else {
+                        return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                    }
+                }
             } else {
                 // Need do more decode to target pts.
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
@@ -421,7 +429,15 @@ tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMedi
             audioDecodeBuffer->decodeResult = parseResult;
             if (targetPtsInMillis - ptsInMillis < minStepInMillis) {
                 // Already seek to target pts.
-                return OptSuccess;
+                if (skipVideo) {
+                    return OptSuccess;
+                } else {
+                    if (videoDecodeBuffer->decodeResult == DecodeSuccess) {
+                        return OptSuccess;
+                    } else {
+                        return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);
+                    }
+                }
             } else {
                 // Need do more decode to target pts.
                 return decodeForSeek(targetPtsInMillis, videoDecodeBuffer, audioDecodeBuffer, minStepInMillis, skipAudio, skipVideo);

@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 
 @Suppress("ClassName")
 @Keep
@@ -385,6 +386,30 @@ class tMediaPlayer {
             // Seeking success.
             OptResult.Success -> {
                 // Get seek buffer's pts.
+                val videoBufferResult = getBufferResultNative(videoBuffer.nativeBuffer).toOptResult()
+                val audioBufferResult = getBufferResultNative(audioBuffer.nativeBuffer).toOptResult()
+                val seekPts = when {
+                    // Video and audio both success.
+                    videoBufferResult == OptResult.Success && audioBufferResult == OptResult.Success -> {
+                        val videoPts = getPtsNative(videoBuffer.nativeBuffer)
+                        val audioPts = getPtsNative(audioBuffer.nativeBuffer)
+                        MediaLog.d(TAG, "Seek audioPts=$audioPts, videoPts=$videoPts")
+                        min(videoPts, audioPts)
+                    }
+                    // Only video success
+                    videoBufferResult == OptResult.Success -> {
+                        val videoPts = getPtsNative(videoBuffer.nativeBuffer)
+                        MediaLog.d(TAG, "Seek videoPts=$videoPts, but audio seek fail.")
+                        videoPts
+                    }
+                    // Only audio success
+                    else -> {
+                        val audioPts = getPtsNative(audioBuffer.nativeBuffer)
+                        MediaLog.d(TAG, "Seek audioPts=$audioPts, but video seek fail.")
+                        audioPts
+                    }
+                }
+                MediaLog.d(TAG, "Seek targetPts=$targetProgress, seekPts=$seekPts")
 
                 // Remove waiting to render data.
                 renderer.removeRenderMessages()
@@ -393,10 +418,10 @@ class tMediaPlayer {
                 // Clear last render data.
                 bufferManager.clearRenderData()
                 // Update base pts.
-                basePts.set(targetProgress)
+                basePts.set(seekPts)
                 // Update base time.
                 ptsBaseTime.set(SystemClock.uptimeMillis())
-                dispatchProgress(targetProgress, true)
+                dispatchProgress(seekPts, true)
                 if (isLastFrameBufferNative(audioBuffer.nativeBuffer)) {
                     // Current seek frame is last fame.
                     val info = getMediaInfo()
