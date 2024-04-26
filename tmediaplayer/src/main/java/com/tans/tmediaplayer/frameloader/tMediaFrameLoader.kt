@@ -1,6 +1,8 @@
 package com.tans.tmediaplayer.frameloader
 
 import android.graphics.Bitmap
+import android.os.SystemClock
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.player.toOptResult
 import java.io.File
@@ -21,6 +23,7 @@ object tMediaFrameLoader {
     ): Bitmap? {
         val file = File(mediaFile)
         if (file.isFile && file.canRead()) {
+            val start = SystemClock.uptimeMillis()
             val nativeLoader = createFrameLoaderNative()
             try {
                 var result = prepareNative(nativeLoader, mediaFile).toOptResult()
@@ -46,6 +49,8 @@ object tMediaFrameLoader {
                 return bitmap
             } finally {
                 releaseNative(nativeLoader)
+                val end = SystemClock.uptimeMillis()
+                MediaLog.d(TAG, "Load frame $mediaFile: position=$position, needRealTime=$needRealTime, cost=${end - start}ms")
             }
         } else {
             return null
@@ -69,4 +74,6 @@ object tMediaFrameLoader {
     private external fun getVideoFrameRgbaBytesNative(nativeFrameLoader: Long, byteArray: ByteArray)
 
     private external fun releaseNative(nativeFrameLoader: Long)
+
+    private const val TAG = "tMediaFrameLoader"
 }

@@ -9,8 +9,12 @@ import com.bumptech.glide.load.model.ModelLoader
 import com.bumptech.glide.load.model.ModelLoaderFactory
 import com.bumptech.glide.load.model.MultiModelLoaderFactory
 import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
-import java.lang.Exception
+import java.util.concurrent.Executor
 import java.util.concurrent.Semaphore
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy
+import java.util.concurrent.TimeUnit
 
 class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
     override fun buildLoadData(
@@ -28,14 +32,16 @@ class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
 
     class MediaImageDataFetcher(private val model: MediaImageModel) : DataFetcher<Bitmap> {
         override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in Bitmap>) {
-            loadSemaphore.acquire()
-            val bitmap = tMediaFrameLoader.loadMediaFileFrame(model.mediaFilePath, model.targetPosition)
-            if (bitmap != null) {
-                callback.onDataReady(bitmap)
-            } else {
-                callback.onLoadFailed(Exception("tMediaFrameLoader load $model fail."))
+            loadExecutor.execute {
+                loadSemaphore.acquire()
+                val bitmap = tMediaFrameLoader.loadMediaFileFrame(model.mediaFilePath, model.targetPosition)
+                if (bitmap != null) {
+                    callback.onDataReady(bitmap)
+                } else {
+                    callback.onLoadFailed(Exception("tMediaFrameLoader load $model fail."))
+                }
+                loadSemaphore.release()
             }
-            loadSemaphore.release()
         }
 
         override fun cleanup() {  }
@@ -56,9 +62,20 @@ class MediaImageModelLoader : ModelLoader<MediaImageModel, Bitmap> {
             override fun teardown() {}
         }
 
-        // Max 5 load jobs.
+        private const val MAX_JOBS = 5
+
+        // Max 10 load jobs.
         private val loadSemaphore: Semaphore by lazy {
-            Semaphore(5)
+            Semaphore(MAX_JOBS)
+        }
+
+        private val loadExecutor: Executor by lazy {
+            ThreadPoolExecutor(
+                0, MAX_JOBS,
+                60L, TimeUnit.SECONDS,
+                SynchronousQueue(),
+                CallerRunsPolicy()
+            )
         }
     }
 }

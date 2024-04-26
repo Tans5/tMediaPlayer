@@ -11,6 +11,7 @@ import com.tans.tuiutils.adapter.impl.builders.SimpleAdapterBuilderImpl
 import com.tans.tuiutils.adapter.impl.databinders.DataBinderImpl
 import com.tans.tuiutils.adapter.impl.datasources.FlowDataSourceImpl
 import com.tans.tuiutils.adapter.impl.viewcreatators.SingleItemViewCreatorImpl
+import com.tans.tuiutils.dialog.dp2px
 import com.tans.tuiutils.fragment.BaseCoroutineStateFragment
 import com.tans.tuiutils.mediastore.MediaStoreVideo
 import com.tans.tuiutils.mediastore.queryVideoFromMediaStore
@@ -56,7 +57,7 @@ class VideosFragment : BaseCoroutineStateFragment<VideosFragment.Companion.State
 
         ViewCompat.setOnApplyWindowInsetsListener(viewBinding.videosRv) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, systemBars.bottom)
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, systemBars.bottom + requireContext().dp2px(8))
             insets
         }
     }
