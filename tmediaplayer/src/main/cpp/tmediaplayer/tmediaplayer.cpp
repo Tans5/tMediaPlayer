@@ -299,6 +299,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     LOGE("Seek audio progress fail: %d", audio_reset_result);
                 }
             }
+            skipPktRead = false;
             if (video_reset_result >=0 || audio_reset_result >= 0) {
                 if (!needDecode) {
                     return OptSuccess;
@@ -566,7 +567,7 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             // Copy frame data to audio decode buffer.
             auto parseResult = parseDecodeAudioFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
-                LOGD("Decode audio success: %ld, buffer rgbaSize: %d, cost: %ld ms", buffer->pts, buffer->audioBuffer->size, get_time_millis() - start_time);
+                LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", buffer->pts, buffer->audioBuffer->size, get_time_millis() - start_time);
             }
             buffer->decodeResult = parseResult;
             return buffer;
