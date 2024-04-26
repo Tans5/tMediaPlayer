@@ -1,5 +1,7 @@
 package com.tans.tmediaplayer.demo
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -20,8 +22,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
 
 @FullScreenStyle
 class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State>(State()) {
@@ -31,8 +31,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
     private val mediaPlayer: tMediaPlayer by lazyViewModelField("mediaPlayer") {
         tMediaPlayer()
     }
-
-    private val fileName = "gokuraku2.mp4"
 
     private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE
 
@@ -59,15 +57,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
 
     override fun CoroutineScope.firstLaunchInitDataCoroutine() {
         launch(Dispatchers.IO) {
-            val testVideoFile = File(filesDir, fileName)
-            if (!testVideoFile.exists()) {
-                testVideoFile.createNewFile()
-                FileOutputStream(testVideoFile).buffered().use { outputStream ->
-                    assets.open(fileName).buffered().use { inputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                }
-            }
 
             mediaPlayer.setListener(object : tMediaPlayerListener {
                 override fun onPlayerState(state: tMediaPlayerState) {
@@ -79,7 +68,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 }
             })
 
-            val loadResult = mediaPlayer.prepare(testVideoFile.absolutePath)
+            val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
             when (loadResult) {
                 OptResult.Success -> {
                     val mediaInfo = mediaPlayer.getMediaInfo()
@@ -261,14 +250,17 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         mediaPlayer.release()
     }
 
-    private fun Long.formatDuration(): String {
-        val durationInSeconds = this / 1000
-        val minuets = durationInSeconds / 60
-        val seconds = durationInSeconds % 60
-        return "%02d:%02d".format(minuets, seconds)
-    }
-
     companion object {
+
+        private const val MEDIA_FILE_EXTRA = "media_file_extra"
+
+        fun createIntent(context: Context, mediaFile: String): Intent {
+            val intent = Intent(context, PlayerActivity::class.java)
+            intent.putExtra(MEDIA_FILE_EXTRA, mediaFile)
+            return intent
+        }
+
+        private fun Intent.getMediaFileExtra(): String = this.getStringExtra(MEDIA_FILE_EXTRA) ?: ""
 
         data class Progress(
             val progress: Long = 0L,
