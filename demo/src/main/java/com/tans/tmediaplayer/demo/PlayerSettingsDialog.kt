@@ -41,7 +41,7 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
         val playerView = this.playerView ?: return
         val viewBinding = PlayerSettingsDialogBinding.bind(view)
 
-        viewBinding.colorReverseSw.isChecked = playerView.getScaleType() == tMediaPlayerView.Companion.ScaleType.CenterCrop
+        viewBinding.cropImageSw.isChecked = playerView.getScaleType() == tMediaPlayerView.Companion.ScaleType.CenterCrop
         viewBinding.cropImageSw.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterCrop)

@@ -69,8 +69,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
             when (loadResult) {
                 OptResult.Success -> {
-                    val mediaInfo = mediaPlayer.getMediaInfo()
-                    Log.d(TAG, "MediaInfo=$mediaInfo")
                     delay(100)
                     mediaPlayer.play()
                     Log.d(TAG, "Load media file success.")
@@ -172,6 +170,16 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 }
             }
         })
+
+        viewBinding.infoIv.clicks(this) {
+            val info = mediaPlayer.getMediaInfo()
+            if (info != null) {
+                viewBinding.actionLayout.hide()
+                val d = MediaInfoDialog(info)
+                d.show(supportFragmentManager, "MediaInfoDialog#${System.currentTimeMillis()}")
+            }
+
+        }
 
         viewBinding.settingsIv.clicks(this) {
             viewBinding.actionLayout.hide()
