@@ -10,11 +10,9 @@ import androidx.activity.addCallback
 import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.demo.databinding.PlayerActivityBinding
 import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
-import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.tMediaPlayer
 import com.tans.tmediaplayer.player.tMediaPlayerListener
 import com.tans.tmediaplayer.player.tMediaPlayerState
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import com.tans.tuiutils.activity.BaseCoroutineStateActivity
 import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks
@@ -138,14 +136,10 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         }
 
         viewBinding.rootLayout.clicks(this) {
-            if (viewBinding.settingsLayout.isVisible()) {
-                viewBinding.settingsLayout.hide()
+            if (viewBinding.actionLayout.isVisible()) {
+                viewBinding.actionLayout.hide()
             } else {
-                if (viewBinding.actionLayout.isVisible()) {
-                    viewBinding.actionLayout.hide()
-                } else {
-                    viewBinding.actionLayout.show()
-                }
+                viewBinding.actionLayout.show()
             }
         }
 
@@ -180,62 +174,12 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         })
 
         viewBinding.settingsIv.clicks(this) {
-            viewBinding.settingsLayout.show()
             viewBinding.actionLayout.hide()
+            val d = PlayerSettingsDialog(playerView = viewBinding.playerView)
+            d.show(supportFragmentManager, "PlayerSettingsDialog#${System.currentTimeMillis()}}")
         }
 
-        viewBinding.cropImageSw.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                viewBinding.playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterCrop)
-            } else {
-                viewBinding.playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterFit)
-            }
-        }
-
-        viewBinding.asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
-            viewBinding.playerView.enableAsciiArtFilter(isChecked)
-            viewBinding.playerView.requestRender()
-        }
-
-        val asciiArtFilter = viewBinding.playerView.getAsciiArtImageFilter()
-
-        viewBinding.charReverseSw.setOnCheckedChangeListener { _, isChecked ->
-            asciiArtFilter.reverseChar(isChecked)
-            viewBinding.playerView.requestRender()
-        }
-
-        viewBinding.colorReverseSw.setOnCheckedChangeListener { _, isChecked ->
-            asciiArtFilter.reverseColor(isChecked)
-            viewBinding.playerView.requestRender()
-        }
-
-        viewBinding.charWidthSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()).toInt()
-                    asciiArtFilter.setCharLineWidth(requestWidth)
-                    viewBinding.playerView.requestRender()
-                    viewBinding.charWidthTv.text = "Char Width: $requestWidth"
-                }
-            }
-        })
-
-        viewBinding.imageColorFillRateSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(seekBar: SeekBar?) { }
-            override fun onStopTrackingTouch(seekBar: SeekBar?) { }
-
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val requestRate = progress.toFloat() / 100.0f
-                    asciiArtFilter.colorFillRate(requestRate)
-                    viewBinding.imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
-                    viewBinding.playerView.requestRender()
-                }
-            }
-        })
+        viewBinding.actionLayout.setOnClickListener {  }
     }
 
     override fun onPause() {

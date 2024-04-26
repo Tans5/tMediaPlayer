@@ -68,13 +68,19 @@ class AsciiArtImageFilter : ImageFilter {
         charLineWidth.set(min(max(MIN_CHAR_LINE_WIDTH, width), MAX_CHAR_LINE_WIDTH))
     }
 
+    fun getCharLineWith(): Int = charLineWidth.get()
+
     fun reverseChar(reverse: Boolean) {
         reverseChar.set(reverse)
     }
 
+    fun isReverseChar(): Boolean = reverseChar.get()
+
     fun reverseColor(reverse: Boolean) {
         reverseColor.set(reverse)
     }
+
+    fun isReverseColor(): Boolean = reverseColor.get()
 
     fun colorFillRate(
         @FloatRange(from = 0.0, to = 1.0)
@@ -82,6 +88,8 @@ class AsciiArtImageFilter : ImageFilter {
     ) {
         colorFillRate.set(min(1.0f, max(0.0f, rate)))
     }
+
+    fun getColorFillRate(): Float = colorFillRate.get()
 
     override fun enable(enable: Boolean) {
         isEnable.set(enable)
