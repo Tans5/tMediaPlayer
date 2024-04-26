@@ -20,7 +20,7 @@ import kotlin.math.min
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer(
-    maxNativeAudioBufferSize: Int = 30,
+    maxNativeAudioBufferSize: Int = 50,
     maxNativeVideoBufferSize: Int = 10,
     singleSizeJavaBufferSize: Int = 5
 ) {
@@ -491,8 +491,10 @@ class tMediaPlayer(
                 this.progress.set(progress)
                 if (info != null && abs(progress - lp) > 80) {
                     lastUpdateProgress.set(progress)
-                    callbackExecutor.execute {
-                        listener.get()?.onProgressUpdate(progress, info.duration)
+                    if (state is tMediaPlayerState.Playing) {
+                        callbackExecutor.execute {
+                            listener.get()?.onProgressUpdate(progress, info.duration)
+                        }
                     }
                 }
             } else {

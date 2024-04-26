@@ -54,7 +54,7 @@ internal class tMediaPlayerDecoder(
                          */
                         DECODE_MEDIA_FRAME -> {
                             if (state == tMediaPlayerDecoderState.Decoding) {
-                                if ((bufferManager.isVideoDecodeBufferCanUse() && bufferManager.isAudioDecodeBufferCanUse()) || player.getPendingRenderAudioBufferSize() < 2 || player.getPendingRenderVideoBufferSize() < 2) {
+                                if (bufferManager.isVideoDecodeBufferCanUse() && bufferManager.isAudioDecodeBufferCanUse()) {
                                     val nativePlayer = player.getMediaInfo()?.nativePlayer
                                     if (nativePlayer != null) {
 

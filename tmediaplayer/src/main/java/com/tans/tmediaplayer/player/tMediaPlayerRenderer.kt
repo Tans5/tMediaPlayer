@@ -334,14 +334,12 @@ internal class tMediaPlayerRenderer(
                             val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
                             val javaBuffer = bufferManager.requestJavaBuffer(size)
                             player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
-                            audioTrackExecutor.execute {
-                                try {
-                                    audioTrack.write(javaBuffer.bytes, 0, javaBuffer.size)
-                                } catch (e: Throwable) {
-                                    e.printStackTrace()
-                                } finally {
-                                    bufferManager.enqueueJavaBuffer(javaBuffer)
-                                }
+                            try {
+                                audioTrack.write(javaBuffer.bytes, 0, javaBuffer.size)
+                            } catch (e: Throwable) {
+                                e.printStackTrace()
+                            } finally {
+                                bufferManager.enqueueJavaBuffer(javaBuffer)
                             }
                             bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
                             player.renderSuccess()
@@ -394,7 +392,7 @@ internal class tMediaPlayerRenderer(
      */
     fun audioTrackPause() {
         try {
-            if (audioTrack.playState == AudioTrack.PLAYSTATE_PAUSED) {
+            if (audioTrack.playState != AudioTrack.PLAYSTATE_PAUSED) {
                 audioTrack.pause()
             }
         } catch (e: Throwable) {
@@ -530,11 +528,6 @@ internal class tMediaPlayerRenderer(
         private const val RENDER_END = 5
         private const val TAG = "tMediaPlayerRender"
 
-        private val audioTrackExecutor: Executor by lazy {
-            Executors.newSingleThreadExecutor {
-                Thread(it, "tMediaTrackAudioTrackThread")
-            }
-        }
     }
 
 }

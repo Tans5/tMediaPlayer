@@ -11,9 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger
 @Suppress("ClassName")
 internal class tMediaPlayerBufferManager(
     private val player: tMediaPlayer,
-    private val maxNativeAudioBufferSize: Int = 30,
-    private val maxNativeVideoBufferSize: Int = 10,
-    private val singleSizeJavaBufferSize: Int = 5) {
+    private val maxNativeAudioBufferSize: Int,
+    private val maxNativeVideoBufferSize: Int,
+    private val singleSizeJavaBufferSize: Int) {
 
     private val isReleased: AtomicBoolean by lazy {
         AtomicBoolean(false)
