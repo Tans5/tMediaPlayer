@@ -13,6 +13,7 @@ constraintlayout = "2.1.4"
 corouines = "1.8.0"
 tuiutils = "1.0.5"
 glide = "4.16.0"
+swiperefreshlayout = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -29,6 +30,7 @@ coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutin
 tuiutils = { group = "io.github.tans5", name = "tuiutils", version.ref = "tuiutils"}
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide"}
 glide-codegen = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name="swiperefreshlayout",  version.ref="swiperefreshlayout"}
 
 
 [plugins]
