@@ -116,12 +116,12 @@ internal class tMediaPlayerBufferManager(
         if (!isReleased.get()) {
             if (hasAllocAudioNativeBufferSize.get() > maxNativeAudioBufferSize) {
                 hasAllocAudioNativeBufferSize.decrementAndGet()
-                player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+                player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
             } else {
                 audioNativeDecodeBuffersDeque.push(buffer)
             }
         } else {
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
         }
     }
 
@@ -133,7 +133,7 @@ internal class tMediaPlayerBufferManager(
         if (!isReleased.get()) {
             audioNativeRenderBuffersDeque.addLast(buffer)
         } else {
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
         }
     }
 
@@ -176,12 +176,12 @@ internal class tMediaPlayerBufferManager(
         if (!isReleased.get()) {
             if (hasAllocVideoNativeBufferSize.get() > maxNativeVideoBufferSize) {
                 hasAllocVideoNativeBufferSize.decrementAndGet()
-                player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+                player.freeDecodeDataNativeInternal(buffer.nativeBuffer, true)
             } else {
                 videoNativeDecodeBuffersDeque.push(buffer)
             }
         } else {
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer, true)
         }
     }
 
@@ -193,7 +193,7 @@ internal class tMediaPlayerBufferManager(
         if (!isReleased.get()) {
             videoNativeRenderBuffersDeque.addLast(buffer)
         } else {
-            player.freeDecodeDataNativeInternal(buffer.nativeBuffer)
+            player.freeDecodeDataNativeInternal(buffer.nativeBuffer, true)
         }
     }
 
@@ -274,13 +274,13 @@ internal class tMediaPlayerBufferManager(
             while (audioNativeDecodeBuffersDeque.isNotEmpty()) {
                 val b = audioNativeDecodeBuffersDeque.pollFirst()
                 if (b != null) {
-                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer, false)
                 }
             }
             while (audioNativeRenderBuffersDeque.isNotEmpty()) {
                 val b = audioNativeRenderBuffersDeque.pollFirst()
                 if (b != null) {
-                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer, false)
                 }
             }
 
@@ -289,13 +289,13 @@ internal class tMediaPlayerBufferManager(
             while (videoNativeDecodeBuffersDeque.isNotEmpty()) {
                 val b = videoNativeDecodeBuffersDeque.pollFirst()
                 if (b != null) {
-                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer, true)
                 }
             }
             while (videoNativeRenderBuffersDeque.isNotEmpty()) {
                 val b = videoNativeRenderBuffersDeque.pollFirst()
                 if (b != null) {
-                    player.freeDecodeDataNativeInternal(b.nativeBuffer)
+                    player.freeDecodeDataNativeInternal(b.nativeBuffer, true)
                 }
             }
 

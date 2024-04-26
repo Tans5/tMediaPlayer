@@ -140,7 +140,7 @@ internal class tMediaPlayerDecoder(
                                 } else {
                                     // no decode buffer to use, waiting renderer release buffer.
                                     this@tMediaPlayerDecoder.state.set(tMediaPlayerDecoderState.WaitingRender)
-                                    MediaLog.d(TAG, "Waiting render buffer.")
+                                    MediaLog.d(TAG, "Waiting render buffer, videoEncodeBufferCanUse=${bufferManager.isVideoDecodeBufferCanUse()}, audioEncodeBufferCanUse=${bufferManager.isAudioDecodeBufferCanUse()}")
                                 }
                             } else {
                                 MediaLog.d(TAG, "Skip decode frame, because of state: $state")

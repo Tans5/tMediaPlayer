@@ -70,26 +70,26 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                 if (this->video_stream != nullptr) {
                     LOGE("Find multiple video stream, skip it.");
                 } else {
-                    LOGD("Find video stream.");
                     this->video_stream = s;
-                    if (s->nb_frames > 1) {
+                    if (s->time_base.den > 0 && s->duration > 0) {
                         this->video_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
                     } else {
                         this->video_duration = 0L;
                     }
+                    LOGD("Find video stream: duration=%ld", video_duration);
                 }
                 break;
             case AVMEDIA_TYPE_AUDIO:
                 if (this->audio_stream != nullptr) {
                     LOGE("Find multiple audio stream, skip it.");
                 } else {
-                    LOGD("Find audio stream.");
                     this->audio_stream = s;
-                    if (s->nb_frames > 1) {
+                    if (s->time_base.den > 0 && s->duration > 0) {
                         this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
                     } else {
                         this->audio_duration = 0L;
                     }
+                    LOGD("Find audio stream: duration=%ld", audio_duration);
                 }
                 break;
             default:
@@ -103,7 +103,6 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         return OptFail;
     }
 
-    LOGD("Audio duration: %ld, video duration: %ld", audio_duration, video_duration);
     // Video
     if (video_stream != nullptr) {
         AVCodecParameters *params = video_stream->codecpar;
@@ -111,7 +110,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->video_height = params->height;
         auto frameRate = video_stream->avg_frame_rate;
         this->video_fps = 0.0;
-        if (frameRate.den != 0) {
+        if (frameRate.den > 0 && frameRate.num > 0) {
             this->video_fps = av_q2d(frameRate);
         }
         this->video_codec_id = params->codec_id;
@@ -256,7 +255,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     // decode need buffers.
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
-    int64_t fmt_duration = format_ctx->duration;
+
     this->duration = format_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000L;
 
     return OptSuccess;
@@ -283,7 +282,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                 return OptFail;
             }
             int video_reset_result = -1, audio_reset_result = -1;
-            if (video_stream != nullptr) {
+            if (video_stream != nullptr && video_fps > 0.0f) {
                 avcodec_flush_buffers(video_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
                 video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);

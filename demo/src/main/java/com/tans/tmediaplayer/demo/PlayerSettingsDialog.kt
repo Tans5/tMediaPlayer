@@ -72,13 +72,12 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
         }
 
 
-        viewBinding.charWidthSb.progress = ((asciiArtFilter.getCharLineWith().toFloat() - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()) / (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() * 100.0f).toInt()
         viewBinding.charWidthSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
 
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()).toInt()
+                val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat() + 0.5f).toInt()
                 if (fromUser) {
                     asciiArtFilter.setCharLineWidth(requestWidth)
                     playerView.requestRender()
@@ -86,8 +85,8 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 viewBinding.charWidthTv.text = "Char Width: $requestWidth"
             }
         })
+        viewBinding.charWidthSb.progress = ((asciiArtFilter.getCharLineWith().toFloat() - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat()) / (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() * 100.0f + 0.5f).toInt()
 
-        viewBinding.imageColorFillRateSb.progress = (asciiArtFilter.getColorFillRate() * 100.0f).toInt()
         viewBinding.imageColorFillRateSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) { }
             override fun onStopTrackingTouch(seekBar: SeekBar?) { }
@@ -101,5 +100,6 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 viewBinding.imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
             }
         })
+        viewBinding.imageColorFillRateSb.progress = (asciiArtFilter.getColorFillRate() * 100.0f + 0.5f).toInt()
     }
 }

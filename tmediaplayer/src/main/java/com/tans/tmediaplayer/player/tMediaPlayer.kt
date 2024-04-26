@@ -20,7 +20,7 @@ import kotlin.math.min
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer(
-    maxNativeAudioBufferSize: Int = 50,
+    maxNativeAudioBufferSize: Int = 300,
     maxNativeVideoBufferSize: Int = 10,
     singleSizeJavaBufferSize: Int = 5
 ) {
@@ -563,24 +563,29 @@ class tMediaPlayer(
 
     // region Native buffer alloc and free.
     internal fun allocAudioDecodeDataNativeInternal(): Long {
-        val bufferSize = bufferSize.incrementAndGet()
-        MediaLog.d(TAG, "BufferSize: $bufferSize")
+        val bufferSize = audioBufferSize.incrementAndGet()
+        MediaLog.d(TAG, "AudioBufferSize: $bufferSize")
         return allocAudioDecodeDataNative()
     }
 
     private external fun allocAudioDecodeDataNative(): Long
 
     internal fun allocVideoDecodeDataNativeInternal(): Long {
-        val bufferSize = bufferSize.incrementAndGet()
-        MediaLog.d(TAG, "BufferSize: $bufferSize")
+        val bufferSize = videoBufferSize.incrementAndGet()
+        MediaLog.d(TAG, "VideoBufferSize: $bufferSize")
         return allocVideoDecodeDataNative()
     }
 
     private external fun allocVideoDecodeDataNative(): Long
 
-    internal fun freeDecodeDataNativeInternal(nativeBuffer: Long) {
-        val bufferSize = bufferSize.decrementAndGet()
-        MediaLog.d(TAG, "BufferSize: $bufferSize")
+    internal fun freeDecodeDataNativeInternal(nativeBuffer: Long, isVideo: Boolean) {
+        if (isVideo) {
+            val bufferSize = videoBufferSize.decrementAndGet()
+            MediaLog.d(TAG, "VideoBufferSize: $bufferSize")
+        } else {
+            val bufferSize = audioBufferSize.decrementAndGet()
+            MediaLog.d(TAG, "AudioBufferSize: $bufferSize")
+        }
         freeDecodeDataNative(nativeBuffer)
     }
 
@@ -761,6 +766,8 @@ class tMediaPlayer(
             }
         }
 
-        private val bufferSize: AtomicInteger = AtomicInteger(0)
+        private val videoBufferSize: AtomicInteger = AtomicInteger(0)
+
+        private val audioBufferSize: AtomicInteger = AtomicInteger(0)
     }
 }
