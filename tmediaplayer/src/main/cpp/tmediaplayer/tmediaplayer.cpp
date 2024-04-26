@@ -252,11 +252,8 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     // decode need buffers.
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
-    if (video_duration > audio_duration) {
-        this->duration = video_duration;
-    } else {
-        this->duration = audio_duration;
-    }
+    int64_t fmt_duration = format_ctx->duration;
+    this->duration = format_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000L;
 
     return OptSuccess;
 }
