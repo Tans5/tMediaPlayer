@@ -3,6 +3,7 @@ package com.tans.tmediaplayer.demo
 import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tans.tmediaplayer.demo.databinding.AudioItemLayoutBinding
 import com.tans.tmediaplayer.demo.databinding.AudiosFragmentBinding
@@ -35,25 +36,38 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
         viewBinding.refreshLayout.refreshes(this, Dispatchers.IO) {
             refreshAudios()
         }
-        val adapter = SimpleAdapterBuilderImpl<MediaStoreAudio>(
+        val glideLoadManager = Glide.with(this@AudiosFragment)
+        glideLoadManager.resumeRequests()
+        val adapter = SimpleAdapterBuilderImpl<AudioAndLoadModel>(
             itemViewCreator = SingleItemViewCreatorImpl(R.layout.audio_item_layout),
             dataSource = FlowDataSourceImpl(stateFlow().map { it.audios }),
-            dataBinder = DataBinderImpl { data, view, _ ->
+            dataBinder = DataBinderImpl { (audio, loadModel), view, _ ->
                 val itemViewBinding = AudioItemLayoutBinding.bind(view)
-                itemViewBinding.titleTv.text = data.title
-                itemViewBinding.artistAlbumTv.text = "${data.artist}-${data.album}"
-                itemViewBinding.durationTv.text = data.duration.formatDuration()
-                Glide.with(this@AudiosFragment)
-                    .load(MediaImageModel(data.file?.canonicalPath ?: "", 0L))
+                itemViewBinding.titleTv.text = audio.title
+                itemViewBinding.artistAlbumTv.text = "${audio.artist}-${audio.album}"
+                itemViewBinding.durationTv.text = audio.duration.formatDuration()
+                glideLoadManager
+                    .load(loadModel)
                     .error(R.drawable.ic_audio)
                     .placeholder(R.drawable.ic_audio)
                     .into(itemViewBinding.audioImgIv)
                 itemViewBinding.root.clicks(this) {
-                    startActivity(PlayerActivity.createIntent(requireActivity(), data.file?.canonicalPath ?: ""))
+                    startActivity(PlayerActivity.createIntent(requireActivity(), audio.file?.canonicalPath ?: ""))
                 }
             }
         ).build()
         viewBinding.audiosRv.adapter = adapter
+
+        viewBinding.audiosRv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    glideLoadManager.resumeRequests()
+                } else {
+                    glideLoadManager.pauseRequests()
+                }
+            }
+        })
 
         ViewCompat.setOnApplyWindowInsetsListener(viewBinding.audiosRv) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -63,15 +77,31 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
     }
 
     private fun refreshAudios() {
-        val audios = queryAudioFromMediaStore().sortedByDescending { it.dateModified }.filter { it.file != null }
+        val audios = queryAudioFromMediaStore()
+            .sortedByDescending { it.dateModified }
+            .filter { it.file != null }
+            .map {
+                AudioAndLoadModel(
+                    audio = it,
+                    loadModel = MediaImageModel(
+                        mediaFilePath = it.file?.canonicalPath ?: "",
+                        targetPosition = 0L,
+                        keyId = it.albumId
+                    )
+                )
+            }
         updateState {
             it.copy(audios = audios)
         }
     }
 
     companion object {
+        data class AudioAndLoadModel(
+            val audio: MediaStoreAudio,
+            val loadModel: MediaImageModel
+        )
         data class State(
-            val audios: List<MediaStoreAudio> = emptyList()
+            val audios: List<AudioAndLoadModel> = emptyList()
         )
     }
 }

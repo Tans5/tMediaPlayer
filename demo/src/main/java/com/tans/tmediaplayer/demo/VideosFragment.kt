@@ -3,6 +3,7 @@ package com.tans.tmediaplayer.demo
 import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tans.tmediaplayer.demo.databinding.VideoItemLayoutBinding
 import com.tans.tmediaplayer.demo.databinding.VideosFragmentBinding
@@ -35,25 +36,38 @@ class VideosFragment : BaseCoroutineStateFragment<VideosFragment.Companion.State
         viewBinding.refreshLayout.refreshes(this, Dispatchers.IO) {
             refreshVideos()
         }
-        val adapter = SimpleAdapterBuilderImpl<MediaStoreVideo>(
+        val glideLoadManager = Glide.with(this@VideosFragment)
+        glideLoadManager.resumeRequests()
+        val adapter = SimpleAdapterBuilderImpl<VideoAndLoadModel>(
             itemViewCreator = SingleItemViewCreatorImpl(R.layout.video_item_layout),
             dataSource = FlowDataSourceImpl(stateFlow().map { it.videos }),
-            dataBinder = DataBinderImpl { data, view, _ ->
+            dataBinder = DataBinderImpl { (video, loadModel), view, _ ->
                 val itemViewBinding = VideoItemLayoutBinding.bind(view)
-                itemViewBinding.videoTitleTv.text = data.displayName
-                itemViewBinding.videoDurationTv.text = data.duration.formatDuration()
-                Glide.with(this@VideosFragment)
-                    .load(MediaImageModel(data.file?.canonicalPath ?: "", 10000L))
+                itemViewBinding.videoTitleTv.text = video.displayName
+                itemViewBinding.videoDurationTv.text = video.duration.formatDuration()
+                glideLoadManager
+                    .load(loadModel)
                     .error(R.drawable.ic_movie)
                     .placeholder(R.drawable.ic_movie)
                     .into(itemViewBinding.videoIv)
 
                 itemViewBinding.root.clicks(this) {
-                    startActivity(PlayerActivity.createIntent(requireActivity(), data.file?.canonicalPath ?: ""))
+                    startActivity(PlayerActivity.createIntent(requireActivity(), video.file?.canonicalPath ?: ""))
                 }
             }
         ).build()
         viewBinding.videosRv.adapter = adapter
+
+        viewBinding.videosRv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    glideLoadManager.resumeRequests()
+                } else {
+                    glideLoadManager.pauseRequests()
+                }
+            }
+        })
 
         ViewCompat.setOnApplyWindowInsetsListener(viewBinding.videosRv) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -63,15 +77,33 @@ class VideosFragment : BaseCoroutineStateFragment<VideosFragment.Companion.State
     }
 
     private fun refreshVideos() {
-        val videos = queryVideoFromMediaStore().sortedByDescending { it.dateModified }.filter { it.file != null }
+        val videos = queryVideoFromMediaStore()
+            .sortedByDescending { it.dateModified }
+            .filter { it.file != null }
+            .map {
+                VideoAndLoadModel(
+                    video = it,
+                    loadModel = MediaImageModel(
+                        mediaFilePath = it.file?.canonicalPath ?: "",
+                        targetPosition = 10000L,
+                        keyId = it.id
+                    )
+                )
+            }
         updateState {
             it.copy(videos = videos)
         }
     }
 
     companion object {
+
+        data class VideoAndLoadModel(
+            val video: MediaStoreVideo,
+            val loadModel: MediaImageModel
+        )
+
         data class State(
-            val videos: List<MediaStoreVideo> = emptyList()
+            val videos: List<VideoAndLoadModel> = emptyList()
         )
     }
 }
