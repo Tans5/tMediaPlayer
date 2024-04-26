@@ -85,7 +85,11 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                 } else {
                     LOGD("Find audio stream.");
                     this->audio_stream = s;
-                    this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
+                    if (s->nb_frames > 1) {
+                        this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
+                    } else {
+                        this->audio_duration = 0L;
+                    }
                 }
                 break;
             default:
