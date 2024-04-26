@@ -543,6 +543,10 @@ internal class tMediaPlayerRenderer(
         playerView.set(view)
     }
 
+    fun getPendingRenderVideoBufferSize(): Int = pendingRenderVideoBuffers.size
+
+    fun getPendingRenderAudioBufferSize(): Int = pendingRenderAudioBuffers.size
+
     fun getState(): tMediaPlayerRendererState = state.get()
 
     companion object {

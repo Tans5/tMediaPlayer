@@ -501,6 +501,10 @@ class tMediaPlayer(
         }
     }
 
+    internal fun getPendingRenderVideoBufferSize(): Int = renderer.getPendingRenderVideoBufferSize()
+
+    internal fun getPendingRenderAudioBufferSize(): Int = renderer.getPendingRenderAudioBufferSize()
+
     /**
      * Contain new buffer to decode.
      */
