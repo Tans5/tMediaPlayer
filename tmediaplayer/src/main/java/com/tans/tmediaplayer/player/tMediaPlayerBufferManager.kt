@@ -13,7 +13,8 @@ internal class tMediaPlayerBufferManager(
     private val player: tMediaPlayer,
     private val maxNativeAudioBufferSize: Int,
     private val maxNativeVideoBufferSize: Int,
-    private val singleSizeJavaBufferSize: Int) {
+    private val singleJavaBufferSize: Int,
+    private val initSingleJavaBufferSize: Int) {
 
     private val isReleased: AtomicBoolean by lazy {
         AtomicBoolean(false)
@@ -227,6 +228,9 @@ internal class tMediaPlayerBufferManager(
             if (it == null) {
                 val l = LinkedBlockingDeque<JavaBuffer>()
                 javaBuffers[size] = l
+                repeat(initSingleJavaBufferSize) {
+                    l.addLast(JavaBuffer(size, ByteArray(size)))
+                }
                 l
             } else {
                 it
@@ -254,8 +258,8 @@ internal class tMediaPlayerBufferManager(
                     it
                 }
             }
-            if (cacheList.size < singleSizeJavaBufferSize) {
-                cacheList.push(javaBuffer)
+            if (cacheList.size < singleJavaBufferSize) {
+                cacheList.addLast(javaBuffer)
             }
         }
     }

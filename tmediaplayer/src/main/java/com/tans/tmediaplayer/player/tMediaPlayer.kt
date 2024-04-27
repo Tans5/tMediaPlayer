@@ -22,7 +22,8 @@ import kotlin.math.min
 class tMediaPlayer(
     maxNativeAudioBufferSize: Int = 300,
     maxNativeVideoBufferSize: Int = 15,
-    singleSizeJavaBufferSize: Int = 5
+    singleJavaBufferSize: Int = 5,
+    initSingleJavaBufferSize: Int = 2
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -38,7 +39,8 @@ class tMediaPlayer(
             player = this,
             maxNativeAudioBufferSize = maxNativeAudioBufferSize,
             maxNativeVideoBufferSize = maxNativeVideoBufferSize,
-            singleSizeJavaBufferSize = singleSizeJavaBufferSize)
+            singleJavaBufferSize = singleJavaBufferSize,
+            initSingleJavaBufferSize = initSingleJavaBufferSize)
     }
 
     private val decoder: tMediaPlayerDecoder by lazy {
