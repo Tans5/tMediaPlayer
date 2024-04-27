@@ -227,9 +227,6 @@ internal class tMediaPlayerBufferManager(
             if (it == null) {
                 val l = LinkedBlockingDeque<JavaBuffer>()
                 javaBuffers[size] = l
-                repeat(singleSizeJavaBufferSize) {
-                    l.push(JavaBuffer(size = size, bytes = ByteArray(size)))
-                }
                 l
             } else {
                 it
@@ -258,7 +255,7 @@ internal class tMediaPlayerBufferManager(
                 }
             }
             if (cacheList.size < singleSizeJavaBufferSize) {
-                cacheList.addLast(javaBuffer)
+                cacheList.push(javaBuffer)
             }
         }
     }

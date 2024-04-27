@@ -12,6 +12,7 @@ import com.tans.tmediaplayer.player.render.filter.FilterImageTexture
 import com.tans.tmediaplayer.player.render.texconverter.RgbaImageTextureConverter
 import com.tans.tmediaplayer.player.render.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.player.render.texconverter.Yuv420spImageTextureConverter
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -69,13 +70,18 @@ class tMediaPlayerView : GLSurfaceView {
 
     fun getScaleType(): ScaleType = this.scaleType.get()
 
-    fun requestRenderRgbaFrame(width: Int, height: Int, imageBytes: ByteArray) {
+    fun requestRenderRgbaFrame(width: Int, height: Int, imageBytes: ByteArray, callback: Runnable? = null) {
         val imageData = ImageData(
             imageWidth = width,
             imageHeight = height,
-            imageRawData = ImageRawData.RgbaRawData(rgbaBytes = imageBytes)
+            imageRawData = ImageRawData.RgbaRawData(rgbaBytes = imageBytes),
+            callback
         )
-        nextRenderFrame.set(imageData)
+        nextRenderFrame.getAndSet(imageData)?.let {
+            if (it.hasInvokedCallback.compareAndSet(false, true)) {
+                it.callback?.run()
+            }
+        }
         requestRender()
     }
 
@@ -84,7 +90,8 @@ class tMediaPlayerView : GLSurfaceView {
         height: Int,
         yBytes: ByteArray,
         uBytes: ByteArray,
-        vBytes: ByteArray) {
+        vBytes: ByteArray,
+        callback: Runnable? = null) {
         val imageData = ImageData(
             imageWidth = width,
             imageHeight = height,
@@ -92,9 +99,14 @@ class tMediaPlayerView : GLSurfaceView {
                 yBytes = yBytes,
                 uBytes = uBytes,
                 vBytes = vBytes
-            )
+            ),
+            callback = callback
         )
-        nextRenderFrame.set(imageData)
+        nextRenderFrame.getAndSet(imageData)?.let {
+            if (it.hasInvokedCallback.compareAndSet(false, true)) {
+                it.callback?.run()
+            }
+        }
         requestRender()
     }
 
@@ -102,7 +114,8 @@ class tMediaPlayerView : GLSurfaceView {
         width: Int,
         height: Int,
         yBytes: ByteArray,
-        uvBytes: ByteArray
+        uvBytes: ByteArray,
+        callback: Runnable? = null
     ) {
         val imageData = ImageData(
             imageWidth = width,
@@ -111,9 +124,14 @@ class tMediaPlayerView : GLSurfaceView {
                 yBytes = yBytes,
                 uvBytes = uvBytes,
                 yuv420spType = Yuv420spType.Nv12
-            )
+            ),
+            callback = callback
         )
-        nextRenderFrame.set(imageData)
+        nextRenderFrame.getAndSet(imageData)?.let {
+            if (it.hasInvokedCallback.compareAndSet(false, true)) {
+                it.callback?.run()
+            }
+        }
         requestRender()
     }
 
@@ -121,7 +139,8 @@ class tMediaPlayerView : GLSurfaceView {
         width: Int,
         height: Int,
         yBytes: ByteArray,
-        vuBytes: ByteArray
+        vuBytes: ByteArray,
+        callback: Runnable? = null
     ) {
         val imageData = ImageData(
             imageWidth = width,
@@ -130,9 +149,14 @@ class tMediaPlayerView : GLSurfaceView {
                 yBytes = yBytes,
                 uvBytes = vuBytes,
                 yuv420spType = Yuv420spType.Nv21
-            )
+            ),
+            callback = callback
         )
-        nextRenderFrame.set(imageData)
+        nextRenderFrame.getAndSet(imageData)?.let {
+            if (it.hasInvokedCallback.compareAndSet(false, true)) {
+                it.callback?.run()
+            }
+        }
         requestRender()
     }
 
@@ -185,7 +209,7 @@ class tMediaPlayerView : GLSurfaceView {
         override fun onDrawFrame(gl: GL10) {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
-            val imageData = this@tMediaPlayerView.nextRenderFrame.get()
+            val imageData =  this@tMediaPlayerView.nextRenderFrame.get()
             if (rendererData != null && screenSize != null && imageData != null) {
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
                 val texConverter = when (imageData.imageRawData) {
@@ -265,6 +289,9 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
+                if (imageData.hasInvokedCallback.compareAndSet(false, true)) {
+                    imageData.callback?.run()
+                }
             }
         }
 
@@ -312,7 +339,9 @@ class tMediaPlayerView : GLSurfaceView {
         data class ImageData(
             val imageWidth: Int,
             val imageHeight: Int,
-            val imageRawData: ImageRawData
+            val imageRawData: ImageRawData,
+            val callback: Runnable?,
+            val hasInvokedCallback: AtomicBoolean = AtomicBoolean(false)
         )
 
         private data class Point(

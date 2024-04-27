@@ -13,8 +13,8 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.system.measureTimeMillis
 
 /**
  * Render video frames by [tMediaPlayerView], render audio frames by [AudioTrack].
@@ -193,129 +193,135 @@ internal class tMediaPlayerRenderer(
                     RENDER_VIDEO -> {
                         val buffer = pendingRenderVideoBuffers.pollFirst()
                         if (buffer != null) {
-                            val view = playerView.get()
-                            if (view != null) {
-                                val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
-                                MediaLog.d(TAG, "Render Video: $pts")
-                                // Notify to player update progress.
-                                player.dispatchProgress(pts)
-                                // Contain playerView to render.
-                                val width = player.getVideoWidthNativeInternal(buffer.nativeBuffer)
-                                val height = player.getVideoHeightNativeInternal(buffer.nativeBuffer)
-                                // Render different image type.
-                                when (player.getVideoFrameTypeNativeInternal(buffer.nativeBuffer)
-                                    .toImageRawType()) {
-                                    ImageRawType.Yuv420p -> {
-                                        val ySize =
-                                            player.getVideoFrameYSizeNativeInternal(buffer.nativeBuffer)
-                                        val yJavaBuffer = bufferManager.requestJavaBuffer(ySize)
-                                        val uSize =
-                                            player.getVideoFrameUSizeNativeInternal(buffer.nativeBuffer)
-                                        val uJavaBuffer = bufferManager.requestJavaBuffer(uSize)
-                                        val vSize =
-                                            player.getVideoFrameVSizeNativeInternal(buffer.nativeBuffer)
-                                        val vJavaBuffer = bufferManager.requestJavaBuffer(vSize)
-                                        player.getVideoFrameYBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            yJavaBuffer.bytes
-                                        )
-                                        player.getVideoFrameUBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            uJavaBuffer.bytes
-                                        )
-                                        player.getVideoFrameVBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            vJavaBuffer.bytes
-                                        )
-                                        view.requestRenderYuv420pFrame(
-                                            width = width,
-                                            height = height,
-                                            yBytes = yJavaBuffer.bytes,
-                                            uBytes = uJavaBuffer.bytes,
-                                            vBytes = vJavaBuffer.bytes
-                                        )
-                                        bufferManager.enqueueJavaBuffer(yJavaBuffer)
-                                        bufferManager.enqueueJavaBuffer(uJavaBuffer)
-                                        bufferManager.enqueueJavaBuffer(vJavaBuffer)
-                                    }
+                            val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
+                            val cost = measureTimeMillis {
+                                val view = playerView.get()
+                                if (view != null) {
+                                    // Notify to player update progress.
+                                    player.dispatchProgress(pts)
+                                    // Contain playerView to render.
+                                    val width = player.getVideoWidthNativeInternal(buffer.nativeBuffer)
+                                    val height = player.getVideoHeightNativeInternal(buffer.nativeBuffer)
+                                    // Render different image type.
+                                    when (player.getVideoFrameTypeNativeInternal(buffer.nativeBuffer)
+                                        .toImageRawType()) {
+                                        ImageRawType.Yuv420p -> {
+                                            val ySize =
+                                                player.getVideoFrameYSizeNativeInternal(buffer.nativeBuffer)
+                                            val yJavaBuffer = bufferManager.requestJavaBuffer(ySize)
+                                            val uSize =
+                                                player.getVideoFrameUSizeNativeInternal(buffer.nativeBuffer)
+                                            val uJavaBuffer = bufferManager.requestJavaBuffer(uSize)
+                                            val vSize =
+                                                player.getVideoFrameVSizeNativeInternal(buffer.nativeBuffer)
+                                            val vJavaBuffer = bufferManager.requestJavaBuffer(vSize)
+                                            player.getVideoFrameYBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                yJavaBuffer.bytes
+                                            )
+                                            player.getVideoFrameUBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                uJavaBuffer.bytes
+                                            )
+                                            player.getVideoFrameVBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                vJavaBuffer.bytes
+                                            )
+                                            view.requestRenderYuv420pFrame(
+                                                width = width,
+                                                height = height,
+                                                yBytes = yJavaBuffer.bytes,
+                                                uBytes = uJavaBuffer.bytes,
+                                                vBytes = vJavaBuffer.bytes
+                                            ) {
+                                                bufferManager.enqueueJavaBuffer(yJavaBuffer)
+                                                bufferManager.enqueueJavaBuffer(uJavaBuffer)
+                                                bufferManager.enqueueJavaBuffer(vJavaBuffer)
+                                            }
+                                        }
 
-                                    ImageRawType.Nv12 -> {
-                                        val ySize =
-                                            player.getVideoFrameYSizeNativeInternal(buffer.nativeBuffer)
-                                        val yJavaBuffer = bufferManager.requestJavaBuffer(ySize)
-                                        val uvSize =
-                                            player.getVideoFrameUVSizeNativeInternal(buffer.nativeBuffer)
-                                        val uvJavaBuffer = bufferManager.requestJavaBuffer(uvSize)
-                                        player.getVideoFrameYBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            yJavaBuffer.bytes
-                                        )
-                                        player.getVideoFrameUVBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            uvJavaBuffer.bytes
-                                        )
-                                        view.requestRenderNv12Frame(
-                                            width = width,
-                                            height = height,
-                                            yBytes = yJavaBuffer.bytes,
-                                            uvBytes = uvJavaBuffer.bytes
-                                        )
-                                        bufferManager.enqueueJavaBuffer(yJavaBuffer)
-                                        bufferManager.enqueueJavaBuffer(uvJavaBuffer)
-                                    }
+                                        ImageRawType.Nv12 -> {
+                                            val ySize =
+                                                player.getVideoFrameYSizeNativeInternal(buffer.nativeBuffer)
+                                            val yJavaBuffer = bufferManager.requestJavaBuffer(ySize)
+                                            val uvSize =
+                                                player.getVideoFrameUVSizeNativeInternal(buffer.nativeBuffer)
+                                            val uvJavaBuffer = bufferManager.requestJavaBuffer(uvSize)
+                                            player.getVideoFrameYBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                yJavaBuffer.bytes
+                                            )
+                                            player.getVideoFrameUVBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                uvJavaBuffer.bytes
+                                            )
+                                            view.requestRenderNv12Frame(
+                                                width = width,
+                                                height = height,
+                                                yBytes = yJavaBuffer.bytes,
+                                                uvBytes = uvJavaBuffer.bytes
+                                            ) {
+                                                bufferManager.enqueueJavaBuffer(yJavaBuffer)
+                                                bufferManager.enqueueJavaBuffer(uvJavaBuffer)
+                                            }
+                                        }
 
-                                    ImageRawType.Nv21 -> {
-                                        val ySize =
-                                            player.getVideoFrameYSizeNativeInternal(buffer.nativeBuffer)
-                                        val yJavaBuffer = bufferManager.requestJavaBuffer(ySize)
-                                        val vuSize =
-                                            player.getVideoFrameUVSizeNativeInternal(buffer.nativeBuffer)
-                                        val vuJavaBuffer = bufferManager.requestJavaBuffer(vuSize)
-                                        player.getVideoFrameYBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            yJavaBuffer.bytes
-                                        )
-                                        player.getVideoFrameUVBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            vuJavaBuffer.bytes
-                                        )
-                                        view.requestRenderNv21Frame(
-                                            width = width,
-                                            height = height,
-                                            yBytes = yJavaBuffer.bytes,
-                                            vuBytes = vuJavaBuffer.bytes
-                                        )
-                                        bufferManager.enqueueJavaBuffer(yJavaBuffer)
-                                        bufferManager.enqueueJavaBuffer(vuJavaBuffer)
-                                    }
+                                        ImageRawType.Nv21 -> {
+                                            val ySize =
+                                                player.getVideoFrameYSizeNativeInternal(buffer.nativeBuffer)
+                                            val yJavaBuffer = bufferManager.requestJavaBuffer(ySize)
+                                            val vuSize =
+                                                player.getVideoFrameUVSizeNativeInternal(buffer.nativeBuffer)
+                                            val vuJavaBuffer = bufferManager.requestJavaBuffer(vuSize)
+                                            player.getVideoFrameYBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                yJavaBuffer.bytes
+                                            )
+                                            player.getVideoFrameUVBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                vuJavaBuffer.bytes
+                                            )
+                                            view.requestRenderNv21Frame(
+                                                width = width,
+                                                height = height,
+                                                yBytes = yJavaBuffer.bytes,
+                                                vuBytes = vuJavaBuffer.bytes
+                                            ) {
+                                                bufferManager.enqueueJavaBuffer(yJavaBuffer)
+                                                bufferManager.enqueueJavaBuffer(vuJavaBuffer)
+                                            }
+                                        }
 
-                                    ImageRawType.Rgba -> {
-                                        val bufferSize =
-                                            player.getVideoFrameRgbaSizeNativeInternal(buffer.nativeBuffer)
-                                        val javaBuffer = bufferManager.requestJavaBuffer(bufferSize)
-                                        player.getVideoFrameRgbaBytesNativeInternal(
-                                            buffer.nativeBuffer,
-                                            javaBuffer.bytes
-                                        )
-                                        view.requestRenderRgbaFrame(
-                                            width = width,
-                                            height = height,
-                                            imageBytes = javaBuffer.bytes
-                                        )
-                                        bufferManager.enqueueJavaBuffer(javaBuffer)
-                                    }
+                                        ImageRawType.Rgba -> {
+                                            val bufferSize =
+                                                player.getVideoFrameRgbaSizeNativeInternal(buffer.nativeBuffer)
+                                            val javaBuffer = bufferManager.requestJavaBuffer(bufferSize)
+                                            player.getVideoFrameRgbaBytesNativeInternal(
+                                                buffer.nativeBuffer,
+                                                javaBuffer.bytes
+                                            )
+                                            view.requestRenderRgbaFrame(
+                                                width = width,
+                                                height = height,
+                                                imageBytes = javaBuffer.bytes
+                                            ) {
+                                                bufferManager.enqueueJavaBuffer(javaBuffer)
+                                            }
+                                        }
 
-                                    ImageRawType.Unknown -> {
-                                        MediaLog.e(
-                                            TAG,
-                                            "Render video frame fail. Unknown frame type."
-                                        )
+                                        ImageRawType.Unknown -> {
+                                            MediaLog.e(
+                                                TAG,
+                                                "Render video frame fail. Unknown frame type."
+                                            )
+                                        }
                                     }
                                 }
+                                bufferManager.enqueueVideoNativeEncodeBuffer(buffer)
+                                // Notify to player render success.
+                                player.renderSuccess()
                             }
-                            bufferManager.enqueueVideoNativeEncodeBuffer(buffer)
-                            // Notify to player render success.
-                            player.renderSuccess()
+                            MediaLog.d(TAG, "Render Video: pts=$pts, cost=$cost")
                         }
                         Unit
                     }
@@ -326,23 +332,25 @@ internal class tMediaPlayerRenderer(
                     RENDER_AUDIO -> {
                         val buffer = pendingRenderAudioBuffers.pollFirst()
                         if (buffer != null) {
-                            // Remove pending.
-                            pendingRenderAudioBuffers.remove(buffer)
                             val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
-                            MediaLog.d(TAG, "Render Audio: $pts")
-                            player.dispatchProgress(pts)
-                            val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
-                            val javaBuffer = bufferManager.requestJavaBuffer(size)
-                            player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
-                            try {
-                                audioTrack.write(javaBuffer.bytes, 0, javaBuffer.size)
-                            } catch (e: Throwable) {
-                                e.printStackTrace()
-                            } finally {
-                                bufferManager.enqueueJavaBuffer(javaBuffer)
+                            val cost = measureTimeMillis {
+                                player.dispatchProgress(pts)
+                                val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
+                                val javaBuffer = bufferManager.requestJavaBuffer(size)
+                                player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
+                                audioTrackWriteExecutor.execute {
+                                    try {
+                                        audioTrack.write(javaBuffer.bytes, 0, javaBuffer.size)
+                                    } catch (e: Throwable) {
+                                        e.printStackTrace()
+                                    } finally {
+                                        bufferManager.enqueueJavaBuffer(javaBuffer)
+                                    }
+                                }
+                                bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
+                                player.renderSuccess()
                             }
-                            bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
-                            player.renderSuccess()
+                            MediaLog.d(TAG, "Render Audio: pts=$pts, cost=$cost")
                         }
                         Unit
                     }
@@ -378,12 +386,14 @@ internal class tMediaPlayerRenderer(
      * Audio track play.
      */
     fun audioTrackPlay() {
-        try {
-            if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
-                audioTrack.play()
+        audioTrackWriteExecutor.execute {
+            try {
+                if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                    audioTrack.play()
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
             }
-        } catch (e: Throwable) {
-            e.printStackTrace()
         }
     }
 
@@ -391,12 +401,14 @@ internal class tMediaPlayerRenderer(
      * Audio track pause
      */
     fun audioTrackPause() {
-        try {
-            if (audioTrack.playState != AudioTrack.PLAYSTATE_PAUSED) {
-                audioTrack.pause()
+        audioTrackWriteExecutor.execute {
+            try {
+                if (audioTrack.playState != AudioTrack.PLAYSTATE_PAUSED) {
+                    audioTrack.pause()
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
             }
-        } catch (e: Throwable) {
-            e.printStackTrace()
         }
     }
 
@@ -404,10 +416,12 @@ internal class tMediaPlayerRenderer(
      * Clear audio track data.
      */
     fun audioTrackFlush() {
-        try {
-            audioTrack.flush()
-        } catch (e: Throwable) {
-            e.printStackTrace()
+        audioTrackWriteExecutor.execute {
+            try {
+                audioTrack.flush()
+            } catch (e: Throwable) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -481,7 +495,9 @@ internal class tMediaPlayerRenderer(
         rendererHandler.removeMessages(RENDER_END)
         rendererThread.quit()
         rendererThread.quitSafely()
-        audioTrack.release()
+        audioTrackWriteExecutor.execute {
+            audioTrack.release()
+        }
         this.state.set(tMediaPlayerRendererState.Released)
         playerView.set(null)
     }
@@ -527,6 +543,13 @@ internal class tMediaPlayerRenderer(
         private const val RENDER_AUDIO = 4
         private const val RENDER_END = 5
         private const val TAG = "tMediaPlayerRender"
+
+
+        private val audioTrackWriteExecutor: Executor by lazy {
+            Executors.newSingleThreadExecutor {
+                Thread(it, "tMediaPlayerAudioTrackThread")
+            }
+        }
 
     }
 
