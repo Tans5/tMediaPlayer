@@ -21,7 +21,7 @@ import kotlin.math.min
 @Keep
 class tMediaPlayer(
     maxNativeAudioBufferSize: Int = 300,
-    maxNativeVideoBufferSize: Int = 10,
+    maxNativeVideoBufferSize: Int = 15,
     singleSizeJavaBufferSize: Int = 5
 ) {
 
