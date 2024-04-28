@@ -10,6 +10,9 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_createAudioTrackNative(
     env->GetJavaVM(&jvm);
     auto audioTrack = new tMediaAudioTrackContext;
     audioTrack->jvm = jvm;
+    audioTrack->j_audioTrack = env->NewGlobalRef(j_audio_track);
+    jclass clazz = reinterpret_cast<jclass>(env ->NewLocalRef(env->FindClass("com/tans/tmediaplayer/audiotrack/tMediaAudioTrack")));
+    audioTrack->j_callbackMethodId = env->GetMethodID(clazz, "audioTrackQueueCallback", "()V");
     return reinterpret_cast<jlong>(audioTrack);
 }
 
@@ -67,6 +70,10 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_releaseNative(
         jobject j_audio_track,
         jlong native_audio_track) {
     auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
+    audioTrack->jvm = nullptr;
+    env->DeleteGlobalRef(audioTrack->j_audioTrack);
+    audioTrack->j_audioTrack = nullptr;
+    audioTrack->j_callbackMethodId = nullptr;
     return audioTrack->release();
 }
 

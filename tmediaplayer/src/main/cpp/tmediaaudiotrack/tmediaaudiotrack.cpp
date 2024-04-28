@@ -3,14 +3,28 @@
 
 void playerBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
 
-    // TODO: Callback.
-//    if (context == nullptr) {
-//        return;
-//    }
-//    tMediaAudioTrackContext *audioTrackContext = reinterpret_cast<tMediaAudioTrackContext *>(context);
-//    if (bq != audioTrackContext->playerBufferQueueInterface) {
-//        return;
-//    }
+    if (context == nullptr) {
+        return;
+    }
+    tMediaAudioTrackContext *audioTrackContext = reinterpret_cast<tMediaAudioTrackContext *>(context);
+    if (bq != audioTrackContext->playerBufferQueueInterface) {
+        return;
+    }
+    JNIEnv *env = nullptr;
+    audioTrackContext->jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    if (env == nullptr) {
+        JavaVMAttachArgs jvmAttachArgs {
+                .version = JNI_VERSION_1_6,
+                .name = "AudioTrackCallback",
+                .group = nullptr
+        };
+        auto result = audioTrackContext->jvm->AttachCurrentThread(&env, &jvmAttachArgs);
+        if (result != JNI_OK) {
+            LOGE("Audio track callback attach java thread fail.");
+            return;
+        }
+    }
+    env->CallVoidMethod(audioTrackContext->j_audioTrack, audioTrackContext->j_callbackMethodId);
     return;
 }
 
@@ -150,7 +164,6 @@ void tMediaAudioTrackContext::release() {
         engineObject = nullptr;
         engineInterface = nullptr;
     }
-    jvm = nullptr;
     free(this);
     LOGD("Audio track released.");
 }

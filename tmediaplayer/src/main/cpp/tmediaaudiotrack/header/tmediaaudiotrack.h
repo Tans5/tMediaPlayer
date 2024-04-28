@@ -25,6 +25,8 @@ typedef struct tMediaAudioTrackContext {
     SLuint32 inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
 
     JavaVM *jvm = nullptr;
+    jobject j_audioTrack = nullptr;
+    jmethodID j_callbackMethodId = nullptr;
 
     tMediaOptResult prepare(unsigned int bufferQueueSize);
 
