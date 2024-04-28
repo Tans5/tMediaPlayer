@@ -48,6 +48,8 @@ internal class tMediaPlayerRenderer(
         tMediaAudioTrack(audioTrackBufferQueueSize) {
             val b = renderingAudioBuffers.pollFirst()
             if (b != null) {
+                val pts = player.getPtsNativeInternal(b.nativeBuffer)
+                player.dispatchProgress(pts)
                 bufferManager.enqueueAudioNativeEncodeBuffer(b)
             }
         }
@@ -195,8 +197,6 @@ internal class tMediaPlayerRenderer(
                             val cost = measureTimeMillis {
                                 val view = playerView.get()
                                 if (view != null) {
-                                    // Notify to player update progress.
-                                    player.dispatchProgress(pts)
                                     // Contain playerView to render.
                                     val width = player.getVideoWidthNativeInternal(buffer.nativeBuffer)
                                     val height = player.getVideoHeightNativeInternal(buffer.nativeBuffer)
@@ -235,6 +235,8 @@ internal class tMediaPlayerRenderer(
                                                 bufferManager.enqueueJavaBuffer(yJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(uJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(vJavaBuffer)
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                             }
                                         }
 
@@ -261,6 +263,8 @@ internal class tMediaPlayerRenderer(
                                             ) {
                                                 bufferManager.enqueueJavaBuffer(yJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(uvJavaBuffer)
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                             }
                                         }
 
@@ -287,6 +291,8 @@ internal class tMediaPlayerRenderer(
                                             ) {
                                                 bufferManager.enqueueJavaBuffer(yJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(vuJavaBuffer)
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                             }
                                         }
 
@@ -304,16 +310,20 @@ internal class tMediaPlayerRenderer(
                                                 imageBytes = javaBuffer.bytes
                                             ) {
                                                 bufferManager.enqueueJavaBuffer(javaBuffer)
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                             }
                                         }
 
                                         ImageRawType.Unknown -> {
-                                            MediaLog.e(
-                                                TAG,
-                                                "Render video frame fail. Unknown frame type."
-                                            )
+                                            // Notify to player update progress.
+                                            player.dispatchProgress(pts)
+                                            MediaLog.e(TAG, "Render video frame fail. Unknown frame type.")
                                         }
                                     }
+                                } else {
+                                    // Notify to player update progress.
+                                    player.dispatchProgress(pts)
                                 }
                                 bufferManager.enqueueVideoNativeEncodeBuffer(buffer)
                                 // Notify to player render success.
@@ -332,7 +342,6 @@ internal class tMediaPlayerRenderer(
                         if (buffer != null) {
                             val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
                             val cost = measureTimeMillis {
-                                player.dispatchProgress(pts)
                                 val result = audioTrack.enqueueBuffer(buffer.nativeBuffer)
                                 if (result == OptResult.Success) {
                                     renderingAudioBuffers.addLast(buffer)
