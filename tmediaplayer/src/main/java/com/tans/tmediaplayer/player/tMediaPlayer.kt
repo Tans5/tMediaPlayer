@@ -24,7 +24,7 @@ class tMediaPlayer(
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 150
+    audioTrackBufferQueueSize: Int = 10
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -478,7 +478,7 @@ class tMediaPlayer(
     /**
      * Calculate [pts] frame render delay.
      */
-    internal fun calculateRenderDelay(pts: Long, isVideo: Boolean, needFixe: Boolean = true): Long {
+    internal fun calculateRenderDelay(pts: Long, isVideo: Boolean): Long {
         val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
         val d = ptsLen - timeLen
@@ -490,11 +490,7 @@ class tMediaPlayer(
             } else {
                 MediaLog.e(TAG, "Audio frame render delay: pts=$pts, delay=${-d}ms")
             }
-            if (needFixe) {
-                0L
-            } else {
-                d
-            }
+            0L
         }
     }
 
