@@ -238,12 +238,8 @@ internal class tMediaPlayerDecoder(
             MediaLog.e(TAG, "Prepare fail, decoder has released.")
             return
         }
-        // Trigger decoder thread create.
         decoderThread
-        decoderHandler
-        decoderHandler.removeMessages(DECODE_MEDIA_FRAME)
-        decoderHandler.removeMessages(REQUEST_DECODE)
-        decoderHandler.removeMessages(REQUEST_PAUSE)
+        removeAllHandlerMessages()
         state.set(tMediaPlayerDecoderState.Prepared)
     }
 
@@ -287,15 +283,20 @@ internal class tMediaPlayerDecoder(
     }
 
     fun release() {
-        decoderHandler.removeMessages(DECODE_MEDIA_FRAME)
-        decoderHandler.removeMessages(REQUEST_DECODE)
-        decoderHandler.removeMessages(REQUEST_PAUSE)
+        removeAllHandlerMessages()
         decoderThread.quit()
         decoderThread.quitSafely()
         this.state.set(tMediaPlayerDecoderState.Released)
     }
 
     fun getState(): tMediaPlayerDecoderState = state.get()
+
+    private fun removeAllHandlerMessages() {
+        decoderHandler.removeMessages(DECODE_MEDIA_FRAME)
+        decoderHandler.removeMessages(REQUEST_DECODE)
+        decoderHandler.removeMessages(REQUEST_PAUSE)
+        decoderHandler.removeMessages(SEEK_TO)
+    }
 
     companion object {
 

@@ -130,9 +130,13 @@ internal class tMediaPlayerBufferManager(
      * After decode success, enqueue.
      * Call by decoder, decoder thread.
      */
-    fun enqueueAudioNativeRenderBuffer(buffer: MediaBuffer) {
+    fun enqueueAudioNativeRenderBuffer(buffer: MediaBuffer, addToFirst: Boolean = false) {
         if (!isReleased.get()) {
-            audioNativeRenderBuffersDeque.addLast(buffer)
+            if (addToFirst) {
+                audioNativeRenderBuffersDeque.addFirst(buffer)
+            } else {
+                audioNativeRenderBuffersDeque.addLast(buffer)
+            }
         } else {
             player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
         }
@@ -190,9 +194,13 @@ internal class tMediaPlayerBufferManager(
      * After decode success, enqueue.
      * Call by decoder, decoder thread.
      */
-    fun enqueueVideoNativeRenderBuffer(buffer: MediaBuffer) {
+    fun enqueueVideoNativeRenderBuffer(buffer: MediaBuffer, addToFirst: Boolean = false) {
         if (!isReleased.get()) {
-            videoNativeRenderBuffersDeque.addLast(buffer)
+            if (addToFirst) {
+                videoNativeRenderBuffersDeque.addFirst(buffer)
+            } else {
+                videoNativeRenderBuffersDeque.addLast(buffer)
+            }
         } else {
             player.freeDecodeDataNativeInternal(buffer.nativeBuffer, true)
         }

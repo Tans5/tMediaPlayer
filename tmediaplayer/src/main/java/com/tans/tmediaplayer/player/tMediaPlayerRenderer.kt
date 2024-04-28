@@ -179,6 +179,7 @@ internal class tMediaPlayerRenderer(
                     REQUEST_PAUSE -> {
                         if (state == tMediaPlayerRendererState.Rendering || state == tMediaPlayerRendererState.WaitingDecoder) {
                             this@tMediaPlayerRenderer.state.set(tMediaPlayerRendererState.Paused)
+                            removeRenderMessages(true)
                         } else {
                             MediaLog.d(TAG, "Skip request pause, because of state: $state")
                         }
@@ -362,13 +363,9 @@ internal class tMediaPlayerRenderer(
             return
         }
         rendererThread
-        rendererHandler
         audioTrack
-        rendererHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
-        rendererHandler.removeMessages(REQUEST_RENDER)
-        rendererHandler.removeMessages(REQUEST_PAUSE)
-        removeRenderMessages()
-        rendererHandler.removeMessages(RENDER_END)
+        removeAllMessages()
+        removeRenderMessages(false)
         state.set(tMediaPlayerRendererState.Prepared)
     }
 
@@ -465,7 +462,7 @@ internal class tMediaPlayerRenderer(
         rendererHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
         rendererHandler.removeMessages(REQUEST_RENDER)
         rendererHandler.removeMessages(REQUEST_PAUSE)
-        removeRenderMessages()
+        removeRenderMessages(false)
         rendererHandler.removeMessages(RENDER_END)
         rendererThread.quit()
         rendererThread.quitSafely()
@@ -483,22 +480,30 @@ internal class tMediaPlayerRenderer(
     /**
      * Drop all waiting render data.
      */
-    fun removeRenderMessages() {
+    fun removeRenderMessages(keepPendingBuffer: Boolean) {
         // Remove handler messages.
         rendererHandler.removeMessages(RENDER_VIDEO)
         rendererHandler.removeMessages(RENDER_AUDIO)
 
         // Move pending render buffer to decode.
         while (pendingRenderVideoBuffers.isNotEmpty()) {
-            val b = pendingRenderVideoBuffers.pollFirst()
+            val b = pendingRenderVideoBuffers.pollLast()
             if (b != null) {
-                bufferManager.enqueueVideoNativeRenderBuffer(b)
+                if (keepPendingBuffer) {
+                    bufferManager.enqueueVideoNativeRenderBuffer(b, true)
+                } else {
+                    bufferManager.enqueueVideoNativeEncodeBuffer(b)
+                }
             }
         }
         while (pendingRenderAudioBuffers.isNotEmpty()) {
-            val b = pendingRenderAudioBuffers.pollFirst()
+            val b = pendingRenderAudioBuffers.pollLast()
             if (b != null) {
-                bufferManager.enqueueAudioNativeRenderBuffer(b)
+                if (keepPendingBuffer) {
+                    bufferManager.enqueueAudioNativeRenderBuffer(b, true)
+                } else {
+                    bufferManager.enqueueAudioNativeEncodeBuffer(b)
+                }
             }
         }
     }
@@ -513,6 +518,13 @@ internal class tMediaPlayerRenderer(
 
     fun getState(): tMediaPlayerRendererState = state.get()
 
+    private fun removeAllMessages() {
+        rendererHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
+        rendererHandler.removeMessages(REQUEST_RENDER)
+        rendererHandler.removeMessages(REQUEST_PAUSE)
+        rendererHandler.removeMessages(RENDER_END)
+    }
+
     companion object {
         private const val CALCULATE_RENDER_MEDIA_FRAME = 0
         private const val REQUEST_RENDER = 1
@@ -521,13 +533,6 @@ internal class tMediaPlayerRenderer(
         private const val RENDER_AUDIO = 4
         private const val RENDER_END = 5
         private const val TAG = "tMediaPlayerRender"
-
-
-//        private val audioTrackWriteExecutor: Executor by lazy {
-//            Executors.newSingleThreadExecutor {
-//                Thread(it, "tMediaPlayerAudioTrackThread")
-//            }
-//        }
 
     }
 

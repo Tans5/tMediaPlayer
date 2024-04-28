@@ -90,13 +90,12 @@ class tMediaPlayer(
         dispatchNewState(tMediaPlayerState.NoInit)
         resetProgressAndBaseTime()
         bufferManager.prepare()
-        // Clear last render data.
-        bufferManager.clearRenderData()
         decoder.prepare()
         renderer.prepare()
         // Clear last waiting to render data.
         renderer.audioTrackFlush()
-        renderer.removeRenderMessages()
+        // Clear last render data.
+        bufferManager.clearRenderData()
 
 
         if (File(file).let { it.isFile && it.canRead() }) {
@@ -221,7 +220,7 @@ class tMediaPlayer(
                 decoder.pause()
                 renderer.pause()
                 renderer.audioTrackPause()
-                renderer.removeRenderMessages()
+                renderer.removeRenderMessages(false)
                 renderer.audioTrackFlush()
                 bufferManager.clearRenderData()
                 decoder.seekTo(position)
@@ -258,7 +257,7 @@ class tMediaPlayer(
             decoder.pause()
             renderer.pause()
             renderer.audioTrackFlush()
-            renderer.removeRenderMessages()
+            renderer.removeRenderMessages(false)
             resetProgressAndBaseTime()
             bufferManager.clearRenderData()
             // Reset native player decode progress.
@@ -375,7 +374,7 @@ class tMediaPlayer(
         }
         resetProgressAndBaseTime()
         bufferManager.clearRenderData()
-        renderer.removeRenderMessages()
+        renderer.removeRenderMessages(false)
         val np = getMediaInfo()?.nativePlayer
         if (np != null) {
             // Reset native player decode progress.
@@ -423,7 +422,7 @@ class tMediaPlayer(
                 MediaLog.d(TAG, "Seek targetPts=$targetProgress, seekPts=$seekPts")
 
                 // Remove waiting to render data.
-                renderer.removeRenderMessages()
+                renderer.removeRenderMessages(false)
                 // Clear audio track cache.
                 renderer.audioTrackFlush()
                 // Clear last render data.
