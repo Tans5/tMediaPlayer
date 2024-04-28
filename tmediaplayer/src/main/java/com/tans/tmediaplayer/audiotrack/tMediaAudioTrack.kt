@@ -8,13 +8,13 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
-internal class tMediaAudioTrack {
+internal class tMediaAudioTrack(queueBufferSize: Int) {
 
     private val nativeAudioTrack: AtomicReference<Long?> = AtomicReference(null)
 
     init {
         val nativeAudioTrack = createAudioTrackNative()
-        val result = prepareNative(nativeAudioTrack).toOptResult()
+        val result = prepareNative(nativeAudioTrack, queueBufferSize).toOptResult()
         if (result != OptResult.Success) {
             releaseNative(nativeAudioTrack)
             MediaLog.e(TAG, "Prepare audio track fail.")
@@ -82,6 +82,7 @@ internal class tMediaAudioTrack {
             OptResult.Fail
         } else {
             releaseNative(nativeAudioTrack)
+            MediaLog.d(TAG, "Release audio track.")
             OptResult.Success
         }
         return result
@@ -89,7 +90,7 @@ internal class tMediaAudioTrack {
 
     private external fun createAudioTrackNative(): Long
 
-    private external fun prepareNative(nativeAudioTrack: Long): Int
+    private external fun prepareNative(nativeAudioTrack: Long, bufferQueueSize: Int): Int
 
     private external fun enqueueBufferNative(nativeAudioTrack: Long, nativeBuffer: Long): Int
 

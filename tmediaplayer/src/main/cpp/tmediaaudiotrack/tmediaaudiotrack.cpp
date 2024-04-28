@@ -14,7 +14,7 @@ void playerBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq, void *context) 
     return;
 }
 
-tMediaOptResult tMediaAudioTrackContext::prepare() {
+tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize) {
     // region Init sl engine
     SLresult result = slCreateEngine(&engineObject, 0, nullptr, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
@@ -52,7 +52,7 @@ tMediaOptResult tMediaAudioTrackContext::prepare() {
     // region Create player
 
     // Audio source configure
-    SLDataLocator_AndroidSimpleBufferQueue audioInputQueue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, inputQueueSize};
+    SLDataLocator_AndroidSimpleBufferQueue audioInputQueue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, bufferQueueSize};
     SLDataFormat_PCM audioInputFormat = {SL_DATAFORMAT_PCM, inputSampleChannels, inputSampleRate,
                                          inputSampleFormat, inputSampleFormat,
                                          SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT, SL_BYTEORDER_LITTLEENDIAN};
@@ -152,4 +152,5 @@ void tMediaAudioTrackContext::release() {
     }
     jvm = nullptr;
     free(this);
+    LOGD("Audio track released.");
 }

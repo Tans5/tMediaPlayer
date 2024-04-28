@@ -18,7 +18,8 @@ import kotlin.system.measureTimeMillis
 @Suppress("ClassName")
 internal class tMediaPlayerRenderer(
     private val player: tMediaPlayer,
-    private val bufferManager: tMediaPlayerBufferManager
+    private val bufferManager: tMediaPlayerBufferManager,
+    audioTrackBufferQueueSize: Int
 ) {
 
     private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
@@ -40,7 +41,7 @@ internal class tMediaPlayerRenderer(
     }
 
     private val audioTrack: tMediaAudioTrack by lazy {
-        tMediaAudioTrack()
+        tMediaAudioTrack(audioTrackBufferQueueSize)
     }
 
     // Is renderer thread ready?

@@ -1,6 +1,6 @@
 
-#ifndef TMEDIAPLAYER_TMEDIAFRAMELOADER_H
-#define TMEDIAPLAYER_TMEDIAFRAMELOADER_H
+#ifndef TMEDIAPLAYER_TMEDIAAUDIOTRACK_H
+#define TMEDIAPLAYER_TMEDIAAUDIOTRACK_H
 
 #include <jni.h>
 #include "tmediaplayer.h"
@@ -20,14 +20,13 @@ typedef struct tMediaAudioTrackContext {
     SLPlayItf playerInterface = nullptr;
     SLAndroidSimpleBufferQueueItf playerBufferQueueInterface = nullptr;
 
-    SLuint32 inputQueueSize = 10;
     SLuint32 inputSampleChannels = 2;
     SLuint32 inputSampleRate = SL_SAMPLINGRATE_48;
     SLuint32 inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
 
     JavaVM *jvm = nullptr;
 
-    tMediaOptResult prepare();
+    tMediaOptResult prepare(unsigned int bufferQueueSize);
 
     tMediaOptResult play();
 
