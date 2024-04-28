@@ -437,14 +437,7 @@ internal class tMediaPlayerRenderer(
             }
 
             // Audio
-            if (player.getBufferResultNativeInternal(audioBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
-                val m = Message.obtain()
-                m.what = RENDER_AUDIO
-                pendingRenderAudioBuffers.addLast(audioBuffer)
-                rendererHandler.sendMessage(m)
-            } else {
-                bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
-            }
+            bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
         } else {
             bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
             bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)

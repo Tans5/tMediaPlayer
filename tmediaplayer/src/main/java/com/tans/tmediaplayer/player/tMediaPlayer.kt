@@ -452,12 +452,9 @@ class tMediaPlayer(
                             decoder.decode()
                             renderer.render()
                             renderer.audioTrackPlay()
-                            bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
-                            bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
-                        } else {
-                            // Notify renderer to handle seeking buffer, if current state not playing.
-                            renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer)
                         }
+                        // Notify renderer to handle seeking buffer
+                        renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer)
                         dispatchNewState(lastState)
                     } else {
                         bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
