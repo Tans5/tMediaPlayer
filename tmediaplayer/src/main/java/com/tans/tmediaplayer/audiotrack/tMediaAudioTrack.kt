@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
-class tMediaAudioTrack(queueBufferSize: Int) {
+class tMediaAudioTrack(queueBufferSize: Int, private val audioTrackQueueCallback: Runnable) {
 
     private val nativeAudioTrack: AtomicReference<Long?> = AtomicReference(null)
 
@@ -107,8 +107,7 @@ class tMediaAudioTrack(queueBufferSize: Int) {
      * For native call.
      */
     fun audioTrackQueueCallback() {
-        // TODO:
-        println("Audio callback: ${Thread.currentThread().name}")
+        audioTrackQueueCallback.run()
     }
 
     companion object {

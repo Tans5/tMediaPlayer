@@ -478,7 +478,7 @@ class tMediaPlayer(
     /**
      * Calculate [pts] frame render delay.
      */
-    internal fun calculateRenderDelay(pts: Long, isVideo: Boolean): Long {
+    internal fun calculateRenderDelay(pts: Long, isVideo: Boolean, needFixe: Boolean = true): Long {
         val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
         val d = ptsLen - timeLen
@@ -490,7 +490,11 @@ class tMediaPlayer(
             } else {
                 MediaLog.e(TAG, "Audio frame render delay: pts=$pts, delay=${-d}ms")
             }
-            0L
+            if (needFixe) {
+                0L
+            } else {
+                d
+            }
         }
     }
 

@@ -16,10 +16,6 @@ internal class tMediaPlayerBufferManager(
     private val singleJavaBufferSize: Int,
     private val initSingleJavaBufferSize: Int) {
 
-    private val nativeAudioBufferRecycleLimit = maxNativeAudioBufferSize / 2
-
-    private val nativeVideoBufferRecycleLimit = maxNativeVideoBufferSize / 2
-
     private val isReleased: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
@@ -119,11 +115,11 @@ internal class tMediaPlayerBufferManager(
      */
     fun enqueueAudioNativeEncodeBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
-            if (hasAllocAudioNativeBufferSize.get() > nativeAudioBufferRecycleLimit) {
+            if (hasAllocAudioNativeBufferSize.get() > maxNativeAudioBufferSize) {
                 hasAllocAudioNativeBufferSize.decrementAndGet()
                 player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
             } else {
-                audioNativeDecodeBuffersDeque.addLast(buffer)
+                audioNativeDecodeBuffersDeque.push(buffer)
             }
         } else {
             player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
@@ -179,7 +175,7 @@ internal class tMediaPlayerBufferManager(
      */
     fun enqueueVideoNativeEncodeBuffer(buffer: MediaBuffer) {
         if (!isReleased.get()) {
-            if (hasAllocVideoNativeBufferSize.get() > nativeVideoBufferRecycleLimit) {
+            if (hasAllocVideoNativeBufferSize.get() > maxNativeVideoBufferSize) {
                 hasAllocVideoNativeBufferSize.decrementAndGet()
                 player.freeDecodeDataNativeInternal(buffer.nativeBuffer, true)
             } else {

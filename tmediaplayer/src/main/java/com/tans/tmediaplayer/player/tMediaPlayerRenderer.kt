@@ -40,8 +40,17 @@ internal class tMediaPlayerRenderer(
         LinkedBlockingDeque()
     }
 
+    private val renderingAudioBuffers: LinkedBlockingDeque<tMediaPlayerBufferManager.Companion.MediaBuffer> by lazy {
+        LinkedBlockingDeque()
+    }
+
     private val audioTrack: tMediaAudioTrack by lazy {
-        tMediaAudioTrack(audioTrackBufferQueueSize)
+        tMediaAudioTrack(audioTrackBufferQueueSize) {
+            val b = renderingAudioBuffers.pollFirst()
+            if (b != null) {
+                bufferManager.enqueueAudioNativeEncodeBuffer(b)
+            }
+        }
     }
 
     // Is renderer thread ready?
@@ -109,13 +118,17 @@ internal class tMediaPlayerRenderer(
                                         // Audio frame.
                                         val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
                                         // Calculate current frame render delay.
-                                        val delay = player.calculateRenderDelay(pts, false)
-                                        val m = Message.obtain()
-                                        m.what = RENDER_AUDIO
-                                        // Add to pending.
-                                        pendingRenderAudioBuffers.addLast(audioRenderBuffer)
-                                        // Add to render task.
-                                        this.sendMessageDelayed(m, delay)
+                                        val delay = player.calculateRenderDelay(pts = pts, isVideo = false, needFixe = false)
+                                        if (delay >= 0) {
+                                            val m = Message.obtain()
+                                            m.what = RENDER_AUDIO
+                                            // Add to pending.
+                                            pendingRenderAudioBuffers.addLast(audioRenderBuffer)
+                                            // Add to render task.
+                                            this.sendMessageDelayed(m, delay)
+                                        } else {
+                                            bufferManager.enqueueAudioNativeEncodeBuffer(audioRenderBuffer)
+                                        }
                                     } else {
                                         // Current frame is last frame, Last frame always is audio frame.
 
@@ -319,8 +332,12 @@ internal class tMediaPlayerRenderer(
                             val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
                             val cost = measureTimeMillis {
                                 player.dispatchProgress(pts)
-                                audioTrack.enqueueBuffer(buffer.nativeBuffer)
-                                bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
+                                val result = audioTrack.enqueueBuffer(buffer.nativeBuffer)
+                                if (result == OptResult.Success) {
+                                    renderingAudioBuffers.addLast(buffer)
+                                } else {
+                                    bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
+                                }
                                 player.renderSuccess()
                             }
                             MediaLog.d(TAG, "Render Audio: pts=$pts, cost=$cost")
@@ -374,6 +391,12 @@ internal class tMediaPlayerRenderer(
      */
     fun audioTrackFlush() {
         audioTrack.clearBuffers()
+        while (renderingAudioBuffers.isNotEmpty()) {
+            val b = renderingAudioBuffers.pollFirst()
+            if (b != null) {
+                bufferManager.enqueueAudioNativeEncodeBuffer(b)
+            }
+        }
     }
 
     /**
@@ -447,6 +470,12 @@ internal class tMediaPlayerRenderer(
         rendererThread.quit()
         rendererThread.quitSafely()
         audioTrack.release()
+        while (renderingAudioBuffers.isNotEmpty()) {
+            val b = renderingAudioBuffers.pollFirst()
+            if (b != null) {
+                bufferManager.enqueueAudioNativeEncodeBuffer(b)
+            }
+        }
         this.state.set(tMediaPlayerRendererState.Released)
         playerView.set(null)
     }
