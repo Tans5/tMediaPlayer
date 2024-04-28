@@ -93,7 +93,7 @@ internal class tMediaPlayerRenderer(
                                     // Video frame
                                     val pts = player.getPtsNativeInternal(videoRenderBuffer.nativeBuffer)
                                     // Calculate current frame render delay.
-                                    val delay = player.calculateRenderDelay(pts)
+                                    val delay = player.calculateRenderDelay(pts, true)
                                     val m = Message.obtain()
                                     m.what = RENDER_VIDEO
                                     // Add to pending.
@@ -109,7 +109,7 @@ internal class tMediaPlayerRenderer(
                                         // Audio frame.
                                         val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
                                         // Calculate current frame render delay.
-                                        val delay = player.calculateRenderDelay(pts)
+                                        val delay = player.calculateRenderDelay(pts, false)
                                         val m = Message.obtain()
                                         m.what = RENDER_AUDIO
                                         // Add to pending.
@@ -123,7 +123,7 @@ internal class tMediaPlayerRenderer(
                                         val pts = (player.getMediaInfo()?.duration ?: 0L) + 50L
                                         this.sendEmptyMessageDelayed(
                                             RENDER_END,
-                                            player.calculateRenderDelay(pts)
+                                            player.calculateRenderDelay(pts, false)
                                         )
                                     }
                                 }

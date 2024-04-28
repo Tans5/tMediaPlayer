@@ -20,11 +20,11 @@ import kotlin.math.min
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer(
-    maxNativeAudioBufferSize: Int = 200,
-    maxNativeVideoBufferSize: Int = 15,
+    maxNativeAudioBufferSize: Int = 300,
+    maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 200
+    audioTrackBufferQueueSize: Int = 150
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -478,10 +478,20 @@ class tMediaPlayer(
     /**
      * Calculate [pts] frame render delay.
      */
-    internal fun calculateRenderDelay(pts: Long): Long {
+    internal fun calculateRenderDelay(pts: Long, isVideo: Boolean): Long {
         val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
-        return max(0, ptsLen - timeLen)
+        val d = ptsLen - timeLen
+        return if (d >= 0L) {
+            d
+        } else {
+            if (isVideo) {
+                MediaLog.e(TAG, "Video frame render delay: pts=$pts, delay=${-d}ms")
+            } else {
+                MediaLog.e(TAG, "Audio frame render delay: pts=$pts, delay=${-d}ms")
+            }
+            0L
+        }
     }
 
     internal fun dispatchProgress(progress: Long, updateForce: Boolean = false) {
