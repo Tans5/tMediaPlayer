@@ -149,5 +149,6 @@ void tMediaAudioTrackContext::release() {
         engineObject = nullptr;
         engineInterface = nullptr;
     }
+    jvm = nullptr;
     free(this);
 }

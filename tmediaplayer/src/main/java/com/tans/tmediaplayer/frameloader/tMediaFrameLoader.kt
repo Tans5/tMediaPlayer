@@ -2,6 +2,7 @@ package com.tans.tmediaplayer.frameloader
 
 import android.graphics.Bitmap
 import android.os.SystemClock
+import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.player.toOptResult
@@ -11,6 +12,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 @Suppress("ClassName")
+@Keep
 object tMediaFrameLoader {
     init {
         System.loadLibrary("tmediaframeloader")
