@@ -20,7 +20,7 @@ typedef struct tMediaAudioTrackContext {
     SLPlayItf playerInterface = nullptr;
     SLAndroidSimpleBufferQueueItf playerBufferQueueInterface = nullptr;
 
-    SLuint32 inputQueueSize = 2;
+    SLuint32 inputQueueSize = 10;
     SLuint32 inputSampleChannels = 2;
     SLuint32 inputSampleRate = SL_SAMPLINGRATE_48;
     SLuint32 inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;

@@ -119,7 +119,7 @@ internal class tMediaPlayerBufferManager(
                 hasAllocAudioNativeBufferSize.decrementAndGet()
                 player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)
             } else {
-                audioNativeDecodeBuffersDeque.push(buffer)
+                audioNativeDecodeBuffersDeque.addLast(buffer)
             }
         } else {
             player.freeDecodeDataNativeInternal(buffer.nativeBuffer, false)

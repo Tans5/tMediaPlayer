@@ -42,6 +42,24 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_clearBuffersNative(
     return audioTrack->clearBuffers();
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_playNative(
+        JNIEnv * env,
+        jobject j_audio_track,
+        jlong native_audio_track) {
+    auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
+    return audioTrack->play();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_pauseNative(
+        JNIEnv * env,
+        jobject j_audio_track,
+        jlong native_audio_track) {
+    auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
+    return audioTrack->pause();
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_releaseNative(
         JNIEnv * env,

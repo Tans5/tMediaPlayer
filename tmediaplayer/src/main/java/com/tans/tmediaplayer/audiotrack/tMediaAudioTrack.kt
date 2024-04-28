@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
-internal class tMediaAudioTrack() {
+internal class tMediaAudioTrack {
 
     private val nativeAudioTrack: AtomicReference<Long?> = AtomicReference(null)
 
@@ -50,6 +50,32 @@ internal class tMediaAudioTrack() {
         return result
     }
 
+    fun play(): OptResult {
+        val nativeAudioTrack = this.nativeAudioTrack.get()
+        val result = if (nativeAudioTrack == null) {
+            OptResult.Fail
+        } else {
+            playNative(nativeAudioTrack).toOptResult()
+        }
+        if (result != OptResult.Success) {
+            MediaLog.e(TAG, "Play fail.")
+        }
+        return result
+    }
+
+    fun pause(): OptResult {
+        val nativeAudioTrack = this.nativeAudioTrack.get()
+        val result = if (nativeAudioTrack == null) {
+            OptResult.Fail
+        } else {
+            pauseNative(nativeAudioTrack).toOptResult()
+        }
+        if (result != OptResult.Success) {
+            MediaLog.e(TAG, "Pause fail.")
+        }
+        return result
+    }
+
     fun release(): OptResult {
         val nativeAudioTrack = this.nativeAudioTrack.getAndSet(null)
         val result = if (nativeAudioTrack == null) {
@@ -68,6 +94,10 @@ internal class tMediaAudioTrack() {
     private external fun enqueueBufferNative(nativeAudioTrack: Long, nativeBuffer: Long): Int
 
     private external fun clearBuffersNative(nativeAudioTrack: Long): Int
+
+    private external fun playNative(nativeAudioTrack: Long): Int
+
+    private external fun pauseNative(nativeAudioTrack: Long): Int
 
     private external fun releaseNative(nativeAudioTrack: Long)
 

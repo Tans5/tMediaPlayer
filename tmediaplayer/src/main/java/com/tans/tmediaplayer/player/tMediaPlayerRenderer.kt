@@ -1,16 +1,12 @@
 package com.tans.tmediaplayer.player
 
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.audiotrack.tMediaAudioTrack
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -43,21 +39,8 @@ internal class tMediaPlayerRenderer(
         LinkedBlockingDeque()
     }
 
-    private val audioTrack: AudioTrack by lazy {
-        val bufferSize = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
-        AudioTrack(
-            AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build(),
-            AudioFormat.Builder()
-                .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                .setSampleRate(48000)
-                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                .build(),
-            bufferSize,
-            AudioTrack.MODE_STREAM,
-            AudioManager.AUDIO_SESSION_ID_GENERATE
-        )
+    private val audioTrack: tMediaAudioTrack by lazy {
+        tMediaAudioTrack()
     }
 
     // Is renderer thread ready?
@@ -335,18 +318,7 @@ internal class tMediaPlayerRenderer(
                             val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
                             val cost = measureTimeMillis {
                                 player.dispatchProgress(pts)
-                                val size = player.getAudioFrameSizeNativeInternal(buffer.nativeBuffer)
-                                val javaBuffer = bufferManager.requestJavaBuffer(size)
-                                player.getAudioFrameBytesNativeInternal(buffer.nativeBuffer, javaBuffer.bytes)
-                                audioTrackWriteExecutor.execute {
-                                    try {
-                                        audioTrack.write(javaBuffer.bytes, 0, javaBuffer.size)
-                                    } catch (e: Throwable) {
-                                        e.printStackTrace()
-                                    } finally {
-                                        bufferManager.enqueueJavaBuffer(javaBuffer)
-                                    }
-                                }
+                                audioTrack.enqueueBuffer(buffer.nativeBuffer)
                                 bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
                                 player.renderSuccess()
                             }
@@ -386,43 +358,21 @@ internal class tMediaPlayerRenderer(
      * Audio track play.
      */
     fun audioTrackPlay() {
-        audioTrackWriteExecutor.execute {
-            try {
-                if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
-                    audioTrack.play()
-                }
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
+        audioTrack.play()
     }
 
     /**
      * Audio track pause
      */
     fun audioTrackPause() {
-        audioTrackWriteExecutor.execute {
-            try {
-                if (audioTrack.playState != AudioTrack.PLAYSTATE_PAUSED) {
-                    audioTrack.pause()
-                }
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
+        audioTrack.pause()
     }
 
     /**
      * Clear audio track data.
      */
     fun audioTrackFlush() {
-        audioTrackWriteExecutor.execute {
-            try {
-                audioTrack.flush()
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
+        audioTrack.clearBuffers()
     }
 
     /**
@@ -495,9 +445,7 @@ internal class tMediaPlayerRenderer(
         rendererHandler.removeMessages(RENDER_END)
         rendererThread.quit()
         rendererThread.quitSafely()
-        audioTrackWriteExecutor.execute {
-            audioTrack.release()
-        }
+        audioTrack.release()
         this.state.set(tMediaPlayerRendererState.Released)
         playerView.set(null)
     }
@@ -545,11 +493,11 @@ internal class tMediaPlayerRenderer(
         private const val TAG = "tMediaPlayerRender"
 
 
-        private val audioTrackWriteExecutor: Executor by lazy {
-            Executors.newSingleThreadExecutor {
-                Thread(it, "tMediaPlayerAudioTrackThread")
-            }
-        }
+//        private val audioTrackWriteExecutor: Executor by lazy {
+//            Executors.newSingleThreadExecutor {
+//                Thread(it, "tMediaPlayerAudioTrackThread")
+//            }
+//        }
 
     }
 
