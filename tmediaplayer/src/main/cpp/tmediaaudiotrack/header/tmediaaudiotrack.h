@@ -25,7 +25,7 @@ typedef struct tMediaAudioTrackContext {
     SLuint32 inputSampleRate = SL_SAMPLINGRATE_48;
     SLuint32 inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
 
-    tMediaOptResult prepare(int bufferSize);
+    tMediaOptResult prepare();
 
     tMediaOptResult play();
 

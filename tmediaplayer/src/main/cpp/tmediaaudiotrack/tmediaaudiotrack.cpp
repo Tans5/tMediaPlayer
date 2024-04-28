@@ -14,7 +14,7 @@ void playerBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq, void *context) 
     return;
 }
 
-tMediaOptResult tMediaAudioTrackContext::prepare(int bufferSize) {
+tMediaOptResult tMediaAudioTrackContext::prepare() {
     // region Init sl engine
     SLresult result = slCreateEngine(&engineObject, 0, nullptr, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
@@ -62,7 +62,8 @@ tMediaOptResult tMediaAudioTrackContext::prepare(int bufferSize) {
     SLDataSink audioSink = {&outputMix, NULL};
 
     const SLInterfaceID playerIds[3] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME, SL_IID_EFFECTSEND};
-    const SLboolean playerReq[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
+    // not need volume and effect send.
+    const SLboolean playerReq[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_FALSE, SL_BOOLEAN_FALSE};
     result = (*engineInterface)->CreateAudioPlayer(engineInterface, &playerObject, &audioInputSource, &audioSink, 2, playerIds, playerReq);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("Create audio player object fail: %d", result);
@@ -114,14 +115,39 @@ tMediaOptResult tMediaAudioTrackContext::pause() {
 }
 
 tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) {
-    // TODO:
+    SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->size);
+    if (result == SL_RESULT_SUCCESS) {
+        return OptSuccess;
+    } else {
+        return OptFail;
+    }
 }
 
 tMediaOptResult tMediaAudioTrackContext ::clearBuffers() {
-    // TODO:
+    SLresult  result = (*playerBufferQueueInterface)->Clear(playerBufferQueueInterface);
+    if (result == SL_RESULT_SUCCESS) {
+        return OptSuccess;
+    } else {
+        return OptFail;
+    }
 }
 
 
 void tMediaAudioTrackContext::release() {
-    // TODO:
+    if (playerObject != nullptr) {
+        (*playerObject)->Destroy(playerObject);
+        playerObject = nullptr;
+        playerInterface = nullptr;
+        playerBufferQueueInterface = nullptr;
+    }
+    if (outputMixObject != nullptr) {
+        (*outputMixObject)->Destroy(outputMixObject);
+        outputMixObject = nullptr;
+    }
+    if (engineObject != nullptr) {
+        (*engineObject)->Destroy(engineObject);
+        engineObject = nullptr;
+        engineInterface = nullptr;
+    }
+    free(this);
 }
