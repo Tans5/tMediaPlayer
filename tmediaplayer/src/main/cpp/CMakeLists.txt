@@ -90,16 +90,10 @@ find_library(
         android
 )
 
-find_library(
-        OpenSLES-lib
-        OpenSLES
-)
-
 target_link_libraries( # Specifies the target library.
         tmediaplayer
         ${log-lib}
         ${android-lib}
-        ${OpenSLES-lib}
 
         # ffmpeg
         libavcodec
@@ -113,7 +107,7 @@ target_link_libraries( # Specifies the target library.
 ################################# tmediaplayer end #########################################
 
 
-################################# tmediaframeloader start ####################################
+################################# tmediaframeloader start ##################################
 add_library(
         tmediaframeloader SHARED
         tmediaframeloader/jni.cpp
@@ -133,3 +127,29 @@ target_link_libraries(
 )
 
 ################################# tmediaframeloader end ####################################
+
+################################# tmediaaudiotrack start ##################################
+add_library(
+        tmediaaudiotrack SHARED
+        tmediaaudiotrack/jni.cpp
+        tmediaaudiotrack/tmediaaudiotrack.cpp
+)
+
+target_include_directories(
+        tmediaaudiotrack PUBLIC
+        tmediaaudiotrack/header
+        tmediaplayer/header
+)
+
+find_library(
+        OpenSLES-lib
+        OpenSLES
+)
+
+target_link_libraries(
+        tmediaaudiotrack
+        tmediaplayer
+        ${OpenSLES-lib}
+)
+
+################################# tmediaaudiotrack end ####################################
