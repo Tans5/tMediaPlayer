@@ -80,8 +80,7 @@ dependencies {
     implementation(libs.glide)
     kapt(libs.glide.codegen)
 
-    implementation(project(":tmediaplayer"))
-
-    // implementation("io.github.tans5:tmediaplayer:1.0.0-alpha02")
+    // implementation(project(":tmediaplayer"))
+    implementation(libs.tmediaplayer)
 
 }
