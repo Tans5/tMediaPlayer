@@ -432,7 +432,6 @@ class tMediaPlayer(
                 basePts.set(seekPts)
                 // Update base time.
                 ptsBaseTime.set(SystemClock.uptimeMillis())
-                dispatchProgress(seekPts, true)
                 if (isLastFrameBufferNative(audioBuffer.nativeBuffer)) {
                     // Current seek frame is last fame.
                     val info = getMediaInfo()
@@ -462,6 +461,7 @@ class tMediaPlayer(
                         MediaLog.e(TAG, "Expect seeking state, but now is $s")
                     }
                 }
+                dispatchProgress(seekPts, true)
             }
             OptResult.Fail -> {
                 // Seeking fail.
@@ -493,7 +493,7 @@ class tMediaPlayer(
 
     internal fun dispatchProgress(progress: Long, updateForce: Boolean = false) {
         val state = getState()
-        if (state !is tMediaPlayerState.PlayEnd && state !is tMediaPlayerState.Error && state !is tMediaPlayerState.Stopped) {
+        if (state !is tMediaPlayerState.PlayEnd && state !is tMediaPlayerState.Error && state !is tMediaPlayerState.Stopped && state !is tMediaPlayerState.Seeking) {
             val currentProcess = this.progress.get()
             if (currentProcess <= progress || updateForce) {
                 val info = getMediaInfo()
@@ -510,6 +510,8 @@ class tMediaPlayer(
             } else {
                 MediaLog.e(TAG, "Skip update progress, updateProgress=$progress, currentProgress=$currentProcess")
             }
+        } else {
+            MediaLog.e(TAG, "Ignore progress update, because of state: $state")
         }
     }
 
