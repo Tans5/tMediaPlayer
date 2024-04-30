@@ -30,7 +30,8 @@ coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-corouti
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "corouines" }
 tuiutils = { group = "io.github.tans5", name = "tuiutils", version.ref = "tuiutils"}
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide"}
-glide-codegen = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+glide-codegen-kapt = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+glide-codegen-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
 androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name="swiperefreshlayout",  version.ref="swiperefreshlayout"}
 tmediaplayer = { group = "io.github.tans5", name = "tmediaplayer", version.ref = "tmediaplayer" }
 
