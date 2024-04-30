@@ -109,6 +109,8 @@ internal class tMediaPlayerBufferManager(
         return audioNativeRenderBuffersDeque.pollFirst()
     }
 
+    fun peekAudioNativeRenderBuffer(): MediaBuffer? = audioNativeRenderBuffersDeque.peekFirst()
+
     /**
      * After render finished, move buffer to encode buffers queue.
      * Call by renderer, render thread.
@@ -172,6 +174,8 @@ internal class tMediaPlayerBufferManager(
     fun requestVideoNativeRenderBuffer(): MediaBuffer? {
         return videoNativeRenderBuffersDeque.pollFirst()
     }
+
+    fun peekVideoNativeRenderBuffer(): MediaBuffer? = videoNativeRenderBuffersDeque.peekFirst()
 
     /**
      * After render finished, move buffer to encode buffers queue.

@@ -24,7 +24,7 @@ class tMediaPlayer(
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 10
+    audioTrackBufferQueueSize: Int = 12
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -151,11 +151,33 @@ class tMediaPlayer(
         }
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
-            decoder.decode()
-            renderer.render()
-            renderer.audioTrackPlay()
+            val videoPts = bufferManager.peekVideoNativeRenderBuffer()?.let {
+                getPtsNative(it.nativeBuffer)
+            }
+            val audioPts = bufferManager.peekAudioNativeRenderBuffer()?.let {
+                getPtsNative(it.nativeBuffer)
+            }
+
+            when {
+                videoPts != null && audioPts != null -> {
+                    basePts.set(min(videoPts, audioPts))
+                }
+                videoPts != null -> {
+                    basePts.set(videoPts)
+                }
+                audioPts != null -> {
+                    basePts.set(audioPts)
+                }
+                else -> {
+                    basePts.set(getProgress())
+                }
+            }
+
             ptsBaseTime.set(SystemClock.uptimeMillis())
-            basePts.set(getProgress())
+
+            renderer.render()
+            decoder.decode()
+            renderer.audioTrackPlay()
             dispatchNewState(playingState)
             OptResult.Success
         } else {
