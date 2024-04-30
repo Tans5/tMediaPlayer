@@ -79,7 +79,7 @@ dependencies {
     implementation(libs.glide)
     ksp(libs.glide.codegen.ksp)
 
-    // implementation(project(":tmediaplayer"))
-    implementation(libs.tmediaplayer)
+    implementation(project(":tmediaplayer"))
+    // implementation(libs.tmediaplayer)
 
 }
