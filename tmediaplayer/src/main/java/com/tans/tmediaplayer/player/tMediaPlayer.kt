@@ -247,6 +247,7 @@ class tMediaPlayer(
                 bufferManager.clearRenderData()
                 decoder.seekTo(position)
                 dispatchNewState(seekingState)
+                renderer.removeRenderEndMessage()
                 OptResult.Success
             }
         } else {
@@ -393,15 +394,15 @@ class tMediaPlayer(
         val s = getState()
         if (s is tMediaPlayerState.Playing) {
             dispatchNewState(s.playEnd())
-        }
-        resetProgressAndBaseTime()
-        bufferManager.clearRenderData()
-        renderer.removeRenderMessages(false)
-        renderer.audioTrackFlush()
-        val np = getMediaInfo()?.nativePlayer
-        if (np != null) {
-            // Reset native player decode progress.
-            resetNative(np)
+            resetProgressAndBaseTime()
+            bufferManager.clearRenderData()
+            renderer.removeRenderMessages(false)
+            renderer.audioTrackFlush()
+            val np = getMediaInfo()?.nativePlayer
+            if (np != null) {
+                // Reset native player decode progress.
+                resetNative(np)
+            }
         }
     }
 
@@ -444,6 +445,7 @@ class tMediaPlayer(
                 }
                 MediaLog.d(TAG, "Seek targetPts=$targetProgress, seekPts=$seekPts")
 
+                renderer.removeRenderEndMessage()
                 // Remove waiting to render data.
                 renderer.removeRenderMessages(false)
                 // Clear audio track cache.
@@ -534,9 +536,9 @@ class tMediaPlayer(
                 val info = getMediaInfo()
                 val lp = lastUpdateProgress.get()
                 this.progress.set(progress)
-                if (info != null && abs(progress - lp) > 80) {
+                if (info != null && (abs(progress - lp) > 80 || updateForce)) {
                     lastUpdateProgress.set(progress)
-                    if (state is tMediaPlayerState.Playing) {
+                    if (state is tMediaPlayerState.Playing || updateForce) {
                         callbackExecutor.execute {
                             listener.get()?.onProgressUpdate(progress, info.duration)
                         }

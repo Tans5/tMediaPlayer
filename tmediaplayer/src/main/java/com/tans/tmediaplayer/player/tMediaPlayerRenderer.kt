@@ -508,6 +508,10 @@ internal class tMediaPlayerRenderer(
 
     fun getState(): tMediaPlayerRendererState = state.get()
 
+    fun removeRenderEndMessage() {
+        rendererHandler.removeMessages(RENDER_END)
+    }
+
     private fun removeAllMessages() {
         rendererHandler.removeMessages(CALCULATE_RENDER_MEDIA_FRAME)
         rendererHandler.removeMessages(REQUEST_RENDER)
