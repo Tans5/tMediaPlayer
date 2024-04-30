@@ -437,7 +437,11 @@ internal class tMediaPlayerRenderer(
             }
 
             // Audio
-            bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
+            if (player.getBufferResultNativeInternal(audioBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
+                bufferManager.enqueueAudioNativeRenderBuffer(audioBuffer, true)
+            } else {
+                bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
+            }
         } else {
             bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
             bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)

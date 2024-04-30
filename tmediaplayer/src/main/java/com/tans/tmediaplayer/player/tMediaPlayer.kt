@@ -468,15 +468,28 @@ class tMediaPlayer(
                     // Not last frame.
                     if (s is tMediaPlayerState.Seeking) {
                         val lastState = s.lastState
+                        dispatchNewState(lastState)
                         if (lastState is tMediaPlayerState.Playing) {
+                            if (getBufferResultNative(videoBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
+                                bufferManager.enqueueVideoNativeRenderBuffer(videoBuffer, true)
+                            }  else {
+                                bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
+                            }
+
+                            if (getBufferResultNative(audioBuffer.nativeBuffer).toDecodeResult() == DecodeResult.Success) {
+                                bufferManager.enqueueAudioNativeRenderBuffer(audioBuffer, true)
+                            }  else {
+                                bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
+                            }
+
                             // If last state is playing, notify to decoder and renderer.
                             decoder.decode()
                             renderer.render()
                             renderer.audioTrackPlay()
+                        } else {
+                            // Notify renderer to handle seeking buffer
+                            renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer)
                         }
-                        // Notify renderer to handle seeking buffer
-                        renderer.handleSeekingBuffer(videoBuffer = videoBuffer, audioBuffer = audioBuffer)
-                        dispatchNewState(lastState)
                     } else {
                         bufferManager.enqueueVideoNativeEncodeBuffer(videoBuffer)
                         bufferManager.enqueueAudioNativeEncodeBuffer(audioBuffer)
