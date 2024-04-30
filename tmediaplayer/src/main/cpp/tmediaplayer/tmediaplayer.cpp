@@ -640,10 +640,10 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
     int w = frame->width;
     int h = frame->height;
     auto videoBuffer = buffer->videoBuffer;
-    videoBuffer->width = w;
-    videoBuffer->height = h;
     switch(frame->format) {
         case AV_PIX_FMT_YUV420P: {
+            videoBuffer->width = w;
+            videoBuffer->height = h;
             int ySize = w * h;
             int uSize = ySize / 4;
             int vSize = uSize;
@@ -686,6 +686,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         }
         case AV_PIX_FMT_NV12:
         case AV_PIX_FMT_NV21: {
+            videoBuffer->width = w;
+            videoBuffer->height = h;
             int ySize = w * h;
             int uvSize = ySize / 2;
             // alloc Y buffer if need.
@@ -719,6 +721,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             break;
         }
         case AV_PIX_FMT_RGBA: {
+            videoBuffer->width = w;
+            videoBuffer->height = h;
             int rgbaSize = w * h * 4;
             // alloc rgba data if need.
             if (videoBuffer->rgbaSize != rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
@@ -737,7 +741,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         // Others format need to convert to RGBA.
         default: {
             if (w != video_width ||
-                h != video_height) {
+                h != video_height ||
+                sws_ctx == nullptr) {
                 LOGD("Decode video change rgbaSize, recreate sws ctx.");
                 if (sws_ctx != nullptr) {
                     sws_freeContext(sws_ctx);
@@ -779,6 +784,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                 // Fill rgbaBuffer to rgbaFrame
                 av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                                      AV_PIX_FMT_RGBA, w, h, 1);
+                videoBuffer->width = w;
+                videoBuffer->height = h;
             }
             // Convert to rgba.
             int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
@@ -795,6 +802,10 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         buffer->pts = (long) ((double)frame->pts * av_q2d(time_base) * 1000L);
     } else {
         buffer->pts = 0L;
+    }
+    if (w != video_width || h != video_height) {
+        video_width = w;
+        video_height = h;
     }
     buffer->type = BufferTypeVideo;
     return DecodeSuccess;

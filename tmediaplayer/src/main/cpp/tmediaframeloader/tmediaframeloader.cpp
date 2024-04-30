@@ -188,11 +188,10 @@ tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, 
 tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
     int w = frame->width;
     int h = frame->height;
-    videoBuffer->width = w;
-    videoBuffer->height = h;
 
     if (w != video_width ||
-        h != video_height) {
+        h != video_height ||
+        sws_ctx == nullptr) {
         LOGE("Decode video change rgbaSize, recreate sws ctx.");
         if (sws_ctx != nullptr) {
             sws_freeContext(sws_ctx);
@@ -213,6 +212,8 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
             LOGE("Decode video fail, sws ctx create fail.");
             return OptFail;
         }
+        video_width = w;
+        video_height = h;
     }
 
     // Alloc new RGBA frame and buffer if need.
@@ -234,6 +235,9 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
         // Fill rgbaBuffer to rgbaFrame
         av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                              AV_PIX_FMT_RGBA, w, h, 1);
+
+        videoBuffer->width = w;
+        videoBuffer->height = h;
     }
     // Convert to rgba.
     int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
