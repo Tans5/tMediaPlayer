@@ -108,14 +108,15 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool need
                     return OptFail;
                 }
             }
-            return decodeForGetFrame(framePosition, 40.0, needRealTime);
+            return decodeForGetFrame(framePosition, 40.0, needRealTime, 1500);
         }
     } else {
         return OptFail;
     }
 }
 
-tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, double minStepInMillis, bool needRealTime) {
+tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, double minStepInMillis, bool needRealTime, int maxVideoDoCircleTimes) {
+    LOGD("Seek max video circle times: %d", maxVideoDoCircleTimes);
     if (pkt != nullptr &&
         frame != nullptr &&
         format_ctx != nullptr) {
@@ -147,7 +148,7 @@ tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, 
             if (result < 0 && !skipPktRead) {
                 // Send pkt to video decoder ctx fail, do next frame seek.
                 LOGE("Seek decode video send pkt fail: %d", result);
-                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, maxVideoDoCircleTimes);
             }
             av_frame_unref(frame);
             // Decode video frame.
@@ -155,12 +156,12 @@ tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, 
             if (result == AVERROR(EAGAIN)) {
                 LOGD("Seek decode video reload frame");
                 // Need more pkt data to decode current frame.
-                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, maxVideoDoCircleTimes);
             }
             if (result < 0) {
                 // Decode video frame fail.
                 LOGE("Seek decode video receive frame fail: %d", result);
-                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+                return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, maxVideoDoCircleTimes);
             }
             long ptsInMillis = (long) ((double)frame->pts * av_q2d(video_stream->time_base) * 1000L);
             auto parseResult = parseDecodeVideoFrameToBuffer();
@@ -168,18 +169,18 @@ tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, 
                 return OptFail;
             }
             if (needRealTime) {
-                if (framePosition - ptsInMillis < minStepInMillis) {
+                if ((framePosition - ptsInMillis < minStepInMillis) || maxVideoDoCircleTimes <= 0) {
                     // Already seek to target pts.
                     return OptSuccess;
                 } else {
                     // Need do more decode to target pts.
-                    return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+                    return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, --maxVideoDoCircleTimes);
                 }
             } else {
                 return OptSuccess;
             }
         } else {
-            return decodeForGetFrame(framePosition, minStepInMillis, needRealTime);
+            return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, --maxVideoDoCircleTimes);
         }
     }
     return OptFail;

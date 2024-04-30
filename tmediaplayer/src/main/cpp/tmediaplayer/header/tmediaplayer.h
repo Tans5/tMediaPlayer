@@ -137,7 +137,7 @@ typedef struct tMediaPlayerContext {
 
     tMediaOptResult seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, tMediaDecodeBuffer* audioBuffer, bool needDecode);
 
-    tMediaOptResult decodeForSeek(long targetPtsMillis, tMediaDecodeBuffer* videoDecodeBuffer, tMediaDecodeBuffer* audioDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo);
+    tMediaOptResult decodeForSeek(long targetPtsMillis, tMediaDecodeBuffer* videoDecodeBuffer, tMediaDecodeBuffer* audioDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo, int maxVideoDoCircleTimes);
 
     tMediaDecodeBuffer* decode(tMediaDecodeBuffer *lastBuffer);
 
