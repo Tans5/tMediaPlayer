@@ -29,12 +29,7 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
                     LOGE("Find multiple video stream, skip it.");
                 } else {
                     this->video_stream = s;
-                    if (s->nb_frames > 1) {
-                        this->video_duration = (long) ((double) s->duration * av_q2d(s->time_base) *1000L);
-                    } else {
-                        this->video_duration = 0;
-                    }
-                    LOGD("Find video stream: duration=%ld", video_duration);
+                    LOGD("Find video stream");
                 }
                 break;
             default:
@@ -90,6 +85,8 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
     this->videoBuffer = new tMediaVideoBuffer;
+
+    this->duration = format_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000L;
     return OptSuccess;
 }
 
@@ -98,8 +95,8 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool need
         if (video_stream == nullptr) {
             return OptFail;
         } else {
-            if (framePosition > video_duration || framePosition < 0) {
-                LOGE("Wrong frame position: %ld, duration: %ld", framePosition, video_duration);
+            if (framePosition > duration || framePosition < 0) {
+                LOGE("Wrong frame position: %ld, duration: %ld", framePosition, duration);
                 return OptFail;
             }
             if (video_stream != nullptr && framePosition > 0) {

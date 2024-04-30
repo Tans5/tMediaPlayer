@@ -32,7 +32,7 @@ object tMediaFrameLoader {
                 if (result != OptResult.Success) {
                     return null
                 }
-                val videoDuration = videoDurationNative(nativeLoader)
+                val videoDuration = durationNative(nativeLoader)
                 result = getFrameNative(
                     nativeFrameLoader = nativeLoader,
                     position = min(max(0, position), videoDuration),
@@ -65,7 +65,7 @@ object tMediaFrameLoader {
 
     private external fun getFrameNative(nativeFrameLoader: Long, position: Long, needRealTime: Boolean): Int
 
-    private external fun videoDurationNative(nativeFrameLoader: Long): Long
+    private external fun durationNative(nativeFrameLoader: Long): Long
 
     private external fun videoWidthNative(nativeFrameLoader: Long): Int
 
