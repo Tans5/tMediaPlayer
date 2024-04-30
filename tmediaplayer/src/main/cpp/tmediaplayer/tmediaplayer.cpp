@@ -300,7 +300,6 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     LOGE("Seek audio progress fail: %d", audio_reset_result);
                 }
             }
-
             skipPktRead = false;
             if (video_reset_result >=0 || audio_reset_result >= 0) {
                 if (!needDecode) {
@@ -310,7 +309,17 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     audioBuffer->decodeResult = DecodeFail;
                     videoBuffer->is_last_frame = false;
                     audioBuffer->is_last_frame = false;
-                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 300, audio_reset_result < 0, video_reset_result < 0, 1500);
+
+                    for (int i = 0; i < format_ctx->nb_streams; i ++) {
+                        auto s = format_ctx->streams[i];
+                        if (s == video_stream || s == audio_stream) {
+                            continue;
+                        } else {
+                            int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, s->time_base);
+                            avformat_seek_file(format_ctx, s->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+                        }
+                    }
+                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 300.0, audio_reset_result < 0, video_reset_result < 0, 1000);
                 }
             } else {
                 return OptFail;
@@ -322,7 +331,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
 }
 
 tMediaOptResult tMediaPlayerContext::decodeForSeek(long targetPtsInMillis, tMediaDecodeBuffer* videoDecodeBuffer, tMediaDecodeBuffer* audioDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo, int maxVideoDoCircleTimes) {
-    LOGD("Seek max video circle times: %d", maxVideoDoCircleTimes);
+    LOGD("Seek max circle times: %d", maxVideoDoCircleTimes);
     if (pkt != nullptr &&
         frame != nullptr &&
         format_ctx != nullptr) {

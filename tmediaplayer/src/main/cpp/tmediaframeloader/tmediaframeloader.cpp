@@ -108,7 +108,19 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool need
                     return OptFail;
                 }
             }
-            return decodeForGetFrame(framePosition, 40.0, needRealTime, 1500);
+
+            for (int i = 0; i < format_ctx->nb_streams; i++) {
+                auto s = format_ctx->streams[i];
+                if (s == video_stream) {
+                    continue;
+                } else {
+                    int64_t seekTimestamp = av_rescale_q(framePosition * AV_TIME_BASE / 1000,
+                                                         AV_TIME_BASE_Q, s->time_base);
+                    avformat_seek_file(format_ctx, s->index, INT64_MIN, seekTimestamp, INT64_MAX,AVSEEK_FLAG_BACKWARD);
+                }
+            }
+
+            return decodeForGetFrame(framePosition, 300.0, needRealTime, 30);
         }
     } else {
         return OptFail;
@@ -180,7 +192,7 @@ tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame(long framePosition, 
                 return OptSuccess;
             }
         } else {
-            return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, --maxVideoDoCircleTimes);
+            return decodeForGetFrame(framePosition, minStepInMillis, needRealTime, maxVideoDoCircleTimes);
         }
     }
     return OptFail;
