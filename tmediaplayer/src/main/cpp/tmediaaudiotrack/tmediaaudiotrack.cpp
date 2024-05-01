@@ -130,7 +130,7 @@ tMediaOptResult tMediaAudioTrackContext::pause() {
 }
 
 tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) {
-    SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->size);
+    SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->contentSize);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
     } else {

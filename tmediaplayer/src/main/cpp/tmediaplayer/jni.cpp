@@ -374,7 +374,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getAudioFrameBytesNative(
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeAudio) {
-        env->SetByteArrayRegion(j_bytes, 0, buffer->audioBuffer->size,
+        env->SetByteArrayRegion(j_bytes, 0, buffer->audioBuffer->contentSize,
                                 reinterpret_cast<const jbyte *>(buffer->audioBuffer->pcmBuffer));
     }
 }
@@ -386,7 +386,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getAudioFrameSizeNative(
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(buffer_l);
     if (buffer->type == BufferTypeAudio) {
-        return buffer->audioBuffer->size;
+        return buffer->audioBuffer->contentSize;
     } else {
         return 0;
     }

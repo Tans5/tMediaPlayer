@@ -585,7 +585,7 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             // Copy frame data to audio decode buffer.
             auto parseResult = parseDecodeAudioFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
-                LOGD("Decode audio success: %ld, buffer size: %d, cost: %ld ms", buffer->pts, buffer->audioBuffer->size, get_time_millis() - start_time);
+                LOGD("Decode audio success: %ld, contentSize: %d, cost: %ld ms", buffer->pts, buffer->audioBuffer->contentSize, get_time_millis() - start_time);
             }
             buffer->decodeResult = parseResult;
             return buffer;
@@ -837,30 +837,27 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
  */
 tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDecodeBuffer *buffer) {
 
-    // Get current output frame contains sample size per channel.
-    int output_nb_samples = (int) av_rescale_rnd(frame->nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_DOWN);
-    // Get current output audio frame need buffer size.
-    int output_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, output_nb_samples, audio_output_sample_fmt, 1);
+    int in_nb_samples = frame->nb_samples;
+
+    // Get current output frame contains sample bufferSize per channel.
+    int out_nb_samples = swr_get_out_samples(swr_ctx, in_nb_samples); // (int) av_rescale_rnd(in_nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+    if (out_nb_samples <= 0) {
+        LOGE("Get out put nb samples fail: %d", out_nb_samples);
+        return DecodeFail;
+    }
+    // Get current output audio frame need buffer bufferSize.
+    int out_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, out_nb_samples, audio_output_sample_fmt, 1);
     auto audioBuffer = buffer->audioBuffer;
     // Alloc pcm buffer if need.
-    if (audioBuffer->size != output_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
-        int in_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_channels, frame->nb_samples, audio_decoder_ctx->sample_fmt, 1);
-        LOGD("Decode audio change bufferSize, buffer size=%d, need size=%d, in buffer size=%d", audioBuffer->size, output_audio_buffer_size, in_audio_buffer_size);
+    if (audioBuffer->bufferSize < out_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
+        int in_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_channels, in_nb_samples, audio_decoder_ctx->sample_fmt, 1);
+        LOGD("Decode audio change bufferSize, outBufferSize=%d, need bufferSize=%d, inBufferSize=%d", audioBuffer->bufferSize, out_audio_buffer_size, in_audio_buffer_size);
         if (audioBuffer->pcmBuffer != nullptr) {
             free(audioBuffer->pcmBuffer);
         }
-        audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(output_audio_buffer_size));
-        int copySize = output_audio_buffer_size;
-        int dStart = 0;
-        int sStart = in_audio_buffer_size - output_audio_buffer_size;
-        if (output_audio_buffer_size > in_audio_buffer_size) {
-            copySize = in_audio_buffer_size;
-            dStart = output_audio_buffer_size - in_audio_buffer_size;
-            sStart = 0;
-        }
-        memcpy(audioBuffer->pcmBuffer + dStart, frame->data[0] + sStart, copySize);
+        audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(out_audio_buffer_size));
     }
-    audioBuffer->size = output_audio_buffer_size;
+    audioBuffer->bufferSize = out_audio_buffer_size;
     auto time_base = audio_stream->time_base;
     if (time_base.den > 0 && frame->pts > 0) {
         buffer->pts = (long) ((double)frame->pts * av_q2d(time_base) * 1000L);
@@ -868,11 +865,13 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
         buffer->pts = 0L;
     }
     // Convert to target output pcm format data.
-    int result = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), output_nb_samples,(const uint8_t **)(frame->data), frame->nb_samples);
-    if (result < 0) {
-        LOGE("Decode audio swr convert fail: %d", result);
+    int real_out_nb_samples = swr_convert(swr_ctx, &(audioBuffer->pcmBuffer), out_nb_samples, (const uint8_t **)(frame->data), in_nb_samples);
+    if (real_out_nb_samples < 0) {
+        LOGE("Decode audio swr convert fail: %d", real_out_nb_samples);
         return DecodeFail;
     }
+    int contentBufferSize = av_samples_get_buffer_size(nullptr, audio_output_channels, real_out_nb_samples, audio_output_sample_fmt, 1);
+    audioBuffer->contentSize = contentBufferSize;
     buffer->type = BufferTypeAudio;
     return DecodeSuccess;
 }

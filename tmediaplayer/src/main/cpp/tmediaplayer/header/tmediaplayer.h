@@ -46,7 +46,8 @@ typedef struct tMediaVideoBuffer {
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
-    int size = 0;
+    int bufferSize = 0;
+    int contentSize = 0;
     uint8_t  *pcmBuffer = nullptr;
 } tMediaAudioBuffer;
 
