@@ -24,7 +24,7 @@ class tMediaPlayer(
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 12
+    audioTrackBufferQueueSize: Int = 30
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {

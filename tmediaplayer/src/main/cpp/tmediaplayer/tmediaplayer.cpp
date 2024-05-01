@@ -300,6 +300,15 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     LOGE("Seek audio progress fail: %d", audio_reset_result);
                 }
             }
+            for (int i = 0; i < format_ctx->nb_streams; i ++) {
+                auto s = format_ctx->streams[i];
+                if (s == video_stream || s == audio_stream) {
+                    continue;
+                } else {
+                    int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, s->time_base);
+                    avformat_seek_file(format_ctx, s->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+                }
+            }
             skipPktRead = false;
             if (video_reset_result >=0 || audio_reset_result >= 0) {
                 if (!needDecode) {
@@ -309,16 +318,6 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     audioBuffer->decodeResult = DecodeFail;
                     videoBuffer->is_last_frame = false;
                     audioBuffer->is_last_frame = false;
-
-                    for (int i = 0; i < format_ctx->nb_streams; i ++) {
-                        auto s = format_ctx->streams[i];
-                        if (s == video_stream || s == audio_stream) {
-                            continue;
-                        } else {
-                            int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, s->time_base);
-                            avformat_seek_file(format_ctx, s->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
-                        }
-                    }
                     return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 300.0, audio_reset_result < 0, video_reset_result < 0, 1000);
                 }
             } else {
@@ -842,26 +841,26 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
     int output_nb_samples = (int) av_rescale_rnd(frame->nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_DOWN);
     // Get current output audio frame need buffer size.
     int output_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, output_nb_samples, audio_output_sample_fmt, 1);
-    int in_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_channels, frame->nb_samples, audio_decoder_ctx->sample_fmt, 1);
     auto audioBuffer = buffer->audioBuffer;
     // Alloc pcm buffer if need.
     if (audioBuffer->size != output_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
+        int in_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_channels, frame->nb_samples, audio_decoder_ctx->sample_fmt, 1);
         LOGD("Decode audio change bufferSize, buffer size=%d, need size=%d, in buffer size=%d", audioBuffer->size, output_audio_buffer_size, in_audio_buffer_size);
         if (audioBuffer->pcmBuffer != nullptr) {
             free(audioBuffer->pcmBuffer);
         }
         audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(output_audio_buffer_size));
+        int copySize = output_audio_buffer_size;
+        int dStart = 0;
+        int sStart = in_audio_buffer_size - output_audio_buffer_size;
+        if (output_audio_buffer_size > in_audio_buffer_size) {
+            copySize = in_audio_buffer_size;
+            dStart = output_audio_buffer_size - in_audio_buffer_size;
+            sStart = 0;
+        }
+        memcpy(audioBuffer->pcmBuffer + dStart, frame->data[0] + sStart, copySize);
     }
     audioBuffer->size = output_audio_buffer_size;
-    int copySize = output_audio_buffer_size;
-    int dStart = 0;
-    int sStart = in_audio_buffer_size - output_audio_buffer_size;
-    if (output_audio_buffer_size > in_audio_buffer_size) {
-        copySize = in_audio_buffer_size;
-        dStart = output_audio_buffer_size - in_audio_buffer_size;
-        sStart = 0;
-    }
-    memcpy(audioBuffer->pcmBuffer + dStart, frame->data[0] + sStart, copySize);
     auto time_base = audio_stream->time_base;
     if (time_base.den > 0 && frame->pts > 0) {
         buffer->pts = (long) ((double)frame->pts * av_q2d(time_base) * 1000L);
