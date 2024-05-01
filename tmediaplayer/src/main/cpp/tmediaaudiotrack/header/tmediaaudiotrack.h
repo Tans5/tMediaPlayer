@@ -34,6 +34,8 @@ typedef struct tMediaAudioTrackContext {
 
     tMediaOptResult pause();
 
+    tMediaOptResult stop();
+
     tMediaOptResult enqueueBuffer(tMediaAudioBuffer* buffer);
 
     tMediaOptResult clearBuffers();

@@ -129,6 +129,15 @@ tMediaOptResult tMediaAudioTrackContext::pause() {
     }
 }
 
+tMediaOptResult tMediaAudioTrackContext::stop() {
+    SLresult result = (*playerInterface)->SetPlayState(playerInterface, SL_PLAYSTATE_STOPPED);
+    if (result == SL_RESULT_SUCCESS) {
+        return OptSuccess;
+    } else {
+        return OptFail;
+    }
+}
+
 tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) {
     SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->contentSize);
     if (result == SL_RESULT_SUCCESS) {

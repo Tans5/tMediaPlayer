@@ -24,7 +24,7 @@ class tMediaPlayer(
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 15
+    audioTrackBufferQueueSize: Int = 20
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -99,6 +99,7 @@ class tMediaPlayer(
         renderer.prepare()
         // Clear last waiting to render data.
         renderer.audioTrackFlush()
+        renderer.audioTrackStop()
         // Clear last render data.
         bufferManager.clearRenderData()
 
@@ -264,6 +265,7 @@ class tMediaPlayer(
             decoder.pause()
             renderer.pause()
             renderer.audioTrackFlush()
+            renderer.audioTrackStop()
             renderer.removeRenderMessages(false)
             resetProgressAndBaseTime()
             bufferManager.clearRenderData()

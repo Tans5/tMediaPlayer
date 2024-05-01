@@ -64,6 +64,15 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_pauseNative(
     return audioTrack->pause();
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_stopNative(
+        JNIEnv * env,
+        jobject j_audio_track,
+        jlong native_audio_track) {
+    auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
+    return audioTrack->stop();
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_releaseNative(
         JNIEnv * env,

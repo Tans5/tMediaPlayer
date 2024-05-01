@@ -381,6 +381,13 @@ internal class tMediaPlayerRenderer(
     }
 
     /**
+     * Audio track stop
+     */
+    fun audioTrackStop() {
+        audioTrack.stop()
+    }
+
+    /**
      * Clear audio track data.
      */
     fun audioTrackFlush() {
@@ -460,6 +467,8 @@ internal class tMediaPlayerRenderer(
         rendererHandler.removeMessages(RENDER_END)
         rendererThread.quit()
         rendererThread.quitSafely()
+        audioTrack.clearBuffers()
+        audioTrack.stop()
         audioTrack.release()
         while (renderingAudioBuffers.isNotEmpty()) {
             val b = renderingAudioBuffers.pollFirst()
