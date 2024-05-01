@@ -10,11 +10,11 @@ import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.io.File
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.min
 
 @Suppress("ClassName")
@@ -24,7 +24,7 @@ class tMediaPlayer(
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 30
+    audioTrackBufferQueueSize: Int = 15
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -65,6 +65,11 @@ class tMediaPlayer(
     // Base frame's pts, use to compute frame render time.
     private val basePts: AtomicLong by lazy {
         AtomicLong(0)
+    }
+
+    // Waiting next render frame calculate base pts and pts base time.
+    private val isWaitingNextFrameAsBaseFrame: AtomicBoolean by lazy {
+        AtomicBoolean(true)
     }
 
     // Last notify to observer progress.
@@ -151,29 +156,8 @@ class tMediaPlayer(
         }
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
-            val videoPts = bufferManager.peekVideoNativeRenderBuffer()?.let {
-                getPtsNative(it.nativeBuffer)
-            }
-            val audioPts = bufferManager.peekAudioNativeRenderBuffer()?.let {
-                getPtsNative(it.nativeBuffer)
-            }
 
-            when {
-                videoPts != null && audioPts != null -> {
-                    basePts.set(min(videoPts, audioPts))
-                }
-                videoPts != null -> {
-                    basePts.set(videoPts)
-                }
-                audioPts != null -> {
-                    basePts.set(audioPts)
-                }
-                else -> {
-                    basePts.set(getProgress())
-                }
-            }
-
-            ptsBaseTime.set(SystemClock.uptimeMillis())
+            isWaitingNextFrameAsBaseFrame.set(true)
 
             renderer.render()
             decoder.decode()
@@ -453,9 +437,7 @@ class tMediaPlayer(
                 // Clear last render data.
                 bufferManager.clearRenderData()
                 // Update base pts.
-                basePts.set(seekPts)
-                // Update base time.
-                ptsBaseTime.set(SystemClock.uptimeMillis())
+                isWaitingNextFrameAsBaseFrame.set(true)
                 if (isLastFrameBufferNative(audioBuffer.nativeBuffer)) {
                     // Current seek frame is last fame.
                     val info = getMediaInfo()
@@ -510,9 +492,24 @@ class tMediaPlayer(
     }
 
     /**
+     * Calculate base pts frame if need.
+     */
+    internal fun checkAndUpdateBasePts(pts: Long) {
+        if (isWaitingNextFrameAsBaseFrame.compareAndSet(true, false)) {
+            basePts.set(pts)
+            ptsBaseTime.set(SystemClock.uptimeMillis())
+            MediaLog.d(TAG, "Update basePts=$pts, ptsBaseTime=$ptsBaseTime")
+        }
+    }
+
+    /**
      * Calculate [pts] frame render delay.
      */
     internal fun calculateRenderDelay(pts: Long, isVideo: Boolean): Long {
+        if (isWaitingNextFrameAsBaseFrame.get()) {
+            MediaLog.e(TAG, "Waiting next frame as base pts frame.")
+            return 0L
+        }
         val ptsLen = pts - basePts.get()
         val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
         val d = ptsLen - timeLen
@@ -585,6 +582,7 @@ class tMediaPlayer(
         lastUpdateProgress.set(0L)
         basePts.set(0L)
         ptsBaseTime.set(0L)
+        isWaitingNextFrameAsBaseFrame.set(true)
     }
     // endregion
 
