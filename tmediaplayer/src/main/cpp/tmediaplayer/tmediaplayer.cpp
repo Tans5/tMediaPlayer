@@ -285,8 +285,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
             if (video_stream != nullptr && video_fps > 0.0f) {
                 avcodec_flush_buffers(video_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
-                int64_t min = av_rescale_q((targetPtsInMillis - 1000L * 20L) * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
-                video_reset_result = avformat_seek_file(format_ctx, video_stream->index, min, seekTimestamp, seekTimestamp, AVSEEK_FLAG_BACKWARD);
+                video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
                 if (video_reset_result < 0) {
                     LOGE("Seek video progress fail: %d", video_reset_result);
                 }
@@ -294,15 +293,14 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
             if (audio_stream != nullptr) {
                 avcodec_flush_buffers(audio_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, audio_stream->time_base);
-                int64_t min = av_rescale_q((targetPtsInMillis - 1000L * 20L) * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
-                audio_reset_result = avformat_seek_file(format_ctx, audio_stream->index, min, seekTimestamp, seekTimestamp, AVSEEK_FLAG_BACKWARD);
+                audio_reset_result = avformat_seek_file(format_ctx, audio_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
                 if (audio_reset_result < 0) {
                     LOGE("Seek audio progress fail: %d", audio_reset_result);
                 }
             }
             for (int i = 0; i < format_ctx->nb_streams; i ++) {
                 auto s = format_ctx->streams[i];
-                if (s == video_stream || s == audio_stream) {
+                if ((video_stream != nullptr && s->index == video_stream->index) || (audio_stream != nullptr && s->index == audio_stream->index)) {
                     continue;
                 } else {
                     int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, s->time_base);
@@ -840,17 +838,19 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
     int in_nb_samples = frame->nb_samples;
 
     // Get current output frame contains sample bufferSize per channel.
-    int out_nb_samples = swr_get_out_samples(swr_ctx, in_nb_samples); // (int) av_rescale_rnd(in_nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP);
+    int out_nb_samples = (int) av_rescale_rnd( swr_get_delay(swr_ctx, frame->sample_rate) + in_nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP); // swr_get_out_samples(swr_ctx, in_nb_samples);
+
     if (out_nb_samples <= 0) {
         LOGE("Get out put nb samples fail: %d", out_nb_samples);
         return DecodeFail;
     }
     // Get current output audio frame need buffer bufferSize.
-    int out_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_output_channels, out_nb_samples, audio_output_sample_fmt, 1);
+    int lineSize = 0;
+    int out_audio_buffer_size = av_samples_get_buffer_size(&lineSize, audio_output_channels, out_nb_samples, audio_output_sample_fmt, 1);
     auto audioBuffer = buffer->audioBuffer;
     // Alloc pcm buffer if need.
     if (audioBuffer->bufferSize < out_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
-        int in_audio_buffer_size = av_samples_get_buffer_size(nullptr, audio_channels, in_nb_samples, audio_decoder_ctx->sample_fmt, 1);
+        int in_audio_buffer_size = av_samples_get_buffer_size(frame->linesize, audio_channels, in_nb_samples, audio_decoder_ctx->sample_fmt, 1);
         LOGD("Decode audio change bufferSize, outBufferSize=%d, need bufferSize=%d, inBufferSize=%d", audioBuffer->bufferSize, out_audio_buffer_size, in_audio_buffer_size);
         if (audioBuffer->pcmBuffer != nullptr) {
             free(audioBuffer->pcmBuffer);
@@ -870,8 +870,11 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeAudioFrameToBuffer(tMediaDeco
         LOGE("Decode audio swr convert fail: %d", real_out_nb_samples);
         return DecodeFail;
     }
-    int contentBufferSize = av_samples_get_buffer_size(nullptr, audio_output_channels, real_out_nb_samples, audio_output_sample_fmt, 1);
-    audioBuffer->contentSize = contentBufferSize;
+    int contentBufferSize = av_samples_get_buffer_size(&lineSize, audio_output_channels, real_out_nb_samples, audio_output_sample_fmt, 1);
+    audioBuffer->contentSize = lineSize;
+    if (contentBufferSize != lineSize) {
+        LOGE("output lineSize=%d, contentBufferSize=%d", lineSize, contentBufferSize);
+    }
     buffer->type = BufferTypeAudio;
     return DecodeSuccess;
 }

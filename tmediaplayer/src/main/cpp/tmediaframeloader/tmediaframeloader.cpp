@@ -111,7 +111,7 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool need
 
             for (int i = 0; i < format_ctx->nb_streams; i++) {
                 auto s = format_ctx->streams[i];
-                if (s == video_stream) {
+                if (video_stream != nullptr && s->index == video_stream->index) {
                     continue;
                 } else {
                     int64_t seekTimestamp = av_rescale_q(framePosition * AV_TIME_BASE / 1000,
