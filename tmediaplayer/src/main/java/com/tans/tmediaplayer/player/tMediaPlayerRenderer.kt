@@ -46,10 +46,7 @@ internal class tMediaPlayerRenderer(
 
     private val audioTrack: tMediaAudioTrack by lazy {
         tMediaAudioTrack(audioTrackBufferQueueSize) {
-            val b = renderingAudioBuffers.pollFirst()
-            if (b != null) {
-                bufferManager.enqueueAudioNativeEncodeBuffer(b)
-            }
+            rendererHandler.sendEmptyMessage(RECYCLE_RENDERING_AUDIO_BUFFER)
         }
     }
 
@@ -347,6 +344,12 @@ internal class tMediaPlayerRenderer(
                         this@tMediaPlayerRenderer.state.set(tMediaPlayerRendererState.RenderEnd)
                         MediaLog.d(TAG, "Render end.")
                     }
+                    RECYCLE_RENDERING_AUDIO_BUFFER -> {
+                        val b = renderingAudioBuffers.pollFirst()
+                        if (b != null) {
+                            bufferManager.enqueueAudioNativeEncodeBuffer(b)
+                        }
+                    }
                     else -> {}
                 }
             }
@@ -539,6 +542,7 @@ internal class tMediaPlayerRenderer(
         private const val RENDER_VIDEO = 3
         private const val RENDER_AUDIO = 4
         private const val RENDER_END = 5
+        private const val RECYCLE_RENDERING_AUDIO_BUFFER = 6;
         private const val TAG = "tMediaPlayerRender"
 
     }

@@ -78,7 +78,7 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
 
     private fun refreshAudios() {
         val audios = queryAudioFromMediaStore()
-            .sortedByDescending { it.dateModified }
+            .sortedBy { it.dateModified }
             .filter { it.file != null }
             .map {
                 AudioAndLoadModel(
