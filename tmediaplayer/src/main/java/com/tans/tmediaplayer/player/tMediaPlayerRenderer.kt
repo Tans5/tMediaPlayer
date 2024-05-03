@@ -121,8 +121,8 @@ internal class tMediaPlayerRenderer(
                                         // Calculate current frame render delay.
                                         val delay = player.calculateRenderDelay(pts, false).let {
                                             val bufferQueueCount = audioTrack.getBufferQueueCount()
-                                            if (bufferQueueCount < 2) {
-                                                MediaLog.e(TAG, "bufferQueueCount=$bufferQueueCount, pts: $pts, delay = $it")
+                                            if (bufferQueueCount < 1) {
+                                                MediaLog.e(TAG, "bufferQueueCount=$bufferQueueCount, pts=$pts, delay=$it")
                                                 0L
                                             } else {
                                                 it
@@ -339,8 +339,8 @@ internal class tMediaPlayerRenderer(
                                     renderingAudioBuffers.addLast(buffer)
                                 } else {
                                     bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
+                                    player.renderSuccess()
                                 }
-                                player.renderSuccess()
                             }
                             player.dispatchProgress(pts)
                             MediaLog.d(TAG, "Render Audio: pts=$pts, cost=$cost")
@@ -356,6 +356,7 @@ internal class tMediaPlayerRenderer(
                         val b = renderingAudioBuffers.pollFirst()
                         if (b != null) {
                             bufferManager.enqueueAudioNativeEncodeBuffer(b)
+                            player.renderSuccess()
                         }
                     }
                     else -> {}
