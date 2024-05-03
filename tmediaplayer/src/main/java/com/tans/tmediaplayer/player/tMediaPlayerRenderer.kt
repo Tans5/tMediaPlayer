@@ -19,7 +19,7 @@ import kotlin.system.measureTimeMillis
 internal class tMediaPlayerRenderer(
     private val player: tMediaPlayer,
     private val bufferManager: tMediaPlayerBufferManager,
-    audioTrackBufferQueueSize: Int
+    private val audioTrackBufferQueueSize: Int
 ) {
 
     private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
@@ -119,7 +119,15 @@ internal class tMediaPlayerRenderer(
                                         // Check and update base pts
                                         player.checkAndUpdateBasePts(pts)
                                         // Calculate current frame render delay.
-                                        val delay = player.calculateRenderDelay(pts, false)
+                                        val delay = player.calculateRenderDelay(pts, false).let {
+                                            val bufferQueueCount = audioTrack.getBufferQueueCount()
+                                            if (bufferQueueCount < 2) {
+                                                MediaLog.e(TAG, "bufferQueueCount=$bufferQueueCount, pts: $pts, delay = $it")
+                                                0L
+                                            } else {
+                                                it
+                                            }
+                                        }
                                         val m = Message.obtain()
                                         m.what = RENDER_AUDIO
                                         // Add to pending.

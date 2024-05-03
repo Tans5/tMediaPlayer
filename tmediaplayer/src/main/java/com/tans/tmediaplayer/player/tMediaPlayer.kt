@@ -20,11 +20,11 @@ import kotlin.math.min
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer(
-    maxNativeAudioBufferSize: Int = 300,
+    maxNativeAudioBufferSize: Int = 200,
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
-    audioTrackBufferQueueSize: Int = 20
+    audioTrackBufferQueueSize: Int = 25
 ) {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {

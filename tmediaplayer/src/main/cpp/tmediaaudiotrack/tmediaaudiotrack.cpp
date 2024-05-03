@@ -104,6 +104,7 @@ tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize) {
         LOGE("Register audio queue callback fail: %d", result);
         return OptFail;
     }
+    playerBufferQueueState = new SLAndroidSimpleBufferQueueState;
     // endregion
 
     LOGD("Prepare audio track success!!");
@@ -140,10 +141,20 @@ tMediaOptResult tMediaAudioTrackContext::stop() {
 
 tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) {
     SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->contentSize);
+    SLAndroidSimpleBufferQueueState state;
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
     } else {
         return OptFail;
+    }
+}
+
+SLuint32 tMediaAudioTrackContext::getBufferQueueCount() {
+    if (playerBufferQueueInterface != nullptr && playerBufferQueueState != nullptr) {
+        (*playerBufferQueueInterface)->GetState(playerBufferQueueInterface, playerBufferQueueState);
+        return playerBufferQueueState->count;
+    } else {
+        return 0;
     }
 }
 
@@ -172,6 +183,10 @@ void tMediaAudioTrackContext::release() {
         (*engineObject)->Destroy(engineObject);
         engineObject = nullptr;
         engineInterface = nullptr;
+    }
+    if (playerBufferQueueState != nullptr) {
+        free(playerBufferQueueState);
+        playerBufferQueueState = nullptr;
     }
     free(this);
     LOGD("Audio track released.");

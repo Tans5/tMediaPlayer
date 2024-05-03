@@ -37,6 +37,15 @@ internal class tMediaAudioTrack(queueBufferSize: Int, private val audioTrackQueu
         return result
     }
 
+    fun getBufferQueueCount(): Int {
+        val nativeAudioTrack = this.nativeAudioTrack.get()
+        return if (nativeAudioTrack != null) {
+            getBufferQueueCountNative(nativeAudioTrack)
+        } else {
+            0
+        }
+    }
+
     fun clearBuffers(): OptResult {
         val nativeAudioTrack = this.nativeAudioTrack.get()
         val result = if (nativeAudioTrack == null) {
@@ -106,6 +115,8 @@ internal class tMediaAudioTrack(queueBufferSize: Int, private val audioTrackQueu
     private external fun prepareNative(nativeAudioTrack: Long, bufferQueueSize: Int): Int
 
     private external fun enqueueBufferNative(nativeAudioTrack: Long, nativeBuffer: Long): Int
+
+    private external fun getBufferQueueCountNative(nativeAudioTrack: Long): Int
 
     private external fun clearBuffersNative(nativeAudioTrack: Long): Int
 

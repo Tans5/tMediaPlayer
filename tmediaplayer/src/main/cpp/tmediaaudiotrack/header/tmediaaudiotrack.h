@@ -19,6 +19,7 @@ typedef struct tMediaAudioTrackContext {
     SLObjectItf playerObject = nullptr;
     SLPlayItf playerInterface = nullptr;
     SLAndroidSimpleBufferQueueItf playerBufferQueueInterface = nullptr;
+    SLAndroidSimpleBufferQueueState *playerBufferQueueState = nullptr;
 
     SLuint32 inputSampleChannels = 2;
     SLuint32 inputSampleRate = SL_SAMPLINGRATE_48;
@@ -37,6 +38,8 @@ typedef struct tMediaAudioTrackContext {
     tMediaOptResult stop();
 
     tMediaOptResult enqueueBuffer(tMediaAudioBuffer* buffer);
+
+    SLuint32 getBufferQueueCount();
 
     tMediaOptResult clearBuffers();
 
