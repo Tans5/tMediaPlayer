@@ -58,17 +58,26 @@ class tMediaPlayer(
     }
 
     // Base time, use to compute frame render time.
-    private val ptsBaseTime: AtomicLong by lazy {
+    private val videoPtsBaseTime: AtomicLong by lazy {
+        AtomicLong(0)
+    }
+    private val audioPtsBaseTime: AtomicLong by lazy {
         AtomicLong(0)
     }
 
     // Base frame's pts, use to compute frame render time.
-    private val basePts: AtomicLong by lazy {
+    private val baseVideoPts: AtomicLong by lazy {
+        AtomicLong(0)
+    }
+    private val baseAudioPts: AtomicLong by lazy {
         AtomicLong(0)
     }
 
     // Waiting next render frame calculate base pts and pts base time.
-    private val isWaitingNextFrameAsBaseFrame: AtomicBoolean by lazy {
+    private val isWaitingNextVideoFrameAsBaseFrame: AtomicBoolean by lazy {
+        AtomicBoolean(true)
+    }
+    private val isWaitingNextAudioFrameAsBaseFrame: AtomicBoolean by lazy {
         AtomicBoolean(true)
     }
 
@@ -158,7 +167,8 @@ class tMediaPlayer(
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
 
-            isWaitingNextFrameAsBaseFrame.set(true)
+            isWaitingNextVideoFrameAsBaseFrame.set(true)
+            isWaitingNextAudioFrameAsBaseFrame.set(true)
 
             renderer.render()
             decoder.decode()
@@ -439,7 +449,8 @@ class tMediaPlayer(
                 // Clear last render data.
                 bufferManager.clearRenderData()
                 // Update base pts.
-                isWaitingNextFrameAsBaseFrame.set(true)
+                isWaitingNextVideoFrameAsBaseFrame.set(true)
+                isWaitingNextAudioFrameAsBaseFrame.set(true)
                 if (isLastFrameBufferNative(audioBuffer.nativeBuffer)) {
                     // Current seek frame is last fame.
                     val info = getMediaInfo()
@@ -496,11 +507,19 @@ class tMediaPlayer(
     /**
      * Calculate base pts frame if need.
      */
-    internal fun checkAndUpdateBasePts(pts: Long) {
-        if (isWaitingNextFrameAsBaseFrame.compareAndSet(true, false)) {
-            basePts.set(pts)
-            ptsBaseTime.set(SystemClock.uptimeMillis())
-            MediaLog.d(TAG, "Update basePts=$pts, ptsBaseTime=$ptsBaseTime")
+    internal fun checkAndUpdateBasePts(pts: Long, isVideo: Boolean) {
+        if (isVideo) {
+            if (isWaitingNextVideoFrameAsBaseFrame.compareAndSet(true, false)) {
+                baseVideoPts.set(pts)
+                videoPtsBaseTime.set(SystemClock.uptimeMillis())
+                MediaLog.d(TAG, "Update baseVideoPts=$pts, videoPtsBaseTime=${videoPtsBaseTime.get()}")
+            }
+        } else {
+            if (isWaitingNextAudioFrameAsBaseFrame.compareAndSet(true, false)) {
+                baseAudioPts.set(pts)
+                audioPtsBaseTime.set(SystemClock.uptimeMillis())
+                MediaLog.d(TAG, "Update baseAudioPts=$pts, audioPtsBaseTime=${videoPtsBaseTime.get()}")
+            }
         }
     }
 
@@ -508,12 +527,19 @@ class tMediaPlayer(
      * Calculate [pts] frame render delay.
      */
     internal fun calculateRenderDelay(pts: Long, isVideo: Boolean): Long {
-        if (isWaitingNextFrameAsBaseFrame.get()) {
+        val isWaitingVideoBasePts = isWaitingNextVideoFrameAsBaseFrame.get()
+        val isWaitingAudioBasePts = isWaitingNextAudioFrameAsBaseFrame.get()
+        if (isWaitingVideoBasePts && isWaitingAudioBasePts) {
             MediaLog.e(TAG, "Waiting next frame as base pts frame.")
             return 0L
         }
-        val ptsLen = pts - basePts.get()
-        val timeLen = SystemClock.uptimeMillis() - ptsBaseTime.get()
+        val (basePts, baseTime) = if (!isWaitingAudioBasePts) {
+            baseAudioPts.get() to audioPtsBaseTime.get()
+        } else {
+            baseVideoPts.get() to videoPtsBaseTime.get()
+        }
+        val ptsLen = pts - basePts
+        val timeLen = SystemClock.uptimeMillis() - baseTime
         val d = ptsLen - timeLen
         return if (d >= 0L) {
             d
@@ -582,9 +608,12 @@ class tMediaPlayer(
     private fun resetProgressAndBaseTime() {
         progress.set(0L)
         lastUpdateProgress.set(0L)
-        basePts.set(0L)
-        ptsBaseTime.set(0L)
-        isWaitingNextFrameAsBaseFrame.set(true)
+        baseVideoPts.set(0L)
+        videoPtsBaseTime.set(0L)
+        isWaitingNextVideoFrameAsBaseFrame.set(true)
+        baseAudioPts.set(0L)
+        audioPtsBaseTime.set(0L)
+        isWaitingNextAudioFrameAsBaseFrame.set(true)
     }
     // endregion
 

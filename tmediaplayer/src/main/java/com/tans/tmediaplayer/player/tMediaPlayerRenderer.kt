@@ -102,7 +102,7 @@ internal class tMediaPlayerRenderer(
                                     // Video frame
                                     val pts = player.getPtsNativeInternal(videoRenderBuffer.nativeBuffer)
                                     // Check and update base pts
-                                    player.checkAndUpdateBasePts(pts)
+                                    player.checkAndUpdateBasePts(pts, true)
                                     // Calculate current frame render delay.
                                     val delay = player.calculateRenderDelay(pts, true)
                                     val m = Message.obtain()
@@ -117,8 +117,9 @@ internal class tMediaPlayerRenderer(
                                 // Audio
                                 if (audioRenderBuffer != null) {
                                     if (!player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
-
                                         // Audio frame.
+                                        val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
+                                        player.checkAndUpdateBasePts(pts, false)
                                         pendingRenderAudioBuffers.addLast(audioRenderBuffer)
                                         if (pendingRenderAudioBuffers.size == 1) {
                                             // Send message to audio render
