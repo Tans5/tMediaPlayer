@@ -1,5 +1,8 @@
 package com.tans.tmediaplayer.player.model
 
+import androidx.annotation.Keep
+
+@Keep
 enum class FFmpegCodec(val codecId: Int) {
     NONE(0),
     MPEG1VIDEO(1),

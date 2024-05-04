@@ -142,6 +142,8 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         AVCodecParameters *params = video_stream->codecpar;
         this->video_width = params->width;
         this->video_height = params->height;
+        this->video_bits_per_raw_sample = params->bits_per_raw_sample;
+        this->video_bitrate = params->bit_rate;
         auto frameRate = video_stream->avg_frame_rate;
         this->video_fps = 0.0;
         if (frameRate.den > 0 && frameRate.num > 0) {
@@ -228,6 +230,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             LOGE("Open video decoder ctx fail: %d", result);
             return OptFail;
         }
+        this->video_pixel_format = video_decoder_ctx->pix_fmt;
         this->sws_ctx = sws_getContext(
                 video_width,
                 video_height,
@@ -250,6 +253,8 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     if (audio_stream != nullptr) {
         auto params = audio_stream->codecpar;
         this->audio_codec_id = params->codec_id;
+        this->audio_bits_per_raw_sample = params->bits_per_raw_sample;
+        this->audio_bitrate = params->bit_rate;
         this->audio_decoder = avcodec_find_decoder(params->codec_id);
         if (!audio_decoder) {
             LOGE("Didn't find audio decoder.");
@@ -272,6 +277,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         }
         this->audio_channels = audio_decoder_ctx->ch_layout.nb_channels;
         this->audio_per_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
+        this->audio_sample_format = audio_decoder_ctx->sample_fmt;
         this->audio_simple_rate = audio_decoder_ctx->sample_rate;
         this->swr_ctx = swr_alloc();
 

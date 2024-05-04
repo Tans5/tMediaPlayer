@@ -15,6 +15,7 @@ import com.tans.tuiutils.adapter.impl.viewcreatators.SingleItemViewCreatorImpl
 import com.tans.tuiutils.dialog.BaseCoroutineStateDialogFragment
 import com.tans.tuiutils.dialog.createDefaultDialog
 import kotlinx.coroutines.flow.flow
+import java.util.Locale
 
 class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
@@ -60,9 +61,12 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
             dataSource = FlowDataSourceImpl(flow {
                 val result = mutableListOf<String>()
                 mediaInfo.videoStreamInfo?.let {
-                    result.add("Codec: ${it.videoCodec}")
+                    result.add("Codec: ${it.videoCodec.name}")
                     result.add("Resolution: ${it.videoWidth}x${it.videoHeight}")
-                    result.add("Fps: ${String.format("%.1f", it.videoFps)}")
+                    result.add("Fps: ${String.format(Locale.US, "%.1f", it.videoFps)}")
+                    result.add("Bitrate: ${it.videoBitrate / 1024} kbps")
+                    result.add("PixelDepth: ${it.videoPixelBitDepth} bits")
+                    result.add("PixelFormat: ${it.videoPixelFormat.name}")
                 }
                 emit(result)
             }),
@@ -77,10 +81,12 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
             dataSource = FlowDataSourceImpl(flow {
                 val result = mutableListOf<String>()
                 mediaInfo.audioStreamInfo?.let {
-                    result.add("Codec: ${it.audioCodec}")
+                    result.add("Codec: ${it.audioCodec.name}")
                     result.add("Channels: ${it.audioChannels}")
                     result.add("SimpleRate: ${it.audioSimpleRate} Hz")
-                    result.add("PerSimpleBytes: ${it.audioPerSampleBytes} Bytes")
+                    result.add("Bitrate: ${it.audioBitrate / 1024} kbps")
+                    result.add("SimpleDepth: ${it.audioSampleBitDepth} bits")
+                    result.add("SimpleFormat: ${it.audioSampleFormat.name}")
                 }
                 emit(result)
             }),

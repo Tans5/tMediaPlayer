@@ -3,9 +3,11 @@ package com.tans.tmediaplayer.player
 import android.os.SystemClock
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.model.AudioSampleFormat
 import com.tans.tmediaplayer.player.model.AudioStreamInfo
 import com.tans.tmediaplayer.player.model.FFmpegCodec
 import com.tans.tmediaplayer.player.model.MediaInfo
+import com.tans.tmediaplayer.player.model.VideoPixelFormat
 import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.io.File
@@ -363,24 +365,32 @@ class tMediaPlayer(
         }
         val audioStreamInfo: AudioStreamInfo? = if (containAudioStreamNative(nativePlayer)) {
             val codecId = audioCodecIdNative(nativePlayer)
+            val sampleFormatId = audioSampleFmtNative(nativePlayer)
             AudioStreamInfo(
                 audioChannels = audioChannelsNative(nativePlayer),
                 audioSimpleRate = audioSampleRateNative(nativePlayer),
                 audioPerSampleBytes = audioPerSampleBytesNative(nativePlayer),
                 audioDuration = audioDurationNative(nativePlayer),
-                audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN
+                audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN,
+                audioBitrate = audioBitrateNative(nativePlayer),
+                audioSampleBitDepth = audioSampleBitDepthNative(nativePlayer),
+                audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.UNKNOWN
             )
         } else {
             null
         }
         val videoStreamInfo: VideoStreamInfo? = if (containVideoStreamNative(nativePlayer)) {
             val codecId = videoCodecIdNative(nativePlayer)
+            val pixelFormatId = videoPixelFmtNative(nativePlayer)
             VideoStreamInfo(
                 videoWidth = videoWidthNative(nativePlayer),
                 videoHeight = videoHeightNative(nativePlayer),
                 videoFps = videoFpsNative(nativePlayer),
                 videoDuration = videoDurationNative(nativePlayer),
-                videoCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN
+                videoCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN,
+                videoBitrate = videoBitrateNative(nativePlayer),
+                videoPixelBitDepth = videoPixelBitDepthNative(nativePlayer),
+                videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN
             )
         } else {
             null
@@ -785,6 +795,13 @@ class tMediaPlayer(
 
     private external fun videoHeightNative(nativePlayer: Long): Int
 
+    private external fun videoBitrateNative(nativePlayer: Long): Int
+
+    private external fun videoPixelBitDepthNative(nativePlayer: Long): Int
+
+    private external fun videoPixelFmtNative(nativePlayer: Long): Int
+
+
     private external fun videoFpsNative(nativePlayer: Long): Double
 
     private external fun videoDurationNative(nativePlayer: Long): Long
@@ -797,6 +814,12 @@ class tMediaPlayer(
     private external fun audioChannelsNative(nativePlayer: Long): Int
 
     private external fun audioPerSampleBytesNative(nativePlayer: Long): Int
+
+    private external fun audioBitrateNative(nativePlayer: Long): Int
+
+    private external fun audioSampleBitDepthNative(nativePlayer: Long): Int
+
+    private external fun audioSampleFmtNative(nativePlayer: Long): Int
 
     private external fun audioSampleRateNative(nativePlayer: Long): Int
 

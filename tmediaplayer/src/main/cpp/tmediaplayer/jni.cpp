@@ -463,6 +463,33 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoHeightNative(
     return player->video_height;
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoBitrateNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->video_bitrate;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoPixelBitDepthNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->video_bits_per_raw_sample;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoPixelFmtNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->video_pixel_format;
+}
+
 extern "C" JNIEXPORT jdouble JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_videoFpsNative(
         JNIEnv * env,
@@ -509,6 +536,33 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioPerSampleBytesNative(
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->audio_per_sample_bytes;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioBitrateNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->audio_bitrate;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioSampleBitDepthNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->audio_bits_per_raw_sample;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioSampleFmtNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->audio_sample_format;
 }
 
 extern "C" JNIEXPORT jint JNICALL

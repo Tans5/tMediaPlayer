@@ -5,5 +5,8 @@ data class VideoStreamInfo(
     val videoHeight: Int,
     val videoFps: Double,
     val videoDuration: Long,
-    val videoCodec: FFmpegCodec
+    val videoCodec: FFmpegCodec,
+    val videoBitrate: Int,
+    val videoPixelBitDepth: Int,
+    val videoPixelFormat: VideoPixelFormat
 )
