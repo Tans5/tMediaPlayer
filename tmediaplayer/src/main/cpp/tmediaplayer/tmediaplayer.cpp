@@ -20,7 +20,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
     return AV_PIX_FMT_NONE;
 }
 
-tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_request_hw,int target_audio_channels) {
+tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_request_hw, int target_audio_channels, int target_audio_sample_rate, int target_audio_sample_bit_depth) {
     this->media_file = media_file_p;
     LOGD("Prepare media file: %s", media_file_p);
     this->format_ctx = avformat_alloc_context();
@@ -29,6 +29,40 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
     }
+
+    // audio channels
+    if (target_audio_channels == 1) {
+        audio_output_channels = 1;
+        audio_output_ch_layout = AV_CHANNEL_LAYOUT_MONO;
+    } else {
+        audio_output_channels = 2;
+        audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    }
+
+    // audio sample rate.
+    if (target_audio_sample_rate == 44100) {
+        audio_output_sample_rate = 44100;
+    } else if (target_audio_sample_rate == 48000) {
+        audio_output_sample_rate = 48000;
+    } else if (target_audio_sample_rate == 96000) {
+        audio_output_sample_rate = 96000;
+    } else if (target_audio_sample_rate == 192000) {
+        audio_output_sample_rate = 192000;
+    } else {
+        audio_output_sample_rate = 44100;
+    }
+
+    // audio sample depth
+    if (target_audio_sample_bit_depth == 8) {
+        audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
+    } else if (target_audio_sample_bit_depth == 16) {
+        audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
+    } else if (target_audio_sample_bit_depth == 32) {
+        audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
+    } else {
+        audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
+    }
+
     AVDictionaryEntry *metadataLocal = nullptr;
     int metadataCountLocal = 0;
     while ((metadataLocal = av_dict_get(format_ctx->metadata, "", metadataLocal, AV_DICT_IGNORE_SUFFIX)) != nullptr) {

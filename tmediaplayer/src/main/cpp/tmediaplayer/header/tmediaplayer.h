@@ -132,7 +132,7 @@ typedef struct tMediaPlayerContext {
     AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
 
 
-    tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels);
+    tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels, int target_audio_sample_rate, int target_audio_sample_bit_depth);
 
     tMediaOptResult resetDecodeProgress();
 

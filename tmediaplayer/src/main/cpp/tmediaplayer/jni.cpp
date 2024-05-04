@@ -34,14 +34,16 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_prepareNative(
         jlong native_player,
         jstring file_path,
         jboolean requestHw,
-        jint targetAudioChannels) {
+        jint targetAudioChannels,
+        jint targetAudioSampleRate,
+        jint targetAudioSampleBitDepth) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     if (player == nullptr) {
         return OptFail;
     }
     av_jni_set_java_vm(player->jvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, 0);
-    return player->prepare(file_path_chars, requestHw, targetAudioChannels);
+    return player->prepare(file_path_chars, requestHw, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
 }
 
 extern "C" JNIEXPORT jint JNICALL

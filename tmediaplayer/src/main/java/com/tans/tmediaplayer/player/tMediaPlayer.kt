@@ -20,6 +20,10 @@ import kotlin.math.min
 @Suppress("ClassName")
 @Keep
 class tMediaPlayer(
+    private val audioOutputChannel: AudioChannel = AudioChannel.Stereo,
+    private val audioOutputSampleRate: AudioSampleRate = AudioSampleRate.Rate48000,
+    private val audioOutputSampleBitDepth: AudioSampleBitDepth = AudioSampleBitDepth.SixteenBits,
+    private val enableVideoHardwareDecoder: Boolean = true,
     maxNativeAudioBufferSize: Int = 200,
     maxNativeVideoBufferSize: Int = 60,
     singleJavaBufferSize: Int = 5,
@@ -90,7 +94,7 @@ class tMediaPlayer(
     fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
-    fun prepare(file: String, requestHw: Boolean = true): OptResult {
+    fun prepare(file: String): OptResult {
         val lastState = getState()
         if (lastState == tMediaPlayerState.Released) {
             MediaLog.e(TAG, "Prepare fail, player has released.")
@@ -117,7 +121,14 @@ class tMediaPlayer(
             // Create native player.
             val nativePlayer = createPlayerNative()
             // Load media file by native player.
-            val result = prepareNative(nativePlayer, file, requestHw, 2).toOptResult()
+            val result = prepareNative(
+                nativePlayer = nativePlayer,
+                file = file,
+                requestHw = enableVideoHardwareDecoder,
+                targetAudioChannels = audioOutputChannel.channel,
+                targetAudioSampleRate = audioOutputSampleRate.rate,
+                targetAudioSampleBitDepth = audioOutputSampleBitDepth.depth
+            ).toOptResult()
             dispatchProgress(0L, true)
             if (result == OptResult.Success) {
                 // Load media file success.
@@ -621,7 +632,7 @@ class tMediaPlayer(
     // region Native player control methods.
     private external fun createPlayerNative(): Long
 
-    private external fun prepareNative(nativePlayer: Long, file: String, requestHw: Boolean, targetAudioChannels: Int): Int
+    private external fun prepareNative(nativePlayer: Long, file: String, requestHw: Boolean, targetAudioChannels: Int, targetAudioSampleRate: Int, targetAudioSampleBitDepth: Int): Int
 
     private external fun resetNative(nativePlayer: Long): Int
 
