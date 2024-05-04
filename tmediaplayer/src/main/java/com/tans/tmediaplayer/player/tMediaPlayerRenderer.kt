@@ -234,6 +234,8 @@ internal class tMediaPlayerRenderer(
                                                 uBytes = uJavaBuffer.bytes,
                                                 vBytes = vJavaBuffer.bytes
                                             ) {
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                                 bufferManager.enqueueJavaBuffer(yJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(uJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(vJavaBuffer)
@@ -261,6 +263,8 @@ internal class tMediaPlayerRenderer(
                                                 yBytes = yJavaBuffer.bytes,
                                                 uvBytes = uvJavaBuffer.bytes
                                             ) {
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                                 bufferManager.enqueueJavaBuffer(yJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(uvJavaBuffer)
                                             }
@@ -287,6 +291,8 @@ internal class tMediaPlayerRenderer(
                                                 yBytes = yJavaBuffer.bytes,
                                                 vuBytes = vuJavaBuffer.bytes
                                             ) {
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                                 bufferManager.enqueueJavaBuffer(yJavaBuffer)
                                                 bufferManager.enqueueJavaBuffer(vuJavaBuffer)
                                             }
@@ -305,17 +311,22 @@ internal class tMediaPlayerRenderer(
                                                 height = height,
                                                 imageBytes = javaBuffer.bytes
                                             ) {
+                                                // Notify to player update progress.
+                                                player.dispatchProgress(pts)
                                                 bufferManager.enqueueJavaBuffer(javaBuffer)
                                             }
                                         }
 
                                         ImageRawType.Unknown -> {
+                                            // Notify to player update progress.
+                                            player.dispatchProgress(pts)
                                             MediaLog.e(TAG, "Render video frame fail. Unknown frame type.")
                                         }
                                     }
+                                } else {
+                                    // Notify to player update progress.
+                                    player.dispatchProgress(pts)
                                 }
-                                // Notify to player update progress.
-                                player.dispatchProgress(pts)
                                 bufferManager.enqueueVideoNativeEncodeBuffer(buffer)
                                 // Notify to player render success.
                                 player.renderSuccess()
