@@ -570,7 +570,7 @@ class tMediaPlayer(
                     }
                 }
             } else {
-                MediaLog.e(TAG, "Skip update progress, updateProgress=$progress, currentProgress=$currentProcess")
+                MediaLog.d(TAG, "Skip update progress, updateProgress=$progress, currentProgress=$currentProcess")
             }
         } else {
             MediaLog.e(TAG, "Ignore progress update, because of state: $state")

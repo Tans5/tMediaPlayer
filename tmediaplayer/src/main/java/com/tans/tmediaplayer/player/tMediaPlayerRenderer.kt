@@ -22,7 +22,7 @@ internal class tMediaPlayerRenderer(
     private val player: tMediaPlayer,
     private val bufferManager: tMediaPlayerBufferManager,
     private val audioTrackBufferQueueSize: Int,
-    private val maxAudioQueueCount: Int = 4,
+    private val maxAudioQueueCount: Int = audioTrackBufferQueueSize / 2,
 ) {
 
     private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
@@ -355,9 +355,10 @@ internal class tMediaPlayerRenderer(
                                         } else {
                                             bufferManager.enqueueAudioNativeEncodeBuffer(b)
                                         }
-                                        MediaLog.d(TAG, "AudioTrack enqueue more buffer result=$r")
+                                        MediaLog.d(TAG, "AudioTrack enqueue buffer result=$r, queueCount=$queueCount")
                                     } else {
                                         MediaLog.e(TAG, "AudioTrack no more buffer to enqueue.")
+                                        return@repeat
                                     }
                                 }
                             }
