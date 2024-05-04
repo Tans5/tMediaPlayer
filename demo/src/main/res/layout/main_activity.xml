@@ -11,11 +11,11 @@
         android:fitsSystemWindows="true"
         android:background="@color/white">
 
-        <Toolbar
+        <androidx.appcompat.widget.Toolbar
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/white"
-            android:title="tMediaPlayer"
+            app:title="tMediaPlayer"
             android:titleTextColor="#333333"/>
 
         <com.google.android.material.tabs.TabLayout

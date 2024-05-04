@@ -109,7 +109,9 @@ internal class tMediaPlayerBufferManager(
         return audioNativeRenderBuffersDeque.pollFirst()
     }
 
-    fun peekAudioNativeRenderBuffer(): MediaBuffer? = audioNativeRenderBuffersDeque.peekFirst()
+    fun peekFirstAudioNativeRenderBuffer(): MediaBuffer? = audioNativeRenderBuffersDeque.peekFirst()
+
+    fun peekLastAudioNativeRenderBuffer(): MediaBuffer? = audioNativeRenderBuffersDeque.peekLast()
 
     /**
      * After render finished, move buffer to encode buffers queue.
@@ -175,7 +177,9 @@ internal class tMediaPlayerBufferManager(
         return videoNativeRenderBuffersDeque.pollFirst()
     }
 
-    fun peekVideoNativeRenderBuffer(): MediaBuffer? = videoNativeRenderBuffersDeque.peekFirst()
+    fun peekFirstVideoNativeRenderBuffer(): MediaBuffer? = videoNativeRenderBuffersDeque.peekFirst()
+
+    fun peekLastVideoNativeRenderBuffer(): MediaBuffer? = videoNativeRenderBuffersDeque.peekLast()
 
     /**
      * After render finished, move buffer to encode buffers queue.

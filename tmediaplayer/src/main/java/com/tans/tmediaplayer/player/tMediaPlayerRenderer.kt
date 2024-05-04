@@ -10,6 +10,8 @@ import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.system.measureTimeMillis
 
 /**
@@ -19,7 +21,8 @@ import kotlin.system.measureTimeMillis
 internal class tMediaPlayerRenderer(
     private val player: tMediaPlayer,
     private val bufferManager: tMediaPlayerBufferManager,
-    private val audioTrackBufferQueueSize: Int
+    private val audioTrackBufferQueueSize: Int,
+    private val maxAudioQueueCount: Int = 4,
 ) {
 
     private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
@@ -104,6 +107,7 @@ internal class tMediaPlayerRenderer(
                                     val delay = player.calculateRenderDelay(pts, true)
                                     val m = Message.obtain()
                                     m.what = RENDER_VIDEO
+                                    m.obj = videoRenderBuffer
                                     // Add to pending.
                                     pendingRenderVideoBuffers.addLast(videoRenderBuffer)
                                     // Add to render task.
@@ -115,33 +119,28 @@ internal class tMediaPlayerRenderer(
                                     if (!player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
 
                                         // Audio frame.
-                                        val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
-                                        // Check and update base pts
-                                        player.checkAndUpdateBasePts(pts)
-                                        // Calculate current frame render delay.
-                                        val delay = player.calculateRenderDelay(pts, false).let {
-                                            val bufferQueueCount = audioTrack.getBufferQueueCount()
-                                            if (bufferQueueCount < 1) {
-                                                MediaLog.e(TAG, "bufferQueueCount=$bufferQueueCount, pts=$pts, delay=$it")
-                                                0L
-                                            } else {
-                                                it
-                                            }
-                                        }
-                                        val m = Message.obtain()
-                                        m.what = RENDER_AUDIO
-                                        // Add to pending.
                                         pendingRenderAudioBuffers.addLast(audioRenderBuffer)
-                                        // Add to render task.
-                                        this.sendMessageDelayed(m, delay)
+                                        if (pendingRenderAudioBuffers.size == 1) {
+                                            // Send message to audio render
+                                            this.sendEmptyMessage(RENDER_AUDIO)
+                                        }
                                     } else {
                                         // Current frame is last frame, Last frame always is audio frame.
 
                                         bufferManager.enqueueAudioNativeEncodeBuffer(audioRenderBuffer)
-                                        val pts = (player.getMediaInfo()?.duration ?: 0L) + 50L
+                                        val lastAudioRenderBuffer = bufferManager.peekLastAudioNativeRenderBuffer() ?: pendingRenderAudioBuffers.peekLast() ?: renderingAudioBuffers.peekLast()
+                                        val lastVideoRenderBuffer = bufferManager.peekLastVideoNativeRenderBuffer() ?: pendingRenderVideoBuffers.peekLast()
+                                        val audioPts = lastAudioRenderBuffer?.let { player.getPtsNativeInternal(it.nativeBuffer) }
+                                        val videoPts = lastVideoRenderBuffer?.let { player.getPtsNativeInternal(it.nativeBuffer) }
+                                        val pts = when {
+                                            audioPts != null && videoPts != null -> max(audioPts, videoPts)
+                                            audioPts != null -> audioPts
+                                            videoPts != null -> videoPts
+                                            else -> (player.getMediaInfo()?.duration ?: 0L)
+                                        }
                                         this.sendEmptyMessageDelayed(
                                             RENDER_END,
-                                            player.calculateRenderDelay(pts, false)
+                                            player.calculateRenderDelay(pts + 50, false)
                                         )
                                     }
                                 }
@@ -330,22 +329,30 @@ internal class tMediaPlayerRenderer(
                      * Render audio.
                      */
                     RENDER_AUDIO -> {
-                        val buffer = pendingRenderAudioBuffers.pollFirst()
-                        if (buffer != null) {
-                            val pts = player.getPtsNativeInternal(buffer.nativeBuffer)
+                        val queueCount = audioTrack.getBufferQueueCount()
+                        if (queueCount < maxAudioQueueCount) {
+                            val needBuffers = maxAudioQueueCount - queueCount
                             val cost = measureTimeMillis {
-                                val result = audioTrack.enqueueBuffer(buffer.nativeBuffer)
-                                if (result == OptResult.Success) {
-                                    renderingAudioBuffers.addLast(buffer)
-                                } else {
-                                    bufferManager.enqueueAudioNativeEncodeBuffer(buffer)
-                                    player.renderSuccess()
+                                repeat(needBuffers) {
+                                    val b = pendingRenderAudioBuffers.pollFirst()
+                                    if (b != null) {
+                                        rendererHandler.removeCallbacksAndMessages(b)
+                                        val r = audioTrack.enqueueBuffer(b.nativeBuffer)
+                                        if (r == OptResult.Success) {
+                                            renderingAudioBuffers.addLast(b)
+                                        } else {
+                                            bufferManager.enqueueAudioNativeEncodeBuffer(b)
+                                        }
+                                        MediaLog.d(TAG, "AudioTrack enqueue more buffer result=$r")
+                                    } else {
+                                        MediaLog.e(TAG, "AudioTrack no more buffer to enqueue.")
+                                    }
                                 }
                             }
-                            player.dispatchProgress(pts)
-                            MediaLog.d(TAG, "Render Audio: pts=$pts, cost=$cost")
+                            MediaLog.d(TAG, "Enqueue audio buffers cost: $cost ms, buffer size: $needBuffers")
+                        } else {
+                            MediaLog.d(TAG, "Skip render audio, queueCount=$queueCount, maxQueueCount=$maxAudioQueueCount")
                         }
-                        Unit
                     }
                     RENDER_END -> {
                         player.dispatchPlayEnd()
@@ -355,8 +362,11 @@ internal class tMediaPlayerRenderer(
                     RECYCLE_RENDERING_AUDIO_BUFFER -> {
                         val b = renderingAudioBuffers.pollFirst()
                         if (b != null) {
+                            val pts = player.getPtsNativeInternal(b.nativeBuffer)
                             bufferManager.enqueueAudioNativeEncodeBuffer(b)
+                            player.dispatchProgress(pts, false)
                             player.renderSuccess()
+                            sendEmptyMessage(RENDER_AUDIO)
                         }
                     }
                     else -> {}
