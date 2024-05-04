@@ -53,7 +53,7 @@ class tMediaPlayer(
     }
 
     private val renderer: tMediaPlayerRenderer by lazy {
-        tMediaPlayerRenderer(this, bufferManager, audioTrackBufferQueueSize)
+        tMediaPlayerRenderer(this, bufferManager, audioOutputChannel, audioOutputSampleRate, audioOutputSampleBitDepth, audioTrackBufferQueueSize)
     }
 
     // Play progress.

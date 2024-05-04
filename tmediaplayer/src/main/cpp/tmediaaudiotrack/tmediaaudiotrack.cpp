@@ -28,7 +28,7 @@ void playerBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq, void *context) 
     return;
 }
 
-tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize) {
+tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize, unsigned int outputChannels, unsigned int outputSampleRate, unsigned int outputSampleBitDepth) {
     // region Init sl engine
     SLresult result = slCreateEngine(&engineObject, 0, nullptr, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
@@ -66,10 +66,40 @@ tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize) {
     // region Create player
 
     // Audio source configure
+    if (outputChannels == 1) {
+        inputSampleChannels = 1;
+        inputChannelMask = SL_SPEAKER_FRONT_CENTER;
+    } else {
+        inputSampleChannels = 2;
+        inputChannelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+    }
+
+    if (outputSampleRate == 44100) {
+        inputSampleRate = SL_SAMPLINGRATE_44_1;
+    } else if (outputSampleRate == 48000) {
+        inputSampleRate = SL_SAMPLINGRATE_48;
+    } else if (outputSampleRate == 96000) {
+        inputSampleRate = SL_SAMPLINGRATE_96;
+    } else if (outputSampleRate == 192000) {
+        inputSampleRate = SL_SAMPLINGRATE_192;
+    } else {
+        inputSampleRate = SL_SAMPLINGRATE_44_1;
+    }
+
+    if (outputSampleBitDepth == 8) {
+        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_8;
+    } else if (outputSampleBitDepth == 16) {
+        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
+    } else if (outputSampleBitDepth == 32) {
+        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_32;
+    } else {
+        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_8;
+    }
+
     SLDataLocator_AndroidSimpleBufferQueue audioInputQueue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, bufferQueueSize};
     SLDataFormat_PCM audioInputFormat = {SL_DATAFORMAT_PCM, inputSampleChannels, inputSampleRate,
                                          inputSampleFormat, inputSampleFormat,
-                                         SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT, SL_BYTEORDER_LITTLEENDIAN};
+                                         inputChannelMask, SL_BYTEORDER_LITTLEENDIAN};
     SLDataSource audioInputSource = {&audioInputQueue, &audioInputFormat};
 
     // Audio sink configure

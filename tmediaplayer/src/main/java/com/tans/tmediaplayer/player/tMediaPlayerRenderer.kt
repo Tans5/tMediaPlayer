@@ -21,6 +21,9 @@ import kotlin.system.measureTimeMillis
 internal class tMediaPlayerRenderer(
     private val player: tMediaPlayer,
     private val bufferManager: tMediaPlayerBufferManager,
+    audioOutputChannel: AudioChannel,
+    audioOutputSampleRate: AudioSampleRate,
+    audioOutputSampleBitDepth: AudioSampleBitDepth,
     private val audioTrackBufferQueueSize: Int,
     private val maxAudioQueueCount: Int = audioTrackBufferQueueSize / 2,
 ) {
@@ -48,7 +51,11 @@ internal class tMediaPlayerRenderer(
     }
 
     private val audioTrack: tMediaAudioTrack by lazy {
-        tMediaAudioTrack(audioTrackBufferQueueSize) {
+        tMediaAudioTrack(
+            audioOutputChannel,
+            audioOutputSampleRate,
+            audioOutputSampleBitDepth,
+            audioTrackBufferQueueSize) {
             rendererHandler.sendEmptyMessage(RECYCLE_RENDERING_AUDIO_BUFFER)
         }
     }

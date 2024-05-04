@@ -2,19 +2,34 @@ package com.tans.tmediaplayer.audiotrack
 
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.AudioChannel
+import com.tans.tmediaplayer.player.AudioSampleBitDepth
+import com.tans.tmediaplayer.player.AudioSampleRate
 import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.player.toOptResult
 import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
-internal class tMediaAudioTrack(queueBufferSize: Int, private val audioTrackQueueCallback: Runnable) {
+internal class tMediaAudioTrack(
+    outputChannel: AudioChannel,
+    outputSampleRate: AudioSampleRate,
+    outputSampleBitDepth: AudioSampleBitDepth,
+    bufferQueueSize: Int,
+    private val audioTrackQueueCallback: Runnable
+) {
 
     private val nativeAudioTrack: AtomicReference<Long?> = AtomicReference(null)
 
     init {
         val nativeAudioTrack = createAudioTrackNative()
-        val result = prepareNative(nativeAudioTrack, queueBufferSize).toOptResult()
+        val result = prepareNative(
+            nativeAudioTrack = nativeAudioTrack,
+            bufferQueueSize = bufferQueueSize,
+            outputChannels = outputChannel.channel,
+            outputSampleRate = outputSampleRate.rate,
+            outputSampleBitDepth = outputSampleBitDepth.depth
+            ).toOptResult()
         if (result != OptResult.Success) {
             releaseNative(nativeAudioTrack)
             MediaLog.e(TAG, "Prepare audio track fail.")
@@ -112,7 +127,7 @@ internal class tMediaAudioTrack(queueBufferSize: Int, private val audioTrackQueu
 
     private external fun createAudioTrackNative(): Long
 
-    private external fun prepareNative(nativeAudioTrack: Long, bufferQueueSize: Int): Int
+    private external fun prepareNative(nativeAudioTrack: Long, bufferQueueSize: Int, outputChannels: Int, outputSampleRate: Int, outputSampleBitDepth: Int): Int
 
     private external fun enqueueBufferNative(nativeAudioTrack: Long, nativeBuffer: Long): Int
 

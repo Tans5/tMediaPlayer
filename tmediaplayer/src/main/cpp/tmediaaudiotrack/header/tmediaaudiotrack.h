@@ -22,6 +22,7 @@ typedef struct tMediaAudioTrackContext {
     SLAndroidSimpleBufferQueueState *playerBufferQueueState = nullptr;
 
     SLuint32 inputSampleChannels = 2;
+    SLuint32 inputChannelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
     SLuint32 inputSampleRate = SL_SAMPLINGRATE_48;
     SLuint32 inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
 
@@ -29,7 +30,7 @@ typedef struct tMediaAudioTrackContext {
     jobject j_audioTrack = nullptr;
     jmethodID j_callbackMethodId = nullptr;
 
-    tMediaOptResult prepare(unsigned int bufferQueueSize);
+    tMediaOptResult prepare(unsigned int bufferQueueSize, unsigned int outputChannels, unsigned int outputSampleRate, unsigned int outputSampleBitDepth);
 
     tMediaOptResult play();
 

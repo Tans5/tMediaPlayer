@@ -21,9 +21,12 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_prepareNative(
         JNIEnv * env,
         jobject j_audio_track,
         jlong native_audio_track,
-        jint bufferQueueSize) {
+        jint bufferQueueSize,
+        jint outputChannels,
+        jint outputSampleRate,
+        jint outputSampleBitDepth) {
     auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
-    return audioTrack->prepare(bufferQueueSize);
+    return audioTrack->prepare(bufferQueueSize, outputChannels, outputSampleRate, outputSampleBitDepth);
 }
 
 extern "C" JNIEXPORT jint JNICALL
