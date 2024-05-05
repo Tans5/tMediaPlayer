@@ -525,6 +525,14 @@ class tMediaPlayer(
         }
     }
 
+    internal fun isWaitingNextVideoFrameAsBaseFrame(): Boolean = isWaitingNextVideoFrameAsBaseFrame.get()
+
+    internal fun getBaseVideoPts(): Long = baseVideoPts.get()
+
+    internal fun isWaitingNextAudioFrameAsBaseFrame(): Boolean = isWaitingNextAudioFrameAsBaseFrame.get()
+
+    internal fun getBaseAudioPts(): Long = baseAudioPts.get()
+
     /**
      * Calculate base pts frame if need.
      */

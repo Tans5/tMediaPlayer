@@ -10,6 +10,8 @@ import androidx.activity.addCallback
 import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.demo.databinding.PlayerActivityBinding
 import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
+import com.tans.tmediaplayer.player.AudioSampleBitDepth
+import com.tans.tmediaplayer.player.AudioSampleRate
 import com.tans.tmediaplayer.player.tMediaPlayer
 import com.tans.tmediaplayer.player.tMediaPlayerListener
 import com.tans.tmediaplayer.player.tMediaPlayerState
@@ -27,7 +29,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
     override val layoutId: Int = R.layout.player_activity
 
     private val mediaPlayer: tMediaPlayer by lazyViewModelField("mediaPlayer") {
-        tMediaPlayer()
+        tMediaPlayer(audioOutputSampleRate = AudioSampleRate.Rate96000, audioOutputSampleBitDepth = AudioSampleBitDepth.ThreeTwoBits)
     }
 
     private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE

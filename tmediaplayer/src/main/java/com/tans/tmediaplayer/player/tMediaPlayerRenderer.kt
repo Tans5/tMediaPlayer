@@ -126,11 +126,18 @@ internal class tMediaPlayerRenderer(
                                     if (!player.isLastFrameBufferNativeInternal(audioRenderBuffer.nativeBuffer)) {
                                         // Audio frame.
                                         val pts = player.getPtsNativeInternal(audioRenderBuffer.nativeBuffer)
-                                        player.checkAndUpdateBasePts(pts, false)
-                                        pendingRenderAudioBuffers.addLast(audioRenderBuffer)
-                                        if (pendingRenderAudioBuffers.size == 1) {
-                                            // Send message to audio render
-                                            this.sendEmptyMessage(RENDER_AUDIO)
+                                        if (!player.isWaitingNextVideoFrameAsBaseFrame() && player.isWaitingNextAudioFrameAsBaseFrame() && pts < player.getProgress()) {
+                                            // If now is waiting base audio frame, but not waiting base video frame. need to check audio's pts and base video pts.
+                                            // drop audio frame.
+                                            bufferManager.enqueueAudioNativeEncodeBuffer(audioRenderBuffer)
+                                            MediaLog.e(TAG, "Base audio frame behind base video frame, drop audio frame. pts=$pts, currentProgress=${player.getProgress()}")
+                                        } else {
+                                            player.checkAndUpdateBasePts(pts, false)
+                                            pendingRenderAudioBuffers.addLast(audioRenderBuffer)
+                                            if (pendingRenderAudioBuffers.size == 1) {
+                                                // Send message to audio render
+                                                this.sendEmptyMessage(RENDER_AUDIO)
+                                            }
                                         }
                                     } else {
                                         // Current frame is last frame, Last frame always is audio frame.
