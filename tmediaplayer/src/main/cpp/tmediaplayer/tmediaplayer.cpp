@@ -576,7 +576,7 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             // Copy frame data to video decode buffer.
             auto parseResult = parseDecodeVideoFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
-                LOGD("Decode video success: %ld, cost: %ld ms, type->%d", buffer->pts, get_time_millis() - start_time, buffer->videoBuffer->type);
+                LOGD("Decode video success: %ld, cost: %ld ms, type: %d, colorRange: %d, colorPrimaries: %d, colorSpace: %d", buffer->pts, get_time_millis() - start_time, buffer->videoBuffer->type, frame->color_range, frame->color_primaries, frame->colorspace);
             }
             buffer->decodeResult = parseResult;
             return buffer;
@@ -698,8 +698,10 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
     int h = frame->height;
     auto videoBuffer = buffer->videoBuffer;
     auto format = frame->format;
-    auto colorRange = frame->color_range;
-    if (format == AV_PIX_FMT_YUV420P && colorRange == AVCOL_RANGE_JPEG) {
+//    auto colorRange = frame->color_range;
+//    auto colorPrimaries = frame->color_primaries;
+    auto colorSpace = frame->colorspace;
+    if (format == AV_PIX_FMT_YUV420P && colorSpace == AVCOL_SPC_BT470BG) {
         videoBuffer->width = w;
         videoBuffer->height = h;
         int ySize = w * h;
@@ -740,7 +742,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         copyFrameData(uBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 1);
         copyFrameData(vBuffer, frame->data[2], w / 2, h / 2, frame->linesize[2], 1);
         videoBuffer->type = Yuv420p;
-    } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21) && colorRange == AVCOL_RANGE_JPEG) {
+    } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21) && colorSpace == AVCOL_SPC_BT470BG) {
         videoBuffer->width = w;
         videoBuffer->height = h;
         int ySize = w * h;
@@ -773,7 +775,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         } else {
             videoBuffer->type = Nv21;
         }
-    } else if (format == AV_PIX_FMT_RGBA && colorRange == AVCOL_RANGE_JPEG) {
+    } else if (format == AV_PIX_FMT_RGBA && colorSpace == AVCOL_SPC_BT470BG) {
         videoBuffer->width = w;
         videoBuffer->height = h;
         int rgbaSize = w * h * 4;
