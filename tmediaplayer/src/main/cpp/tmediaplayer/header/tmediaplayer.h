@@ -106,11 +106,7 @@ typedef struct tMediaPlayerContext {
     AVStream *video_stream = nullptr;
     AVBufferRef *hardware_ctx = nullptr;
     const AVCodec *video_decoder = nullptr;
-    SwsContext *sws_rgba_ctx = nullptr;
-    SwsContext *sws_yuv420p_ctx = nullptr;
-    SwsContext *sws_nv12_ctx = nullptr;
-    SwsContext *sws_nv21_ctx = nullptr;
-    AVFrame *yuv420Frame = nullptr;
+    SwsContext * sws_ctx = nullptr;
     int video_width = 0;
     int video_height = 0;
     int video_bits_per_raw_sample = 0;

@@ -231,7 +231,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             return OptFail;
         }
         this->video_pixel_format = video_decoder_ctx->pix_fmt;
-        this->sws_rgba_ctx = sws_getContext(
+        this->sws_ctx = sws_getContext(
                 video_width,
                 video_height,
                 video_decoder_ctx->pix_fmt,
@@ -242,7 +242,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                 nullptr,
                 nullptr,
                 nullptr);
-        if (sws_rgba_ctx == nullptr) {
+        if (sws_ctx == nullptr) {
             LOGE("Open video decoder get sws ctx fail.");
             return OptFail;
         }
@@ -746,51 +746,6 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         // copyFrameData(vBuffer, frame->data[2], w / 2, h / 2, frame->linesize[2], 1);
         videoBuffer->type = Yuv420p;
     } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21)) {
-
-        if (format == AV_PIX_FMT_NV12) {
-            if (w != video_width ||
-                h != video_height ||
-                sws_nv12_ctx == nullptr) {
-                if (sws_nv12_ctx != nullptr) {
-                    sws_freeContext(sws_nv12_ctx);
-                }
-                sws_nv12_ctx = sws_getContext(
-                        w,
-                        h,
-                        (AVPixelFormat) frame->format,
-                        w,
-                        h,
-                        AV_PIX_FMT_NV12,
-                        SWS_BICUBIC,
-                        nullptr,
-                        nullptr,
-                        nullptr
-                        );
-            }
-            sws_scale(sws_nv12_ctx, frame->data, frame->linesize, 0, frame->height, yuv420Frame->data, yuv420Frame->linesize);
-        } else {
-            if (w != video_width ||
-                h != video_height ||
-                sws_nv21_ctx == nullptr) {
-                if (sws_nv21_ctx != nullptr) {
-                    sws_freeContext(sws_nv21_ctx);
-                }
-                sws_nv21_ctx = sws_getContext(
-                        w,
-                        h,
-                        (AVPixelFormat) frame->format,
-                        w,
-                        h,
-                        AV_PIX_FMT_NV21,
-                        SWS_BICUBIC,
-                        nullptr,
-                        nullptr,
-                        nullptr
-                );
-            }
-            sws_scale(sws_nv21_ctx, frame->data, frame->linesize, 0, frame->height, yuv420Frame->data, yuv420Frame->linesize);
-        }
-
         videoBuffer->width = w;
         videoBuffer->height = h;
         int ySize = w * h;
@@ -815,10 +770,10 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         uint8_t *yBuffer = videoBuffer->yBuffer;
         uint8_t *uvBuffer = videoBuffer->uvBuffer;
         // Copy Y buffer.
-        av_image_copy_plane(yBuffer, w, yuv420Frame->data[0], yuv420Frame->linesize[0], w, h);
+        av_image_copy_plane(yBuffer, w, frame->data[0], frame->linesize[0], w, h);
         // copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
         // Copy UV buffer.
-        av_image_copy_plane(uvBuffer, w, yuv420Frame->data[1], yuv420Frame->linesize[1], w, h / 2);
+        av_image_copy_plane(uvBuffer, w, frame->data[1], frame->linesize[1], w, h / 2);
         // copyFrameData(uvBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 2);
         if (frame->format == AV_PIX_FMT_NV12) {
             videoBuffer->type = Nv12;
@@ -846,13 +801,13 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         // Others format need to convert to RGBA.
         if (w != video_width ||
             h != video_height ||
-            sws_rgba_ctx == nullptr) {
+            sws_ctx == nullptr) {
             LOGD("Decode video change rgbaSize, recreate sws ctx.");
-            if (sws_rgba_ctx != nullptr) {
-                sws_freeContext(sws_rgba_ctx);
+            if (sws_ctx != nullptr) {
+                sws_freeContext(sws_ctx);
             }
 
-            this->sws_rgba_ctx = sws_getContext(
+            this->sws_ctx = sws_getContext(
                     w,
                     h,
                     (AVPixelFormat) frame->format,
@@ -863,7 +818,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
                     nullptr,
                     nullptr,
                     nullptr);
-            if (sws_rgba_ctx == nullptr) {
+            if (sws_ctx == nullptr) {
                 LOGE("Decode video fail, sws ctx create fail.");
                 return DecodeFail;
             }
@@ -892,7 +847,7 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             videoBuffer->height = h;
         }
         // Convert to rgba.
-        int result = sws_scale(sws_rgba_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+        int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
         if (result < 0) {
             // Convert fail.
             LOGE("Decode video sws scale fail: %d", result);
@@ -1083,29 +1038,9 @@ void tMediaPlayerContext::release() {
         video_decoder_ctx = nullptr;
     }
 
-    if (sws_rgba_ctx != nullptr) {
-        sws_freeContext(sws_rgba_ctx);
-        sws_rgba_ctx = nullptr;
-    }
-
-    if (sws_yuv420p_ctx != nullptr) {
-        sws_freeContext(sws_yuv420p_ctx);
-        sws_yuv420p_ctx = nullptr;
-    }
-
-    if (sws_nv21_ctx != nullptr) {
-        sws_freeContext(sws_nv21_ctx);
-        sws_nv21_ctx = nullptr;
-    }
-
-    if (sws_nv12_ctx != nullptr) {
-        sws_freeContext(sws_nv12_ctx);
-        sws_nv12_ctx = nullptr;
-    }
-
-    if (yuv420Frame != nullptr) {
-        av_frame_free(&yuv420Frame);
-        yuv420Frame = nullptr;
+    if (sws_ctx != nullptr) {
+        sws_freeContext(sws_ctx);
+        sws_ctx = nullptr;
     }
 
     // Audio free.
