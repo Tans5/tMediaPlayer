@@ -576,7 +576,7 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             // Copy frame data to video decode buffer.
             auto parseResult = parseDecodeVideoFrameToBuffer(buffer);
             if (parseResult == DecodeSuccess) {
-                LOGD("Decode video success: %ld, cost: %ld ms, type: %d, colorRange: %d, colorPrimaries: %d, colorSpace: %d", buffer->pts, get_time_millis() - start_time, buffer->videoBuffer->type, frame->color_range, frame->color_primaries, frame->colorspace);
+                LOGD("Decode video success: %ld, cost: %ld ms, type: %d, colorRange: %d, colorPrimaries: %d, colorSpace: %d, colorTrac: %d, chromaLocation: %d", buffer->pts, get_time_millis() - start_time, buffer->videoBuffer->type, frame->color_range, frame->color_primaries, frame->colorspace, frame->color_trc, frame->chroma_location);
             }
             buffer->decodeResult = parseResult;
             return buffer;
