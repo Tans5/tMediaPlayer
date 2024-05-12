@@ -700,8 +700,8 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
     auto format = frame->format;
 //    auto colorRange = frame->color_range;
 //    auto colorPrimaries = frame->color_primaries;
-    auto colorSpace = frame->colorspace;
-    if (format == AV_PIX_FMT_YUV420P && colorSpace != AVCOL_SPC_BT470BG) {
+//    auto colorSpace = frame->colorspace;
+    if (format == AV_PIX_FMT_YUV420P) {
         videoBuffer->width = w;
         videoBuffer->height = h;
         int ySize = w * h;
@@ -738,11 +738,14 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         uint8_t *uBuffer = videoBuffer->uBuffer;
         uint8_t *vBuffer = videoBuffer->vBuffer;
         // Copy yuv data to video frame.
-        copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
-        copyFrameData(uBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 1);
-        copyFrameData(vBuffer, frame->data[2], w / 2, h / 2, frame->linesize[2], 1);
+        av_image_copy_plane(yBuffer, w, frame->data[0], frame->linesize[0], 1, h);
+        // copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
+        av_image_copy_plane(uBuffer, w / 2, frame->data[1], frame->linesize[1], 1, h / 2);
+        // copyFrameData(uBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 1);
+        av_image_copy_plane(vBuffer, w / 2, frame->data[2], frame->linesize[2], 1, h / 2);
+        // copyFrameData(vBuffer, frame->data[2], w / 2, h / 2, frame->linesize[2], 1);
         videoBuffer->type = Yuv420p;
-    } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21) && colorSpace != AVCOL_SPC_BT470BG) {
+    } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21)) {
         videoBuffer->width = w;
         videoBuffer->height = h;
         int ySize = w * h;
@@ -767,15 +770,17 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
         uint8_t *yBuffer = videoBuffer->yBuffer;
         uint8_t *uvBuffer = videoBuffer->uvBuffer;
         // Copy Y buffer.
-        copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
+        av_image_copy_plane(yBuffer, w, frame->data[0], frame->linesize[0], 1, h);
+        // copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
         // Copy UV buffer.
-        copyFrameData(uvBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 2);
+        av_image_copy_plane(uvBuffer, w, frame->data[1], frame->linesize[1], 2, h / 2);
+        // copyFrameData(uvBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 2);
         if (frame->format == AV_PIX_FMT_NV12) {
             videoBuffer->type = Nv12;
         } else {
             videoBuffer->type = Nv21;
         }
-    } else if (format == AV_PIX_FMT_RGBA && colorSpace != AVCOL_SPC_BT470BG) {
+    } else if (format == AV_PIX_FMT_RGBA) {
         videoBuffer->width = w;
         videoBuffer->height = h;
         int rgbaSize = w * h * 4;
@@ -788,8 +793,9 @@ tMediaDecodeResult tMediaPlayerContext::parseDecodeVideoFrameToBuffer(tMediaDeco
             videoBuffer->rgbaSize = rgbaSize;
         }
         uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
+        av_image_copy_plane(rgbaBuffer, w * 4, frame->data[0], frame->linesize[0], 4, h);
         // Copy RGBA data.
-        copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
+        // copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
         videoBuffer->type = Rgba;
     } else {
         // Others format need to convert to RGBA.
