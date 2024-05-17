@@ -29,6 +29,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
     }
+    LOGD("Input format: %s", format_ctx->iformat->name);
 
     // audio channels
     if (target_audio_channels == 1) {
