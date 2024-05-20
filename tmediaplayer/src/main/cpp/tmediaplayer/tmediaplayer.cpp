@@ -231,6 +231,10 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
             LOGE("Open video decoder ctx fail: %d", result);
             return OptFail;
         }
+        // // set decode pixel size half
+        // video_decoder_ctx->lowres = 1;
+        // // set decode thread count
+        // video_decoder_ctx->thread_count = 1;
         this->video_pixel_format = video_decoder_ctx->pix_fmt;
         this->sws_ctx = sws_getContext(
                 video_width,
