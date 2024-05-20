@@ -86,7 +86,10 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     this->frame = av_frame_alloc();
     this->videoBuffer = new tMediaVideoBuffer;
 
-    this->duration = format_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000L;
+    this->duration = 0L;
+    if (format_ctx->duration != AV_NOPTS_VALUE) {
+        this->duration = ((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0;
+    }
     return OptSuccess;
 }
 
@@ -99,27 +102,16 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition, bool need
                 LOGE("Wrong frame position: %ld, duration: %ld", framePosition, duration);
                 return OptFail;
             }
-            if (video_stream != nullptr && framePosition > 0) {
-                avcodec_flush_buffers(video_decoder_ctx);
-                int64_t seekTimestamp = av_rescale_q(framePosition * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
-                int video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
-                if (video_reset_result < 0) {
-                    LOGE("Seek video progress fail: %d", video_reset_result);
-                    return OptFail;
-                }
+            int64_t fixedPosition = framePosition;
+            if (video_stream->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+                fixedPosition = 0L;
             }
-
-            for (int i = 0; i < format_ctx->nb_streams; i++) {
-                auto s = format_ctx->streams[i];
-                if (video_stream != nullptr && s->index == video_stream->index) {
-                    continue;
-                } else {
-                    int64_t seekTimestamp = av_rescale_q(framePosition * AV_TIME_BASE / 1000,
-                                                         AV_TIME_BASE_Q, s->time_base);
-                    avformat_seek_file(format_ctx, s->index, INT64_MIN, seekTimestamp, INT64_MAX,AVSEEK_FLAG_BACKWARD);
-                }
+            int64_t seekTs = fixedPosition * AV_TIME_BASE / 1000L;
+            int result = avformat_seek_file(format_ctx, -1, INT64_MIN, seekTs, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+            if (result < 0) {
+                LOGE("Seek file fail: %d", result);
+                return OptFail;
             }
-
             return decodeForGetFrame(framePosition, 300.0, needRealTime, 30);
         }
     } else {

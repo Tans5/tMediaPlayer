@@ -107,10 +107,9 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                 } else {
                     this->video_stream = s;
                     videoIsAttachPic = s->disposition & AV_DISPOSITION_ATTACHED_PIC; // Is music files' picture, only have one frame.
-                    if (s->time_base.den > 0 && s->duration > 0 && !videoIsAttachPic) {
-                        this->video_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
-                    } else {
-                        this->video_duration = 0L;
+                    this->video_duration = 0L;
+                    if (s->time_base.den > 0 && s->duration > 0 && !videoIsAttachPic && s->duration != AV_NOPTS_VALUE) {
+                        this->video_duration = ((double)s->duration) * av_q2d(s->time_base) * 1000.0;
                     }
                     LOGD("Find video stream: duration=%ld, isAttachPic=%d", video_duration, videoIsAttachPic);
                 }
@@ -120,10 +119,9 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                     LOGE("Find multiple audio stream, skip it.");
                 } else {
                     this->audio_stream = s;
-                    if (s->time_base.den > 0 && s->duration > 0) {
-                        this->audio_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
-                    } else {
-                        this->audio_duration = 0L;
+                    this->audio_duration = 0L;
+                    if (s->duration != AV_NOPTS_VALUE && s->time_base.den > 0 && s->duration > 0) {
+                        this->audio_duration = ((double)s->duration) * av_q2d(s->time_base) * 1000.0;
                     }
                     LOGD("Find audio stream: duration=%ld", audio_duration);
                 }
@@ -302,7 +300,10 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
     this->pkt = av_packet_alloc();
     this->frame = av_frame_alloc();
 
-    this->duration = format_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000L;
+    this->duration = 0L;
+    if (format_ctx->duration != AV_NOPTS_VALUE) {
+        this->duration = ((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0;
+    }
 
     return OptSuccess;
 }
@@ -327,34 +328,23 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                 LOGE("Wrong seek pts: %ld, duration: %ld", targetPtsInMillis, duration);
                 return OptFail;
             }
-            int video_reset_result = -1, audio_reset_result = -1;
+            int64_t seekTs = targetPtsInMillis * AV_TIME_BASE / 1000L;
+            int ret = avformat_seek_file(format_ctx, -1, INT64_MIN, seekTs, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                LOGE("Seek file fail: %d", ret);
+                return OptFail;
+            }
+            bool seek_video = false, seek_audio = false;
             if (video_stream != nullptr && video_fps > 0.0f && !videoIsAttachPic) {
                 avcodec_flush_buffers(video_decoder_ctx);
-                int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
-                video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
-                if (video_reset_result < 0) {
-                    LOGE("Seek video progress fail: %d", video_reset_result);
-                }
+                seek_video = true;
             }
             if (audio_stream != nullptr) {
                 avcodec_flush_buffers(audio_decoder_ctx);
-                int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, audio_stream->time_base);
-                audio_reset_result = avformat_seek_file(format_ctx, audio_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
-                if (audio_reset_result < 0) {
-                    LOGE("Seek audio progress fail: %d", audio_reset_result);
-                }
-            }
-            for (int i = 0; i < format_ctx->nb_streams; i ++) {
-                auto s = format_ctx->streams[i];
-                if ((video_stream != nullptr && s->index == video_stream->index) || (audio_stream != nullptr && s->index == audio_stream->index)) {
-                    continue;
-                } else {
-                    int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, s->time_base);
-                    avformat_seek_file(format_ctx, s->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
-                }
+                seek_audio = true;
             }
             skipPktRead = false;
-            if (video_reset_result >=0 || audio_reset_result >= 0) {
+            if (seek_video || seek_audio) {
                 if (!needDecode) {
                     return OptSuccess;
                 } else {
@@ -362,7 +352,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                     audioBuffer->decodeResult = DecodeFail;
                     videoBuffer->is_last_frame = false;
                     audioBuffer->is_last_frame = false;
-                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 300.0, audio_reset_result < 0, video_reset_result < 0, 1000);
+                    return decodeForSeek(targetPtsInMillis, videoBuffer, audioBuffer, 300.0, !seek_audio, !seek_video, 1000);
                 }
             } else {
                 return OptFail;
