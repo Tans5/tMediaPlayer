@@ -114,6 +114,7 @@ typedef struct tMediaPlayerContext {
     int video_bitrate = 0;
     double video_fps = 0.0;
     long video_duration = 0;
+    bool videoIsAttachPic = false;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
 

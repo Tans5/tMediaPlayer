@@ -106,12 +106,13 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
                     LOGE("Find multiple video stream, skip it.");
                 } else {
                     this->video_stream = s;
-                    if (s->time_base.den > 0 && s->duration > 0) {
+                    videoIsAttachPic = s->disposition & AV_DISPOSITION_ATTACHED_PIC; // Is music files' picture, only have one frame.
+                    if (s->time_base.den > 0 && s->duration > 0 && !videoIsAttachPic) {
                         this->video_duration = (long) ((double)s->duration * av_q2d(s->time_base) * 1000L);
                     } else {
                         this->video_duration = 0L;
                     }
-                    LOGD("Find video stream: duration=%ld", video_duration);
+                    LOGD("Find video stream: duration=%ld, isAttachPic=%d", video_duration, videoIsAttachPic);
                 }
                 break;
             case AVMEDIA_TYPE_AUDIO:
@@ -147,7 +148,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->video_bitrate = params->bit_rate;
         auto frameRate = video_stream->avg_frame_rate;
         this->video_fps = 0.0;
-        if (frameRate.den > 0 && frameRate.num > 0) {
+        if (frameRate.den > 0 && frameRate.num > 0 && !videoIsAttachPic) {
             this->video_fps = av_q2d(frameRate);
         }
         this->video_codec_id = params->codec_id;
@@ -327,7 +328,7 @@ tMediaOptResult tMediaPlayerContext::seekTo(long targetPtsInMillis, tMediaDecode
                 return OptFail;
             }
             int video_reset_result = -1, audio_reset_result = -1;
-            if (video_stream != nullptr && video_fps > 0.0f) {
+            if (video_stream != nullptr && video_fps > 0.0f && !videoIsAttachPic) {
                 avcodec_flush_buffers(video_decoder_ctx);
                 int64_t seekTimestamp = av_rescale_q(targetPtsInMillis * AV_TIME_BASE / 1000, AV_TIME_BASE_Q, video_stream->time_base);
                 video_reset_result = avformat_seek_file(format_ctx, video_stream->index, INT64_MIN, seekTimestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
