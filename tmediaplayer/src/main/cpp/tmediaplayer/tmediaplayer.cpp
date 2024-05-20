@@ -144,7 +144,7 @@ tMediaOptResult tMediaPlayerContext::prepare(const char *media_file_p, bool is_r
         this->video_height = params->height;
         this->video_bits_per_raw_sample = params->bits_per_raw_sample;
         this->video_bitrate = params->bit_rate;
-        auto frameRate = video_stream->avg_frame_rate;
+        auto frameRate = av_guess_frame_rate(format_ctx, video_stream, nullptr);
         this->video_fps = 0.0;
         if (frameRate.den > 0 && frameRate.num > 0 && !videoIsAttachPic) {
             this->video_fps = av_q2d(frameRate);
