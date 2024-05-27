@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.18.1)
 project("tmediaplayer")
 
 
-################################# ffmepg start #########################################
+# region ffmpeg
 add_library( libavcodec
         SHARED
         IMPORTED )
@@ -57,18 +57,27 @@ add_library( libswscale
 set_target_properties( libswscale
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswscale.so )
+# endregion
 
-################################# ffmepg end #########################################
+# region android
+find_library(
+        log-lib
+        log )
 
+find_library(
+        android-lib
+        android
+)
 
-################################# tmediaplayer start #########################################
+find_library(
+        OpenSLES-lib
+        OpenSLES
+)
+# endregion
 
-#file(GLOB examples_src
-#        examples/*.c)
-
+# region tmediaplayer
 add_library(
         tmediaplayer SHARED
-        # tmediaplayer
         tmediaplayer/media_time.cpp
         tmediaplayer/tmediaplayer.cpp
         tmediaplayer/jni.cpp)
@@ -78,36 +87,47 @@ target_include_directories(tmediaplayer PUBLIC
         tmediaplayer/header)
 
 
-find_library( # Sets the name of the path variable.
-              log-lib
-
-              # Specifies the name of the NDK library that
-              # you want CMake to locate.
-              log )
-
-find_library(
-        android-lib
-        android
-)
-
-target_link_libraries( # Specifies the target library.
+target_link_libraries(
         tmediaplayer
+        # android
         ${log-lib}
         ${android-lib}
 
         # ffmpeg
         libavcodec
-        #libavdevice
         libavfilter
         libavformat
         libavutil
         libswresample
         libswscale)
+# endregion
 
-################################# tmediaplayer end #########################################
+# region tmediaplayer2
+add_library(
+        tmediaplayer2 SHARED
+        tmediaplayer2/tmediaplayer.cpp
+        tmediaplayer2/jni.cpp)
 
+target_include_directories(tmediaplayer2 PUBLIC
+        ffmpeg/header
+        tmediaplayer2/header)
 
-################################# tmediaframeloader start ##################################
+target_link_libraries(
+        tmediaplayer2
+        # android
+        ${log-lib}
+        ${android-lib}
+
+        # ffmpeg
+        libavcodec
+        libavfilter
+        libavformat
+        libavutil
+        libswresample
+        libswscale)
+# endregion
+
+# region tmediaframeloader
 add_library(
         tmediaframeloader SHARED
         tmediaframeloader/jni.cpp
@@ -125,10 +145,9 @@ target_link_libraries(
         tmediaframeloader
         tmediaplayer
 )
+# endregion
 
-################################# tmediaframeloader end ####################################
-
-################################# tmediaaudiotrack start ##################################
+# region tmediaaudiotrack
 add_library(
         tmediaaudiotrack SHARED
         tmediaaudiotrack/jni.cpp
@@ -141,15 +160,9 @@ target_include_directories(
         tmediaplayer/header
 )
 
-find_library(
-        OpenSLES-lib
-        OpenSLES
-)
-
 target_link_libraries(
         tmediaaudiotrack
         tmediaplayer
         ${OpenSLES-lib}
 )
-
-################################# tmediaaudiotrack end ####################################
+# endregion

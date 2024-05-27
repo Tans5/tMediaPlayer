@@ -31,7 +31,7 @@ class tMediaPlayer(
     singleJavaBufferSize: Int = 5,
     initSingleJavaBufferSize: Int = 2,
     audioTrackBufferQueueSize: Int = 10
-) {
+) : IPlayer {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
         AtomicReference(null)
@@ -93,10 +93,11 @@ class tMediaPlayer(
     }
 
     // region Player public methods
-    fun getState(): tMediaPlayerState = state.get()
+
+    override fun getState(): tMediaPlayerState = state.get()
 
     @Synchronized
-    fun prepare(file: String): OptResult {
+    override fun prepare(file: String): OptResult {
         val lastState = getState()
         if (lastState == tMediaPlayerState.Released) {
             MediaLog.e(TAG, "Prepare fail, player has released.")
@@ -155,7 +156,7 @@ class tMediaPlayer(
      * Start to play.
      */
     @Synchronized
-    fun play(): OptResult {
+    override fun play(): OptResult {
         val state = getState()
         val playingState = when (state) {
             tMediaPlayerState.NoInit -> null
@@ -198,7 +199,7 @@ class tMediaPlayer(
      * Pause play.
      */
     @Synchronized
-    fun pause(): OptResult {
+    override fun pause(): OptResult {
         val state = getState()
         val pauseState = when (state) {
             is tMediaPlayerState.Error -> null
@@ -228,7 +229,7 @@ class tMediaPlayer(
      * Do seek.
      */
     @Synchronized
-    fun seekTo(position: Long): OptResult {
+    override fun seekTo(position: Long): OptResult {
         val state = getState()
         val seekingState: tMediaPlayerState.Seeking? = when (state) {
             is tMediaPlayerState.Error -> null
@@ -269,7 +270,7 @@ class tMediaPlayer(
      * Stop play.
      */
     @Synchronized
-    fun stop(): OptResult {
+    override fun stop(): OptResult {
         val state = getState()
         val stopState = when (state) {
             is tMediaPlayerState.Error -> null
@@ -301,15 +302,15 @@ class tMediaPlayer(
         }
     }
 
-    fun attachPlayerView(view: tMediaPlayerView?) {
+    override fun attachPlayerView(view: tMediaPlayerView?) {
         renderer.attachPlayerView(view)
     }
 
-    fun getMediaInfo(): MediaInfo? {
+    override fun getMediaInfo(): MediaInfo? {
         return getMediaInfoByState(getState())
     }
 
-    fun setListener(l: tMediaPlayerListener?) {
+    override fun setListener(l: tMediaPlayerListener?) {
         listener.set(l)
         l?.onPlayerState(getState())
     }
@@ -318,7 +319,7 @@ class tMediaPlayer(
      * Release player.
      */
     @Synchronized
-    fun release(): OptResult {
+    override fun release(): OptResult {
         val lastState = getState()
         if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
             return OptResult.Fail
@@ -336,7 +337,7 @@ class tMediaPlayer(
         return OptResult.Success
     }
 
-    fun getProgress(): Long = progress.get()
+    override fun getProgress(): Long = progress.get()
     // endregion
 
 
