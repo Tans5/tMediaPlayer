@@ -41,6 +41,54 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_prepareNative(
     return player->prepare(file_path_chars, requestHw, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_readPacketNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->readPacket();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_pauseReadPacketNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->pauseReadPacket();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_playReadPacketNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->resumeReadPacket();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_movePacketRefNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jlong native_packet) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto *pkt = reinterpret_cast<AVPacket *>(native_packet);
+    player->movePacketRef(pkt);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_seekToNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jlong target_pos_in_millis) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->seekTo(target_pos_in_millis);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer2_releaseNative(
         JNIEnv * env,
@@ -307,5 +355,4 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_releasePacketNative(
     av_packet_unref(pkt);
     av_packet_free(&pkt);
 }
-
 // endregion

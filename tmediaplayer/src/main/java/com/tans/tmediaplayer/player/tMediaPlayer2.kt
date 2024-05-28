@@ -240,6 +240,26 @@ class tMediaPlayer2(
         targetAudioSampleRate: Int,
         targetAudioSampleBitDepth: Int): Int
 
+    internal fun readPacketInternal(nativePlayer: Long): ReadPacketResult = readPacketNative(nativePlayer).toReadPacketResult()
+
+    private external fun readPacketNative(nativePlayer: Long): Int
+
+    internal fun pauseReadPacketInternal(nativePlayer: Long): OptResult = pauseReadPacketNative(nativePlayer).toOptResult()
+
+    private external fun pauseReadPacketNative(nativePlayer: Long): Int
+
+    internal fun playReadPacketInternal(nativePlayer: Long): OptResult = playReadPacketNative(nativePlayer).toOptResult()
+
+    private external fun playReadPacketNative(nativePlayer: Long): Int
+
+    internal fun movePacketRefInternal(nativePlayer: Long, nativePacket: Long) = movePacketRefNative(nativePlayer, nativePacket)
+
+    private external fun movePacketRefNative(nativePlayer: Long, nativePacket: Long)
+
+    internal fun seekToInternal(nativePlayer: Long, targetPosInMillis: Long): OptResult = seekToNative(nativePlayer, targetPosInMillis).toOptResult()
+
+    private external fun seekToNative(nativePlayer: Long, targetPosInMillis: Long): Int
+
     private external fun releaseNative(nativePlayer: Long)
     // endregion
 

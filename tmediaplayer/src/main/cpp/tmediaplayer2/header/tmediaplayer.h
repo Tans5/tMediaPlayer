@@ -25,13 +25,13 @@ enum ImageRawType {
     Nv12,
     Nv21,
     Rgba,
-    Unknown
+    UnknownImgType
 };
 
 typedef struct tMediaVideoBuffer {
     int width = 0;
     int height = 0;
-    ImageRawType type = Unknown;
+    ImageRawType type = UnknownImgType;
     int rgbaBufferSize = 0;
     int rgbaContentSize = 0;
     AVFrame *rgbaFrame = nullptr;
@@ -64,6 +64,15 @@ enum tMediaDecodeResult {
     DecodeEnd,
 };
 
+enum tMediaReadPktResult {
+    ReadVideoSuccess,
+    ReadVideoAttachmentSuccess,
+    ReadAudioSuccess,
+    ReadFail,
+    ReadEof,
+    UnknownPkt
+};
+
 enum tMediaOptResult {
     OptSuccess,
     OptFail
@@ -74,7 +83,6 @@ typedef struct tMediaPlayerContext {
 
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
-    AVFrame *frame = nullptr;
     long duration = 0;
 
     int metadataCount = 0;
@@ -104,6 +112,7 @@ typedef struct tMediaPlayerContext {
     bool videoIsAttachPic = false;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
+    AVFrame *video_frame = nullptr;
 
     /**
      * Audio
@@ -124,6 +133,7 @@ typedef struct tMediaPlayerContext {
     AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
     int audio_output_channels = 2;
     AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
+    AVFrame *audio_frame = nullptr;
 
 
     tMediaOptResult prepare(
@@ -133,6 +143,15 @@ typedef struct tMediaPlayerContext {
             int target_audio_sample_rate,
             int target_audio_sample_bit_depth);
 
+    tMediaReadPktResult readPacket();
+
+    tMediaOptResult pauseReadPacket();
+
+    tMediaOptResult resumeReadPacket();
+
+    void movePacketRef(AVPacket *target);
+
+    tMediaOptResult seekTo(int64_t targetPosInMillis);
 
     void release();
 } tMediaPlayerContext;
