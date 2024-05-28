@@ -250,3 +250,62 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_audioCodecIdNative(
     return player->audio_codec_id;
 }
 // endregion
+
+// region Packet buffer
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "MemoryLeak"
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_allocPacketNative(
+        JNIEnv * env,
+        jobject j_player) {
+    auto pkt = av_packet_alloc();
+    return reinterpret_cast<jlong>(pkt);
+}
+#pragma clang diagnostic pop
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getPacketPtsNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong nativeBuffer) {
+    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    if (pkt->pts == AV_NOPTS_VALUE) {
+        return 0L;
+    } else {
+        return (jlong) (pkt->pts * av_q2d(pkt->time_base) * 1000.0);
+    }
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getPacketDurationNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong nativeBuffer) {
+    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    if (pkt->duration == AV_NOPTS_VALUE) {
+        return 0L;
+    } else {
+        return (jlong) (pkt->duration * av_q2d(pkt->time_base) * 1000.0);
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getPacketBytesSizeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong nativeBuffer) {
+    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    return pkt->size;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_releasePacketNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong nativeBuffer) {
+    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    av_packet_unref(pkt);
+    av_packet_free(&pkt);
+}
+
+// endregion

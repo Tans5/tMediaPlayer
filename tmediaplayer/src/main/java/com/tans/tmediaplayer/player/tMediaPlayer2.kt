@@ -9,6 +9,7 @@ import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.VideoPixelFormat
 import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
@@ -29,6 +30,14 @@ class tMediaPlayer2(
         AtomicReference(tMediaPlayerState.NoInit)
     }
 
+    private val audioPacketQueue: PacketQueue by lazy {
+        PacketQueue(this)
+    }
+
+    private val videoPacketQueue: PacketQueue by lazy {
+        PacketQueue(this)
+    }
+
 
     // region public methods
     @Synchronized
@@ -44,7 +53,8 @@ class tMediaPlayer2(
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
-
+        audioPacketQueue.flushReadableBuffer()
+        videoPacketQueue.flushReadableBuffer()
         val nativePlayer = createPlayerNative()
         val result = prepareNative(
             nativePlayer = nativePlayer,
@@ -101,6 +111,8 @@ class tMediaPlayer2(
         }
         dispatchNewState(tMediaPlayerState.Released)
         listener.set(null)
+        audioPacketQueue.release()
+        videoPacketQueue.release()
         return OptResult.Success
     }
 
@@ -276,6 +288,20 @@ class tMediaPlayer2(
     private external fun audioDurationNative(nativePlayer: Long): Long
 
     private external fun audioCodecIdNative(nativePlayer: Long): Int
+    // endregion
+
+    // region Native packet buffer
+    internal fun allocPacketInternal(): Long = allocPacketNative()
+
+    private external fun allocPacketNative(): Long
+    internal fun getPacketPtsInternal(nativeBuffer: Long): Long = getPacketPtsNative(nativeBuffer)
+    private external fun getPacketPtsNative(nativeBuffer: Long): Long
+    internal fun getPacketDurationInternal(nativeBuffer: Long): Long = getPacketDurationNative(nativeBuffer)
+    private external fun getPacketDurationNative(nativeBuffer: Long): Long
+    internal fun getPacketBytesSizeInternal(nativeBuffer: Long): Int = getPacketBytesSizeNative(nativeBuffer)
+    private external fun getPacketBytesSizeNative(nativeBuffer: Long): Int
+    internal fun releasePacketInternal(nativeBuffer: Long) = releasePacketNative(nativeBuffer)
+    private external fun releasePacketNative(nativeBuffer: Long)
     // endregion
 
     companion object {
