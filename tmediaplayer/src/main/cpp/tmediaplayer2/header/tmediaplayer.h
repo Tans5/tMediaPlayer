@@ -153,6 +153,10 @@ typedef struct tMediaPlayerContext {
 
     tMediaOptResult seekTo(int64_t targetPosInMillis);
 
+    tMediaDecodeResult decodeVideo(AVPacket *targetPkt);
+
+    tMediaDecodeResult decodeAudio(AVPacket *targetPkt);
+
     void release();
 } tMediaPlayerContext;
 

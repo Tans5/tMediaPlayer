@@ -324,6 +324,27 @@ class tMediaPlayer2(
     private external fun releasePacketNative(nativeBuffer: Long)
     // endregion
 
+    // region Native video buffer
+    internal fun allocVideoBufferInternal(): Long = allocVideoBufferNative()
+
+    private external fun allocVideoBufferNative(): Long
+
+    internal fun releaseVideoBufferInternal(nativeBuffer: Long) = releaseVideoBufferNative(nativeBuffer)
+
+    private external fun releaseVideoBufferNative(nativeBuffer: Long)
+    // endregion
+
+    // region Native audio buffer
+    internal fun allocAudioBufferInternal(): Long = allocAudioBufferNative()
+
+    private external fun allocAudioBufferNative(): Long
+
+    internal fun releaseAudioBufferInternal(nativeBuffer: Long) = releaseAudioBufferNative(nativeBuffer)
+
+    private external fun releaseAudioBufferNative(nativeBuffer: Long)
+    // endregion
+
+
     companion object {
         private const val TAG = "tMediaPlayer"
 

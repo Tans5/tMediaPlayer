@@ -365,6 +365,45 @@ tMediaOptResult tMediaPlayerContext::seekTo(int64_t targetPosInMillis) {
     }
 }
 
+tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *pkt) {
+    bool skipNextReadPkt = false;
+    int ret;
+    if (pkt != nullptr) {
+        ret = avcodec_send_packet(codec_ctx, pkt);
+        if (ret < 0) {
+            if (ret == AVERROR(EAGAIN)) {
+                skipNextReadPkt = true;
+            } else {
+                return DecodeFail;
+            }
+        }
+    }
+    ret = avcodec_receive_frame(codec_ctx, frame);
+    if (ret < 0) {
+        if (ret == AVERROR(EAGAIN)) {
+            return DecodeFailAndNeedMorePkt;
+        }
+        if (ret == AVERROR_EOF) {
+            return DecodeEnd;
+        }
+        return DecodeFail;
+    } else {
+        if (skipNextReadPkt) {
+            return DecodeSuccessAndSkipNextPkt;
+        } else {
+            return DecodeSuccess;
+        }
+    }
+}
+
+tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
+    return decode(video_decoder_ctx, video_frame, targetPkt);
+}
+
+tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
+    return decode(audio_decoder_ctx, audio_frame, targetPkt);
+}
+
 void tMediaPlayerContext::release() {
     if (pkt != nullptr) {
         av_packet_unref(pkt);
