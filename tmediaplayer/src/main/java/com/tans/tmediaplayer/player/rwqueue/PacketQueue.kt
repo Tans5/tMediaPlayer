@@ -48,6 +48,14 @@ internal class PacketQueue(
         super.enqueueReadable(b)
     }
 
+    override fun enqueueWritable(b: Packet) {
+        b.sizeInBytes = 0
+        b.duration = 0
+        b.pts = 0
+        b.serial = 0
+        super.enqueueWritable(b)
+    }
+
     override fun dequeueReadable(): Packet? {
         val b = super.dequeueReadable()
         if (b != null) {

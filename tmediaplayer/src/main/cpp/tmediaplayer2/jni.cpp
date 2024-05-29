@@ -89,6 +89,50 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_seekToNative(
     return player->seekTo(target_pos_in_millis);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeVideoNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jlong native_buffer) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
+    return player->decodeVideo(pkt);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_moveDecodedVideoFrameToBufferNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jlong native_buffer) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto *videoBuffer = reinterpret_cast<tMediaVideoBuffer *>(native_buffer);
+    return player->moveDecodedVideoFrameToBuffer(videoBuffer);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeAudioNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jlong native_buffer) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
+    return player->decodeAudio(pkt);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_moveDecodedAudioFrameToBufferNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jlong native_buffer) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto *audioBuffer = reinterpret_cast<tMediaAudioBuffer *>(native_buffer);
+    return player->moveDecodedAudioFrameToBuffer(audioBuffer);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer2_releaseNative(
         JNIEnv * env,
@@ -369,6 +413,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_allocVideoBufferNative(
 }
 #pragma clang diagnostic pop
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getVideoPtsNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    return buffer -> pts;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer2_getVideoWidthNative(
         JNIEnv * env,
@@ -586,6 +639,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_getAudioFrameSizeNative(
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaAudioBuffer *>(buffer_l);
     return buffer->contentSize;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getAudioPtsNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaAudioBuffer *>(buffer_l);
+    return buffer->pts;
 }
 
 extern "C" JNIEXPORT void JNICALL

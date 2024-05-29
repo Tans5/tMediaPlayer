@@ -9,7 +9,10 @@ import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.VideoPixelFormat
 import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.rwqueue.AudioFrame
+import com.tans.tmediaplayer.player.rwqueue.Packet
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
@@ -260,6 +263,30 @@ class tMediaPlayer2(
 
     private external fun seekToNative(nativePlayer: Long, targetPosInMillis: Long): Int
 
+    internal fun decodeVideoInternal(nativePlayer: Long, pkt: Packet): DecodeResult2 {
+        return decodeVideoNative(nativePlayer, pkt.nativePacket).toDecodeResult2()
+    }
+
+    private external fun decodeVideoNative(nativePlayer: Long, nativeBuffer: Long): Int
+
+    internal fun moveDecodedVideoFrameToBufferInternal(nativePlayer: Long, videoFrame: VideoFrame): OptResult {
+        return moveDecodedVideoFrameToBufferNative(nativePlayer, videoFrame.nativeFrame).toOptResult()
+    }
+
+    private external fun moveDecodedVideoFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
+
+    internal fun decodeAudioInternal(nativePlayer: Long, pkt: Packet): DecodeResult2 {
+        return decodeAudioNative(nativePlayer, pkt.nativePacket).toDecodeResult2()
+    }
+
+    private external fun decodeAudioNative(nativePlayer: Long, nativeBuffer: Long): Int
+
+    internal fun moveDecodedAudioFrameToBufferInternal(nativePlayer: Long, audioFrame: AudioFrame): OptResult {
+        return moveDecodedAudioFrameToBufferNative(nativePlayer, audioFrame.nativeFrame).toOptResult()
+    }
+
+    private external fun moveDecodedAudioFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
+
     private external fun releaseNative(nativePlayer: Long)
     // endregion
 
@@ -329,6 +356,62 @@ class tMediaPlayer2(
 
     private external fun allocVideoBufferNative(): Long
 
+    internal fun getVideoPtsInternal(nativeBuffer: Long): Long = getVideoPtsNative(nativeBuffer)
+
+    private external fun getVideoPtsNative(nativeBuffer: Long): Long
+
+    internal fun getVideoWidthNativeInternal(nativeBuffer: Long): Int = getVideoWidthNative(nativeBuffer)
+
+    private external fun getVideoWidthNative(nativeBuffer: Long): Int
+
+    internal fun getVideoHeightNativeInternal(nativeBuffer: Long): Int = getVideoHeightNative(nativeBuffer)
+
+    private external fun getVideoHeightNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameTypeNativeInternal(nativeBuffer: Long): ImageRawType = getVideoFrameTypeNative(nativeBuffer).toImageRawType()
+
+    private external fun getVideoFrameTypeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameRgbaBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameRgbaBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameRgbaBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameRgbaSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameRgbaSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameRgbaSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameYSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameYSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameYSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameYBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameYBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameYBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameUSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameUSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameUSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameUBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameUBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameUBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameVSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameVSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameVSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameVBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameVBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameVBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getVideoFrameUVSizeNativeInternal(nativeBuffer: Long): Int = getVideoFrameUVSizeNative(nativeBuffer)
+
+    private external fun getVideoFrameUVSizeNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameUVBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameUVBytesNative(nativeBuffer, bytes)
+
+    private external fun getVideoFrameUVBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
     internal fun releaseVideoBufferInternal(nativeBuffer: Long) = releaseVideoBufferNative(nativeBuffer)
 
     private external fun releaseVideoBufferNative(nativeBuffer: Long)
@@ -338,6 +421,18 @@ class tMediaPlayer2(
     internal fun allocAudioBufferInternal(): Long = allocAudioBufferNative()
 
     private external fun allocAudioBufferNative(): Long
+
+    internal fun getAudioPtsInternal(nativeBuffer: Long): Long = getAudioPtsNative(nativeBuffer)
+
+    private external fun getAudioPtsNative(nativeBuffer: Long): Long
+
+    internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getAudioFrameBytesNative(nativeBuffer, bytes)
+
+    private external fun getAudioFrameBytesNative(nativeBuffer: Long, bytes: ByteArray)
+
+    internal fun getAudioFrameSizeNativeInternal(nativeBuffer: Long): Int = getAudioFrameSizeNative(nativeBuffer)
+
+    private external fun getAudioFrameSizeNative(nativeBuffer: Long): Int
 
     internal fun releaseAudioBufferInternal(nativeBuffer: Long) = releaseAudioBufferNative(nativeBuffer)
 

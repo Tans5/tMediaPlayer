@@ -400,8 +400,229 @@ tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
     return decode(video_decoder_ctx, video_frame, targetPkt);
 }
 
+tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBuffer *videoBuffer) {
+    int w = video_frame->width;
+    int h = video_frame->height;
+    auto format = video_frame->format;
+//    auto colorRange = frame->color_range;
+//    auto colorPrimaries = frame->color_primaries;
+//    auto colorSpace = frame->colorspace;
+    if (format == AV_PIX_FMT_YUV420P) {
+        videoBuffer->width = w;
+        videoBuffer->height = h;
+        int ySize = w * h;
+        int uSize = ySize / 4;
+        int vSize = uSize;
+
+        // alloc Y buffer if need.
+        if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
+            if (videoBuffer->yBuffer != nullptr) {
+                free(videoBuffer->yBuffer);
+            }
+            videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+            videoBuffer->yBufferSize = ySize;
+        }
+
+        // alloc U buffer if need.
+        if (videoBuffer->uBufferSize < uSize || videoBuffer->uBuffer == nullptr) {
+            if (videoBuffer->uBuffer != nullptr) {
+                free(videoBuffer->uBuffer);
+            }
+            videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
+            videoBuffer->uBufferSize = uSize;
+        }
+
+        // // alloc V buffer if need.
+        if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
+            if (videoBuffer->vBuffer != nullptr) {
+                free(videoBuffer->vBuffer);
+            }
+            videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
+            videoBuffer->vBufferSize = vSize;
+        }
+        uint8_t *yBuffer = videoBuffer->yBuffer;
+        uint8_t *uBuffer = videoBuffer->uBuffer;
+        uint8_t *vBuffer = videoBuffer->vBuffer;
+        // Copy yuv data to video frame.
+        av_image_copy_plane(yBuffer, w, video_frame->data[0], video_frame->linesize[0], w, h);
+        av_image_copy_plane(uBuffer, w / 2, video_frame->data[1], video_frame->linesize[1], w / 2, h / 2);
+        av_image_copy_plane(vBuffer, w / 2, video_frame->data[2], video_frame->linesize[2], w / 2, h / 2);
+        videoBuffer->yContentSize = ySize;
+        videoBuffer->uContentSize = uSize;
+        videoBuffer->vContentSize = vSize;
+        videoBuffer->type = Yuv420p;
+    } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21)) {
+        videoBuffer->width = w;
+        videoBuffer->height = h;
+        int ySize = w * h;
+        int uvSize = ySize / 2;
+        // alloc Y buffer if need.
+        if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
+            if (videoBuffer->yBuffer != nullptr) {
+                free(videoBuffer->yBuffer);
+            }
+            videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+            videoBuffer->yBufferSize = ySize;
+        }
+
+        // alloc UV buffer if need.
+        if (videoBuffer->uvBufferSize < uvSize || videoBuffer->uvBuffer == nullptr) {
+            if (videoBuffer->uvBuffer != nullptr) {
+                free(videoBuffer->uvBuffer);
+            }
+            videoBuffer->uvBuffer = static_cast<uint8_t *>(av_malloc(uvSize * sizeof(uint8_t)));
+            videoBuffer->uvBufferSize = uvSize;
+        }
+        uint8_t *yBuffer = videoBuffer->yBuffer;
+        uint8_t *uvBuffer = videoBuffer->uvBuffer;
+        // Copy Y buffer.
+        av_image_copy_plane(yBuffer, w, video_frame->data[0], video_frame->linesize[0], w, h);
+        // copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
+        // Copy UV buffer.
+        av_image_copy_plane(uvBuffer, w, video_frame->data[1], video_frame->linesize[1], w, h / 2);
+        // copyFrameData(uvBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 2);
+        videoBuffer->yContentSize = ySize;
+        videoBuffer->uvContentSize = uvSize;
+        if (video_frame->format == AV_PIX_FMT_NV12) {
+            videoBuffer->type = Nv12;
+        } else {
+            videoBuffer->type = Nv21;
+        }
+    } else if (format == AV_PIX_FMT_RGBA) {
+        videoBuffer->width = w;
+        videoBuffer->height = h;
+        int rgbaSize = w * h * 4;
+        // alloc rgba data if need.
+        if (videoBuffer->rgbaBufferSize < rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
+            if (videoBuffer->rgbaBuffer != nullptr) {
+                free(videoBuffer->rgbaBuffer);
+            }
+            videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaSize * sizeof(uint8_t)));
+            videoBuffer->rgbaBufferSize = rgbaSize;
+        }
+        uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
+        av_image_copy_plane(rgbaBuffer, w * 4, video_frame->data[0], video_frame->linesize[0], w * 4, h);
+        // Copy RGBA data.
+        // copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
+        videoBuffer->rgbaContentSize = rgbaSize;
+        videoBuffer->type = Rgba;
+    } else {
+        // Others format need to convert to RGBA.
+        if (w != video_width ||
+            h != video_height ||
+            video_sws_ctx == nullptr) {
+            LOGD("Decode video change rgbaSize, recreate sws ctx.");
+            if (video_sws_ctx != nullptr) {
+                sws_freeContext(video_sws_ctx);
+            }
+
+            this->video_sws_ctx = sws_getContext(
+                    w,
+                    h,
+                    (AVPixelFormat) video_frame->format,
+                    w,
+                    h,
+                    AV_PIX_FMT_RGBA,
+                    SWS_BICUBIC,
+                    nullptr,
+                    nullptr,
+                    nullptr);
+            if (video_sws_ctx == nullptr) {
+                LOGE("Decode video fail, sws ctx create fail.");
+                return OptFail;
+            }
+        }
+
+        int rgbaSize = w * h * 4;
+        // Alloc new RGBA frame and buffer if need.
+        if (videoBuffer->rgbaBufferSize < rgbaSize ||
+            videoBuffer->rgbaBuffer == nullptr ||
+            videoBuffer->rgbaFrame == nullptr) {
+            LOGD("Decode video create new buffer.");
+            if (videoBuffer->rgbaBuffer != nullptr) {
+                free(videoBuffer->rgbaBuffer);
+            }
+            if (videoBuffer->rgbaFrame != nullptr) {
+                av_frame_free(&(videoBuffer->rgbaFrame));
+                videoBuffer->rgbaFrame = nullptr;
+            }
+            videoBuffer->rgbaFrame = av_frame_alloc();
+            videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaSize * sizeof(uint8_t)));
+            videoBuffer->rgbaBufferSize = rgbaSize;
+            videoBuffer->rgbaContentSize = rgbaSize;
+            // Fill rgbaBuffer to rgbaFrame
+            av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
+                                 AV_PIX_FMT_RGBA, w, h, 1);
+            videoBuffer->width = w;
+            videoBuffer->height = h;
+        }
+        // Convert to rgba.
+        int result = sws_scale(video_sws_ctx, video_frame->data, video_frame->linesize, 0, video_frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+        if (result < 0) {
+            // Convert fail.
+            LOGE("Decode video sws scale fail: %d", result);
+            return OptFail;
+        }
+        videoBuffer->type = Rgba;
+    }
+    auto time_base = video_stream->time_base;
+    if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
+        videoBuffer->pts = (long) ((double)video_frame->pts * av_q2d(time_base) * 1000L);
+    } else {
+        videoBuffer->pts = 0L;
+    }
+    if (w != video_width || h != video_height) {
+        video_width = w;
+        video_height = h;
+    }
+    return OptSuccess;
+}
+
 tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
     return decode(audio_decoder_ctx, audio_frame, targetPkt);
+}
+
+tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBuffer *audioBuffer) {
+    int in_nb_samples = audio_frame->nb_samples;
+
+    // Get current output frame contains sample bufferSize per channel.
+    int out_nb_samples = (int) av_rescale_rnd( swr_get_delay(audio_swr_ctx, audio_frame->sample_rate) + in_nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP); // swr_get_out_samples(swr_ctx, in_nb_samples);
+
+    if (out_nb_samples <= 0) {
+        LOGE("Get out put nb samples fail: %d", out_nb_samples);
+        return OptFail;
+    }
+    // Get current output audio frame need buffer bufferSize.
+    int lineSize = 0;
+    int out_audio_buffer_size = av_samples_get_buffer_size(&lineSize, audio_output_channels, out_nb_samples, audio_output_sample_fmt, 1);
+    // Alloc pcm buffer if need.
+    if (audioBuffer->bufferSize < out_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
+        int in_audio_buffer_size = av_samples_get_buffer_size(audio_frame->linesize, audio_channels, in_nb_samples, audio_decoder_ctx->sample_fmt, 1);
+        LOGD("Decode audio change bufferSize, outBufferSize=%d, need bufferSize=%d, inBufferSize=%d", audioBuffer->bufferSize, out_audio_buffer_size, in_audio_buffer_size);
+        if (audioBuffer->pcmBuffer != nullptr) {
+            free(audioBuffer->pcmBuffer);
+        }
+        audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(out_audio_buffer_size));
+        audioBuffer->bufferSize = out_audio_buffer_size;
+    }
+    // Convert to target output pcm format data.
+    int real_out_nb_samples = swr_convert(audio_swr_ctx, &(audioBuffer->pcmBuffer), out_nb_samples, (const uint8_t **)(audio_frame->data), in_nb_samples);
+    if (real_out_nb_samples < 0) {
+        LOGE("Decode audio swr convert fail: %d", real_out_nb_samples);
+        return OptFail;
+    }
+    auto time_base = audio_stream->time_base;
+    if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
+        audioBuffer->pts = (long) ((double)audio_frame->pts * av_q2d(time_base) * 1000L);
+    } else {
+        audioBuffer->pts = 0L;
+    }
+    int contentBufferSize = av_samples_get_buffer_size(&lineSize, audio_output_channels, real_out_nb_samples, audio_output_sample_fmt, 1);
+    audioBuffer->contentSize = lineSize;
+    if (contentBufferSize != lineSize) {
+        LOGE("output lineSize=%d, contentBufferSize=%d", lineSize, contentBufferSize);
+    }
+    return OptSuccess;
 }
 
 void tMediaPlayerContext::release() {

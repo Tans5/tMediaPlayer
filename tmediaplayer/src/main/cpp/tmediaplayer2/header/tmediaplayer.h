@@ -48,12 +48,14 @@ typedef struct tMediaVideoBuffer {
     int uvBufferSize = 0;
     int uvContentSize = 0;
     uint8_t  *uvBuffer = nullptr;
+    long pts = 0;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
     int bufferSize = 0;
     int contentSize = 0;
     uint8_t  *pcmBuffer = nullptr;
+    long pts = 0;
 } tMediaAudioBuffer;
 
 enum tMediaDecodeResult {
@@ -155,7 +157,11 @@ typedef struct tMediaPlayerContext {
 
     tMediaDecodeResult decodeVideo(AVPacket *targetPkt);
 
+    tMediaOptResult moveDecodedVideoFrameToBuffer(tMediaVideoBuffer* buffer);
+
     tMediaDecodeResult decodeAudio(AVPacket *targetPkt);
+
+    tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer);
 
     void release();
 } tMediaPlayerContext;
