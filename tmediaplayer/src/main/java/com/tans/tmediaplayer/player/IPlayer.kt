@@ -4,7 +4,7 @@ import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
 
 
-interface IPlayer {
+internal interface IPlayer {
 
     fun prepare(file: String): OptResult
 

@@ -53,6 +53,7 @@ internal class PacketQueue(
         b.duration = 0
         b.pts = 0
         b.serial = 0
+        b.isEof = false
         super.enqueueWritable(b)
     }
 

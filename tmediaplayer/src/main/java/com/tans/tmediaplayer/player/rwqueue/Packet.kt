@@ -5,4 +5,5 @@ internal class Packet(val nativePacket: Long) {
     var duration: Long = 0L
     var sizeInBytes: Int = 0
     var serial: Int = 0
+    var isEof: Boolean = false
 }

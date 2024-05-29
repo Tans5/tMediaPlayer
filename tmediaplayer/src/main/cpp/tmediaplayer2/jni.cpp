@@ -100,6 +100,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeVideoNative(
     return player->decodeVideo(pkt);
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_flushVideoCodecBufferNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    player->flushVideoCodecBuffer();
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer2_moveDecodedVideoFrameToBufferNative(
         JNIEnv * env,
@@ -120,6 +129,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeAudioNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
     return player->decodeAudio(pkt);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_flushAudioCodecBufferNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    player->flushAudioCodecBuffer();
 }
 
 extern "C" JNIEXPORT jint JNICALL

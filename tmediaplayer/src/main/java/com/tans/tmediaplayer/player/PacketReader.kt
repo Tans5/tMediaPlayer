@@ -1,0 +1,201 @@
+package com.tans.tmediaplayer.player
+
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Message
+import android.os.SystemClock
+import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+
+internal class PacketReader(
+    private val player: tMediaPlayer2,
+    private val audioPacketQueue: PacketQueue,
+    private val videoPacketQueue: PacketQueue
+) {
+
+    private val state: AtomicReference<ReaderState> = AtomicReference(ReaderState.NotInit)
+
+    // Is read thread ready?
+    private val isLooperPrepared: AtomicBoolean by lazy { AtomicBoolean(false) }
+
+    // Renderer thread.
+    private val pktReaderThread: HandlerThread by lazy {
+        object : HandlerThread("tMP_PktReader", Thread.MAX_PRIORITY) {
+            override fun onLooperPrepared() {
+                super.onLooperPrepared()
+                isLooperPrepared.set(true)
+            }
+        }.apply { start() }
+    }
+
+    private val pktReaderHandler: Handler by lazy {
+        while (!isLooperPrepared.get()) {}
+        object : Handler(pktReaderThread.looper) {
+            override fun handleMessage(msg: Message) {
+                super.handleMessage(msg)
+                synchronized(this) {
+                    val nativePlayer = player.getMediaInfo()?.nativePlayer
+                    val state = getState()
+                    if (nativePlayer != null && (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer)) {
+                        when (msg.what) {
+                            HandlerMsg.RequestReadPkt.ordinal -> {
+                                val audioSizeInBytes = audioPacketQueue.getSizeInBytes()
+                                val videoSizeInBytes = videoPacketQueue.getSizeInBytes()
+                                val audioDuration = audioPacketQueue.getDuration()
+                                val videoDuration = videoPacketQueue.getDuration()
+                                if (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioDuration > MAX_QUEUE_DURATION && videoDuration > MAX_QUEUE_DURATION)) {
+                                    // queue full
+                                    MediaLog.d(TAG, "Packet queue full, audioSize=$audioSizeInBytes, videoSize=$videoSizeInBytes, audioDuration=$audioDuration, videoDuration=$videoDuration")
+                                    this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
+                                } else {
+                                    val result = player.readPacketInternal(nativePlayer)
+                                    MediaLog.d(TAG, "ReadPacket result: $result")
+                                    when (result) {
+                                        ReadPacketResult.ReadVideoSuccess -> {
+                                            val pkt = videoPacketQueue.dequeueWriteableForce()
+                                            player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
+                                            videoPacketQueue.enqueueReadable(pkt)
+                                            player.readableVideoPacketReady()
+                                            requestReadPkt()
+                                        }
+                                        ReadPacketResult.ReadVideoAttachmentSuccess -> {
+                                            val pkt = videoPacketQueue.dequeueWriteableForce()
+                                            player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
+                                            videoPacketQueue.enqueueReadable(pkt)
+                                            val eofPkt = videoPacketQueue.dequeueWriteableForce()
+                                            eofPkt.isEof = true
+                                            videoPacketQueue.enqueueReadable(eofPkt)
+                                            player.readableVideoPacketReady()
+                                            requestReadPkt()
+                                        }
+                                        ReadPacketResult.ReadAudioSuccess -> {
+                                            val pkt = audioPacketQueue.dequeueWriteableForce()
+                                            player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
+                                            audioPacketQueue.enqueueReadable(pkt)
+                                            player.readableAudioPacketReady()
+                                            requestReadPkt()
+                                        }
+                                        ReadPacketResult.ReadEof -> {
+                                            val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
+                                            videoEofPkt.isEof = true
+                                            videoPacketQueue.enqueueReadable(videoEofPkt)
+                                            val audioEofPkt = audioPacketQueue.dequeueWriteableForce()
+                                            audioEofPkt.isEof = true
+                                            videoPacketQueue.enqueueReadable(audioEofPkt)
+                                            player.readableVideoPacketReady()
+                                            player.readableAudioPacketReady()
+                                            requestReadPkt()
+                                        }
+                                        ReadPacketResult.ReadFail -> {
+                                            MediaLog.e(TAG, "Read pkt fail.")
+                                            requestReadPkt()
+                                        }
+                                        ReadPacketResult.UnknownPkt -> {
+                                            requestReadPkt()
+                                        }
+                                    }
+                                    if (state == ReaderState.WaitingWritableBuffer) {
+                                        this@PacketReader.state.set(ReaderState.Ready)
+                                    }
+                                }
+                            }
+
+                            HandlerMsg.RequestSeek.ordinal -> {
+                                val position = msg.obj
+                                if (position is Long) {
+                                    val start = SystemClock.uptimeMillis()
+                                    val result = player.seekToInternal(nativePlayer, position)
+                                    val end = SystemClock.uptimeMillis()
+                                    val cost = end - start
+                                    if (result == OptResult.Success) {
+                                        audioPacketQueue.flushReadableBuffer()
+                                        videoPacketQueue.flushReadableBuffer()
+                                        MediaLog.d(TAG, "Seek to $position success, cost $cost ms")
+                                    } else {
+                                        MediaLog.e(TAG, "Seek to $position fail, cost $cost ms")
+                                    }
+                                    requestReadPkt()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    init {
+        pktReaderHandler
+        state.set(ReaderState.Ready)
+    }
+
+    fun requestReadPkt() {
+        val state = getState()
+        if (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer) {
+            pktReaderHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
+            pktReaderHandler.sendEmptyMessage(HandlerMsg.RequestReadPkt.ordinal)
+        }
+    }
+
+    fun requestSeek(targetPosition: Long) {
+        val state = getState()
+        if (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer) {
+            pktReaderHandler.removeMessages(HandlerMsg.RequestSeek.ordinal)
+            val msg = pktReaderHandler.obtainMessage()
+            msg.what = HandlerMsg.RequestSeek.ordinal
+            msg.obj = targetPosition
+            pktReaderHandler.sendMessage(msg)
+        }
+    }
+
+    fun packetBufferReady() {
+        val state = getState()
+        if (state == ReaderState.WaitingWritableBuffer) {
+            pktReaderHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
+            pktReaderHandler.sendEmptyMessage(HandlerMsg.RequestReadPkt.ordinal)
+        }
+    }
+
+    fun getState(): ReaderState = state.get()
+
+    fun release() {
+        synchronized(this) {
+            val oldState = getState()
+            if (oldState == ReaderState.Ready || oldState == ReaderState.WaitingWritableBuffer) {
+                state.set(ReaderState.Released)
+                removeAllHandlerMessages()
+                pktReaderThread.quit()
+                pktReaderThread.quitSafely()
+            }
+        }
+    }
+
+    fun removeAllHandlerMessages() {
+        for (e in HandlerMsg.entries) {
+            pktReaderHandler.removeMessages(e.ordinal)
+        }
+    }
+
+    companion object {
+        private enum class HandlerMsg {
+            RequestReadPkt,
+            RequestSeek
+        }
+
+        enum class ReaderState {
+            NotInit,
+            Ready,
+            WaitingWritableBuffer,
+            Released
+        }
+
+        private const val TAG = "PacketReader"
+
+        // 15 mb
+        private const val MAX_QUEUE_SIZE_IN_BYTES = 15L * 1024L * 1024L
+        // 1s
+        private const val MAX_QUEUE_DURATION = 1000L
+    }
+}

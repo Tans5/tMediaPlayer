@@ -400,6 +400,10 @@ tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
     return decode(video_decoder_ctx, video_frame, targetPkt);
 }
 
+void tMediaPlayerContext::flushVideoCodecBuffer() {
+    avcodec_flush_buffers(video_decoder_ctx);
+}
+
 tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBuffer *videoBuffer) {
     int w = video_frame->width;
     int h = video_frame->height;
@@ -580,6 +584,10 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
 
 tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
     return decode(audio_decoder_ctx, audio_frame, targetPkt);
+}
+
+void tMediaPlayerContext::flushAudioCodecBuffer() {
+    avcodec_flush_buffers(audio_decoder_ctx);
 }
 
 tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBuffer *audioBuffer) {

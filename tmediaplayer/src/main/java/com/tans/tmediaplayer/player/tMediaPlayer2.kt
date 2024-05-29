@@ -41,6 +41,14 @@ class tMediaPlayer2(
         PacketQueue(this)
     }
 
+    private val packetReader: PacketReader by lazy {
+        PacketReader(
+            player = this,
+            audioPacketQueue = audioPacketQueue,
+            videoPacketQueue = videoPacketQueue
+        )
+    }
+
 
     // region public methods
     @Synchronized
@@ -56,6 +64,8 @@ class tMediaPlayer2(
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
+        packetReader.removeAllHandlerMessages()
+        packetReader.requestReadPkt()
         audioPacketQueue.flushReadableBuffer()
         videoPacketQueue.flushReadableBuffer()
         val nativePlayer = createPlayerNative()
@@ -104,18 +114,21 @@ class tMediaPlayer2(
 
     @Synchronized
     override fun release(): OptResult {
-        val lastState = getState()
-        if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
-            return OptResult.Fail
+        synchronized(packetReader) {
+            val lastState = getState()
+            if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
+                return OptResult.Fail
+            }
+            val mediaInfo = getMediaInfo()
+            if (mediaInfo != null) {
+                releaseNative(mediaInfo.nativePlayer)
+            }
+            dispatchNewState(tMediaPlayerState.Released)
+            listener.set(null)
+            audioPacketQueue.release()
+            videoPacketQueue.release()
+            packetReader.release()
         }
-        val mediaInfo = getMediaInfo()
-        if (mediaInfo != null) {
-            releaseNative(mediaInfo.nativePlayer)
-        }
-        dispatchNewState(tMediaPlayerState.Released)
-        listener.set(null)
-        audioPacketQueue.release()
-        videoPacketQueue.release()
         return OptResult.Success
     }
 
@@ -230,6 +243,21 @@ class tMediaPlayer2(
             MediaLog.e(TAG, "Ignore progress update, because of state: $state")
         }
     }
+
+    internal fun readableVideoPacketReady() {
+        // TODO: Notify video decoder
+    }
+    internal fun readableAudioPacketReady() {
+        // TODO: Notify audio decoder
+    }
+
+    internal fun writeableVideoPacketReady() {
+        packetReader.packetBufferReady()
+    }
+
+    internal fun writeableAudioPacketReady() {
+        packetReader.packetBufferReady()
+    }
     // endregion
 
     // region Native player control methods.
@@ -269,6 +297,10 @@ class tMediaPlayer2(
 
     private external fun decodeVideoNative(nativePlayer: Long, nativeBuffer: Long): Int
 
+    internal fun flushVideoCodecBufferInternal(nativePlayer: Long) = flushVideoCodecBufferNative(nativePlayer)
+
+    private external fun flushVideoCodecBufferNative(nativePlayer: Long)
+
     internal fun moveDecodedVideoFrameToBufferInternal(nativePlayer: Long, videoFrame: VideoFrame): OptResult {
         return moveDecodedVideoFrameToBufferNative(nativePlayer, videoFrame.nativeFrame).toOptResult()
     }
@@ -280,6 +312,10 @@ class tMediaPlayer2(
     }
 
     private external fun decodeAudioNative(nativePlayer: Long, nativeBuffer: Long): Int
+
+    internal fun flushAudioCodecBufferInternal(nativePlayer: Long) = flushAudioCodecBufferNative(nativePlayer)
+
+    private external fun flushAudioCodecBufferNative(nativePlayer: Long)
 
     internal fun moveDecodedAudioFrameToBufferInternal(nativePlayer: Long, audioFrame: AudioFrame): OptResult {
         return moveDecodedAudioFrameToBufferNative(nativePlayer, audioFrame.nativeFrame).toOptResult()

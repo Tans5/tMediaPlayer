@@ -159,9 +159,13 @@ typedef struct tMediaPlayerContext {
 
     tMediaOptResult moveDecodedVideoFrameToBuffer(tMediaVideoBuffer* buffer);
 
+    void flushVideoCodecBuffer();
+
     tMediaDecodeResult decodeAudio(AVPacket *targetPkt);
 
     tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer);
+
+    void flushAudioCodecBuffer();
 
     void release();
 } tMediaPlayerContext;
