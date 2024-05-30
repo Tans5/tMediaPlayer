@@ -382,7 +382,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_getPacketPtsNative(
     if (pkt->pts == AV_NOPTS_VALUE) {
         return 0L;
     } else {
-        return (jlong) (pkt->pts * av_q2d(pkt->time_base) * 1000.0);
+        return (jlong) ((double)pkt->pts * av_q2d(pkt->time_base) * 1000.0);
     }
 }
 
@@ -395,7 +395,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_getPacketDurationNative(
     if (pkt->duration == AV_NOPTS_VALUE) {
         return 0L;
     } else {
-        return (jlong) (pkt->duration * av_q2d(pkt->time_base) * 1000.0);
+        return (jlong) ((double)pkt->duration * av_q2d(pkt->time_base) * 1000.0);
     }
 }
 

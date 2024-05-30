@@ -31,7 +31,6 @@ internal class PacketReader(
     }
 
     private val pktReaderHandler: Handler by lazy {
-        while (!isLooperPrepared.get()) {}
         object : Handler(pktReaderThread.looper) {
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -51,7 +50,7 @@ internal class PacketReader(
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     val result = player.readPacketInternal(nativePlayer)
-                                    MediaLog.d(TAG, "ReadPacket result: $result")
+                                    // MediaLog.d(TAG, "ReadPacket result: $result")
                                     when (result) {
                                         ReadPacketResult.ReadVideoSuccess -> {
                                             val pkt = videoPacketQueue.dequeueWriteableForce()
@@ -127,6 +126,8 @@ internal class PacketReader(
     }
 
     init {
+        pktReaderThread
+        while (!isLooperPrepared.get()) {}
         pktReaderHandler
         state.set(ReaderState.Ready)
     }

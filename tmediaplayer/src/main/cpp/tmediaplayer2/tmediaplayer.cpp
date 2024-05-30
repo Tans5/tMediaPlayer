@@ -343,6 +343,12 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
 
 void tMediaPlayerContext::movePacketRef(AVPacket *target) {
     av_packet_move_ref(target, pkt);
+    if (video_stream && video_stream->index == pkt->stream_index) {
+        target->time_base = video_stream->time_base;
+    }
+    if (audio_stream && audio_stream->index == pkt->stream_index) {
+        target->time_base = audio_stream->time_base;
+    }
 }
 
 tMediaOptResult tMediaPlayerContext::pauseReadPacket() {

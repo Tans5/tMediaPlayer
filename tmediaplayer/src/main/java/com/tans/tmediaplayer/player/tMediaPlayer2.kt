@@ -65,7 +65,6 @@ class tMediaPlayer2(
         }
         dispatchNewState(tMediaPlayerState.NoInit)
         packetReader.removeAllHandlerMessages()
-        packetReader.requestReadPkt()
         audioPacketQueue.flushReadableBuffer()
         videoPacketQueue.flushReadableBuffer()
         val nativePlayer = createPlayerNative()
@@ -77,12 +76,12 @@ class tMediaPlayer2(
             targetAudioSampleRate = audioOutputSampleRate.rate,
             targetAudioSampleBitDepth = audioOutputSampleBitDepth.depth
         ).toOptResult()
-        dispatchProgress(0L)
         if (result == OptResult.Success) {
             // Load media file success.
             val mediaInfo = getMediaInfo(nativePlayer)
             MediaLog.d(tMediaPlayer.TAG, "Prepare player success: $mediaInfo")
             dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
+            packetReader.requestReadPkt()
         } else {
             // Load media file fail.
             releaseNative(nativePlayer)
@@ -94,22 +93,26 @@ class tMediaPlayer2(
 
     @Synchronized
     override fun play(): OptResult {
-        TODO("Not yet implemented")
+        // TODO:
+        return OptResult.Fail
     }
 
     @Synchronized
     override fun pause(): OptResult {
-        TODO("Not yet implemented")
+        // TODO:
+        return OptResult.Fail
     }
 
     @Synchronized
     override fun seekTo(position: Long): OptResult {
-        TODO("Not yet implemented")
+        // TODO:
+        return OptResult.Fail
     }
 
     @Synchronized
     override fun stop(): OptResult {
-        TODO("Not yet implemented")
+        // TODO:
+        return OptResult.Fail
     }
 
     @Synchronized
@@ -133,7 +136,8 @@ class tMediaPlayer2(
     }
 
     override fun getProgress(): Long {
-        TODO("Not yet implemented")
+        // TODO:
+        return 0L
     }
 
     override fun getState(): tMediaPlayerState = state.get()
@@ -148,7 +152,7 @@ class tMediaPlayer2(
     }
 
     override fun attachPlayerView(view: tMediaPlayerView?) {
-        TODO("Not yet implemented")
+        // TODO:
     }
     // endregion
 
