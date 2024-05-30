@@ -4,6 +4,7 @@ import com.tans.tmediaplayer.player.ImageRawType
 
 internal class VideoFrame(val nativeFrame: Long) {
     var pts: Long = 0L
+    var duration: Long = 0L
     var serial: Int = 0
     var imageType: ImageRawType = ImageRawType.Unknown
     var width: Int = 0

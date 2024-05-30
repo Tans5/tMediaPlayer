@@ -32,6 +32,8 @@ internal abstract class BaseReadWriteQueue<T : Any> {
     // region Readable
     fun readableQueueSize() = if (isReleased.get()) 0 else readableQueue.size
 
+    fun isCanRead(): Boolean = readableQueueSize() > 0
+
     open fun enqueueReadable(b: T) {
         if (!isReleased.get()) {
             readableQueue.addLast(b)
@@ -59,6 +61,18 @@ internal abstract class BaseReadWriteQueue<T : Any> {
 
     // region Writeable
     fun writeableQueueSize() = if (isReleased.get()) 0 else writeableQueue.size
+
+    fun isCanWrite(): Boolean {
+        return if (isReleased.get()) {
+            false
+        } else {
+            if (writeableQueueSize() > 0) {
+                true
+            } else {
+                maxQueueSize > currentQueueSize.get()
+            }
+        }
+    }
 
     open fun enqueueWritable(b: T) {
         if (isReleased.get()) {

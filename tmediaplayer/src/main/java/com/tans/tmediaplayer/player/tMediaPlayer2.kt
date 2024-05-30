@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.model.VideoPixelFormat
 import com.tans.tmediaplayer.player.model.VideoStreamInfo
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
+import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.Packet
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
@@ -41,11 +42,23 @@ class tMediaPlayer2(
         PacketQueue(this)
     }
 
+    private val audioFrameQueue: AudioFrameQueue by lazy {
+        AudioFrameQueue(this)
+    }
+
     private val packetReader: PacketReader by lazy {
         PacketReader(
             player = this,
             audioPacketQueue = audioPacketQueue,
             videoPacketQueue = videoPacketQueue
+        )
+    }
+
+    private val audioDecoder: AudioFrameDecoder by lazy {
+        AudioFrameDecoder(
+            player = this,
+            audioPacketQueue = audioPacketQueue,
+            audioFrameQueue = audioFrameQueue
         )
     }
 
@@ -67,6 +80,8 @@ class tMediaPlayer2(
         packetReader.removeAllHandlerMessages()
         audioPacketQueue.flushReadableBuffer()
         videoPacketQueue.flushReadableBuffer()
+        audioFrameQueue.flushReadableBuffer()
+        audioDecoder.removeAllHandlerMessages()
         val nativePlayer = createPlayerNative()
         val result = prepareNative(
             nativePlayer = nativePlayer,
@@ -82,6 +97,7 @@ class tMediaPlayer2(
             MediaLog.d(tMediaPlayer.TAG, "Prepare player success: $mediaInfo")
             dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
             packetReader.requestReadPkt()
+            audioDecoder.requestDecode()
         } else {
             // Load media file fail.
             releaseNative(nativePlayer)
@@ -118,19 +134,23 @@ class tMediaPlayer2(
     @Synchronized
     override fun release(): OptResult {
         synchronized(packetReader) {
-            val lastState = getState()
-            if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
-                return OptResult.Fail
+            synchronized(audioDecoder) {
+                val lastState = getState()
+                if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
+                    return OptResult.Fail
+                }
+                val mediaInfo = getMediaInfo()
+                if (mediaInfo != null) {
+                    releaseNative(mediaInfo.nativePlayer)
+                }
+                dispatchNewState(tMediaPlayerState.Released)
+                listener.set(null)
+                audioPacketQueue.release()
+                videoPacketQueue.release()
+                audioFrameQueue.release()
+                packetReader.release()
+                audioDecoder.release()
             }
-            val mediaInfo = getMediaInfo()
-            if (mediaInfo != null) {
-                releaseNative(mediaInfo.nativePlayer)
-            }
-            dispatchNewState(tMediaPlayerState.Released)
-            listener.set(null)
-            audioPacketQueue.release()
-            videoPacketQueue.release()
-            packetReader.release()
         }
         return OptResult.Success
     }
@@ -400,6 +420,10 @@ class tMediaPlayer2(
 
     private external fun getVideoPtsNative(nativeBuffer: Long): Long
 
+    internal fun getVideoDurationInternal(nativeBuffer: Long): Long = getVideoDurationNative(nativeBuffer)
+
+    private external fun getVideoDurationNative(nativeBuffer: Long): Long
+
     internal fun getVideoWidthNativeInternal(nativeBuffer: Long): Int = getVideoWidthNative(nativeBuffer)
 
     private external fun getVideoWidthNative(nativeBuffer: Long): Int
@@ -465,6 +489,10 @@ class tMediaPlayer2(
     internal fun getAudioPtsInternal(nativeBuffer: Long): Long = getAudioPtsNative(nativeBuffer)
 
     private external fun getAudioPtsNative(nativeBuffer: Long): Long
+
+    internal fun getAudioDurationInternal(nativeBuffer: Long): Long = getAudioDurationNative(nativeBuffer)
+
+    private external fun getAudioDurationNative(nativeBuffer: Long): Long
 
     internal fun getAudioFrameBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getAudioFrameBytesNative(nativeBuffer, bytes)
 

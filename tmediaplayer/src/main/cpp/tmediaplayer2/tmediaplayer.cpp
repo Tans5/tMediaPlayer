@@ -577,9 +577,14 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
     }
     auto time_base = video_stream->time_base;
     if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
-        videoBuffer->pts = (long) ((double)video_frame->pts * av_q2d(time_base) * 1000L);
+        videoBuffer->pts = (long) ((double)video_frame->pts * av_q2d(time_base) * 1000.0);
     } else {
         videoBuffer->pts = 0L;
+    }
+    if (time_base.den > 0) {
+        videoBuffer->duration = (long) ((double)video_frame->duration * av_q2d(time_base) * 1000.0);
+    } else {
+        videoBuffer->duration = 0L;
     }
     if (w != video_width || h != video_height) {
         video_width = w;
@@ -627,9 +632,14 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     }
     auto time_base = audio_stream->time_base;
     if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
-        audioBuffer->pts = (long) ((double)audio_frame->pts * av_q2d(time_base) * 1000L);
+        audioBuffer->pts = (long) ((double)audio_frame->pts * av_q2d(time_base) * 1000.0);
     } else {
         audioBuffer->pts = 0L;
+    }
+    if (time_base.den > 0) {
+        audioBuffer->duration = (long) ((double)audio_frame->duration * av_q2d(time_base) * 1000.0);
+    } else {
+        audioBuffer->duration = 0L;
     }
     int contentBufferSize = av_samples_get_buffer_size(&lineSize, audio_output_channels, real_out_nb_samples, audio_output_sample_fmt, 1);
     audioBuffer->contentSize = lineSize;

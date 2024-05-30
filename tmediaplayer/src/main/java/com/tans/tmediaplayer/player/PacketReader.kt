@@ -20,7 +20,7 @@ internal class PacketReader(
     // Is read thread ready?
     private val isLooperPrepared: AtomicBoolean by lazy { AtomicBoolean(false) }
 
-    // Renderer thread.
+    // Reader thread.
     private val pktReaderThread: HandlerThread by lazy {
         object : HandlerThread("tMP_PktReader", Thread.MAX_PRIORITY) {
             override fun onLooperPrepared() {

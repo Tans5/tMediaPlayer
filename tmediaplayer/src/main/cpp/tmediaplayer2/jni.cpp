@@ -440,6 +440,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_getVideoPtsNative(
     return buffer -> pts;
 }
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getVideoDurationNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    return buffer -> duration;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer2_getVideoWidthNative(
         JNIEnv * env,
@@ -666,6 +675,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_getAudioPtsNative(
         jlong buffer_l) {
     auto buffer = reinterpret_cast<tMediaAudioBuffer *>(buffer_l);
     return buffer->pts;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_getAudioDurationNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaAudioBuffer *>(buffer_l);
+    return buffer->duration;
 }
 
 extern "C" JNIEXPORT void JNICALL
