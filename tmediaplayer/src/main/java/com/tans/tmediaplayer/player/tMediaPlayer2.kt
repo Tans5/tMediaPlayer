@@ -14,6 +14,7 @@ import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.Packet
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
+import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
@@ -46,6 +47,10 @@ class tMediaPlayer2(
         AudioFrameQueue(this)
     }
 
+    private val videoFrameQueue: VideoFrameQueue by lazy {
+        VideoFrameQueue(this)
+    }
+
     private val packetReader: PacketReader by lazy {
         PacketReader(
             player = this,
@@ -59,6 +64,14 @@ class tMediaPlayer2(
             player = this,
             audioPacketQueue = audioPacketQueue,
             audioFrameQueue = audioFrameQueue
+        )
+    }
+
+    private val videoDecoder: VideoFrameDecoder by lazy {
+        VideoFrameDecoder(
+            player = this,
+            videoPacketQueue = videoPacketQueue,
+            videoFrameQueue = videoFrameQueue
         )
     }
 
@@ -81,7 +94,9 @@ class tMediaPlayer2(
         audioPacketQueue.flushReadableBuffer()
         videoPacketQueue.flushReadableBuffer()
         audioFrameQueue.flushReadableBuffer()
+        videoFrameQueue.flushReadableBuffer()
         audioDecoder.removeAllHandlerMessages()
+        videoDecoder.removeAllHandlerMessages()
         val nativePlayer = createPlayerNative()
         val result = prepareNative(
             nativePlayer = nativePlayer,
@@ -98,6 +113,7 @@ class tMediaPlayer2(
             dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
             packetReader.requestReadPkt()
             audioDecoder.requestDecode()
+            videoDecoder.requestDecode()
         } else {
             // Load media file fail.
             releaseNative(nativePlayer)
@@ -135,21 +151,25 @@ class tMediaPlayer2(
     override fun release(): OptResult {
         synchronized(packetReader) {
             synchronized(audioDecoder) {
-                val lastState = getState()
-                if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
-                    return OptResult.Fail
+                synchronized(videoDecoder) {
+                    val lastState = getState()
+                    if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
+                        return OptResult.Fail
+                    }
+                    val mediaInfo = getMediaInfo()
+                    if (mediaInfo != null) {
+                        releaseNative(mediaInfo.nativePlayer)
+                    }
+                    dispatchNewState(tMediaPlayerState.Released)
+                    listener.set(null)
+                    audioPacketQueue.release()
+                    videoPacketQueue.release()
+                    audioFrameQueue.release()
+                    videoFrameQueue.release()
+                    packetReader.release()
+                    audioDecoder.release()
+                    audioDecoder.release()
                 }
-                val mediaInfo = getMediaInfo()
-                if (mediaInfo != null) {
-                    releaseNative(mediaInfo.nativePlayer)
-                }
-                dispatchNewState(tMediaPlayerState.Released)
-                listener.set(null)
-                audioPacketQueue.release()
-                videoPacketQueue.release()
-                audioFrameQueue.release()
-                packetReader.release()
-                audioDecoder.release()
             }
         }
         return OptResult.Success
@@ -269,7 +289,7 @@ class tMediaPlayer2(
     }
 
     internal fun readableVideoPacketReady() {
-        // TODO: Notify video decoder
+        videoDecoder.readablePacketReady()
     }
     internal fun readableAudioPacketReady() {
         audioDecoder.readablePacketReady()
@@ -292,7 +312,7 @@ class tMediaPlayer2(
     }
 
     internal fun writeableVideoFrameReady() {
-        // TODO: notify video decoder
+        videoDecoder.writeableFrameReady()
     }
 
     internal fun writeableAudioFrameReady() {
