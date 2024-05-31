@@ -4,8 +4,8 @@ import com.tans.tmediaplayer.player.tMediaPlayer2
 
 internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWriteQueue<AudioFrame>() {
 
-    var lastDecodedAudioFrame: LastDecodedAudioFrame? = null
-        private set
+//    var lastDecodedAudioFrame: LastDecodedAudioFrame? = null
+//        private set
 
     override val maxQueueSize: Int = 16
 
@@ -24,12 +24,12 @@ internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
     override fun enqueueReadable(b: AudioFrame) {
         b.pts = player.getAudioPtsInternal(b.nativeFrame)
         b.duration = player.getAudioDurationInternal(b.nativeFrame)
-        lastDecodedAudioFrame = LastDecodedAudioFrame(
-            pts = b.pts,
-            duration = b.duration,
-            serial = b.serial,
-            isEof = b.isEof
-        )
+//        lastDecodedAudioFrame = LastDecodedAudioFrame(
+//            pts = b.pts,
+//            duration = b.duration,
+//            serial = b.serial,
+//            isEof = b.isEof
+//        )
         super.enqueueReadable(b)
     }
 
@@ -42,11 +42,11 @@ internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
     }
 
     companion object {
-        data class LastDecodedAudioFrame(
-            val pts: Long,
-            val duration: Long,
-            val serial: Int,
-            val isEof: Boolean
-        )
+//        data class LastDecodedAudioFrame(
+//            val pts: Long,
+//            val duration: Long,
+//            val serial: Int,
+//            val isEof: Boolean
+//        )
     }
 }

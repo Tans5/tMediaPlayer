@@ -37,6 +37,8 @@ internal class AudioFrameDecoder(
 
             private var skipNextPktRead: Boolean = false
 
+            private var packetSerial: Int = -1
+
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
                 synchronized(this) {
@@ -52,28 +54,36 @@ internal class AudioFrameDecoder(
                                         } else {
                                             audioPacketQueue.dequeueReadable()
                                         }
+                                        val serialChanged = if (pkt != null) {
+                                            val changed = pkt.serial != packetSerial
+                                            packetSerial = pkt.serial
+                                            changed
+                                        } else {
+                                            false
+                                        }
                                         if (skipNextPktRead || pkt != null) {
                                             if (pkt?.isEof == true) {
                                                 val frame = audioFrameQueue.dequeueWriteableForce()
                                                 frame.isEof = true
-                                                frame.serial = pkt.serial
+                                                frame.serial = packetSerial
                                                 audioFrameQueue.enqueueReadable(frame)
                                                 MediaLog.d(TAG, "Decode audio frame eof.")
                                                 skipNextPktRead = false
                                                 this@AudioFrameDecoder.state.set(DecoderState.Eof)
+                                                player.readableAudioFrameReady()
                                             } else {
-                                                if (pkt != null && pkt.serial != audioFrameQueue.lastDecodedAudioFrame?.serial) {
+                                                if (serialChanged) {
                                                     player.flushAudioCodecBufferInternal(nativePlayer)
                                                 }
                                                 val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)
-                                                val lastPkt = audioPacketQueue.lastDequeuePacket
                                                 when (decodeResult) {
                                                     DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
                                                         val frame = audioFrameQueue.dequeueWriteableForce()
-                                                        frame.serial = lastPkt?.serial ?: audioPacketQueue.getSerial()
+                                                        frame.serial = packetSerial
                                                         val moveResult = player.moveDecodedAudioFrameToBufferInternal(nativePlayer, frame)
                                                         if (moveResult == OptResult.Success) {
                                                             audioFrameQueue.enqueueReadable(frame)
+                                                            player.readableAudioFrameReady()
                                                         } else {
                                                             audioFrameQueue.enqueueWritable(frame)
                                                             MediaLog.e(TAG, "Move audio frame fail.")
@@ -81,20 +91,18 @@ internal class AudioFrameDecoder(
                                                         skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
                                                         requestDecode()
                                                     }
-                                                    DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt -> {
+                                                    DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
                                                         if (decodeResult == DecodeResult2.Fail) {
                                                             MediaLog.e(TAG, "Decode audio fail.")
                                                         }
                                                         skipNextPktRead = false
                                                         requestDecode()
                                                     }
-                                                    DecodeResult2.DecodeEnd -> {
-                                                        skipNextPktRead = false
-                                                    }
                                                 }
                                             }
                                             if (pkt != null) {
                                                 audioPacketQueue.enqueueWritable(pkt)
+                                                player.writeableAudioPacketReady()
                                             }
                                         } else {
                                             requestDecode()
@@ -125,6 +133,22 @@ internal class AudioFrameDecoder(
     fun requestDecode() {
         val state = getState()
         if (state in activeStates) {
+            audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
+            audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+        }
+    }
+
+    fun readablePacketReady() {
+        val state = getState()
+        if (state == DecoderState.WaitingReadablePacketBuffer) {
+            audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
+            audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+        }
+    }
+
+    fun writeableFrameReady() {
+        val state = getState()
+        if (state == DecoderState.WaitingWritableFrameBuffer) {
             audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
             audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
         }

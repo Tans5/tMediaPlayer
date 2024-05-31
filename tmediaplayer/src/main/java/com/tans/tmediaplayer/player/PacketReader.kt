@@ -151,7 +151,7 @@ internal class PacketReader(
         }
     }
 
-    fun packetBufferReady() {
+    fun writeablePacketBufferReady() {
         val state = getState()
         if (state == ReaderState.WaitingWritableBuffer) {
             pktReaderHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)

@@ -22,8 +22,8 @@ internal class PacketQueue(
         AtomicInteger(0)
     }
 
-    var lastDequeuePacket: LastDequeuePacket? = null
-        private set
+//    var lastDequeuePacket: LastDequeuePacket? = null
+//        private set
 
     override fun allocBuffer(): Packet {
         val nativeBuffer = player.allocPacketInternal()
@@ -65,13 +65,13 @@ internal class PacketQueue(
         if (b != null) {
             sizeInBytes.addAndGet(b.sizeInBytes * -1L)
             duration.addAndGet(b.duration * -1L)
-            lastDequeuePacket = LastDequeuePacket(
-                pts = b.pts,
-                duration = b.duration,
-                sizeInBytes = b.sizeInBytes,
-                serial = b.serial,
-                isEof = b.isEof
-            )
+//            lastDequeuePacket = LastDequeuePacket(
+//                pts = b.pts,
+//                duration = b.duration,
+//                sizeInBytes = b.sizeInBytes,
+//                serial = b.serial,
+//                isEof = b.isEof
+//            )
         }
         return b
     }
@@ -90,12 +90,12 @@ internal class PacketQueue(
     }
 
     companion object {
-        data class LastDequeuePacket(
-            val pts: Long,
-            val duration: Long,
-            val sizeInBytes: Int,
-            val serial: Int,
-            val isEof: Boolean,
-        )
+//        data class LastDequeuePacket(
+//            val pts: Long,
+//            val duration: Long,
+//            val sizeInBytes: Int,
+//            val serial: Int,
+//            val isEof: Boolean,
+//        )
     }
 }

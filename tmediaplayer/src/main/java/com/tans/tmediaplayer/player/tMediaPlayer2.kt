@@ -272,15 +272,31 @@ class tMediaPlayer2(
         // TODO: Notify video decoder
     }
     internal fun readableAudioPacketReady() {
-        // TODO: Notify audio decoder
+        audioDecoder.readablePacketReady()
     }
 
     internal fun writeableVideoPacketReady() {
-        packetReader.packetBufferReady()
+        packetReader.writeablePacketBufferReady()
     }
 
     internal fun writeableAudioPacketReady() {
-        packetReader.packetBufferReady()
+        packetReader.writeablePacketBufferReady()
+    }
+
+    internal fun readableVideoFrameReady() {
+        // TODO: notify video renderer
+    }
+
+    internal fun readableAudioFrameReady() {
+        // TODO: notify audio renderer
+    }
+
+    internal fun writeableVideoFrameReady() {
+        // TODO: notify video decoder
+    }
+
+    internal fun writeableAudioFrameReady() {
+        audioDecoder.writeableFrameReady()
     }
     // endregion
 
