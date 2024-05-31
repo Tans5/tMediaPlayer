@@ -315,8 +315,8 @@ class tMediaPlayer2(
 
     private external fun seekToNative(nativePlayer: Long, targetPosInMillis: Long): Int
 
-    internal fun decodeVideoInternal(nativePlayer: Long, pkt: Packet): DecodeResult2 {
-        return decodeVideoNative(nativePlayer, pkt.nativePacket).toDecodeResult2()
+    internal fun decodeVideoInternal(nativePlayer: Long, pkt: Packet?): DecodeResult2 {
+        return decodeVideoNative(nativePlayer, pkt?.nativePacket ?: 0L).toDecodeResult2()
     }
 
     private external fun decodeVideoNative(nativePlayer: Long, nativeBuffer: Long): Int
@@ -331,8 +331,8 @@ class tMediaPlayer2(
 
     private external fun moveDecodedVideoFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
 
-    internal fun decodeAudioInternal(nativePlayer: Long, pkt: Packet): DecodeResult2 {
-        return decodeAudioNative(nativePlayer, pkt.nativePacket).toDecodeResult2()
+    internal fun decodeAudioInternal(nativePlayer: Long, pkt: Packet?): DecodeResult2 {
+        return decodeAudioNative(nativePlayer, pkt?.nativePacket ?: 0L).toDecodeResult2()
     }
 
     private external fun decodeAudioNative(nativePlayer: Long, nativeBuffer: Long): Int

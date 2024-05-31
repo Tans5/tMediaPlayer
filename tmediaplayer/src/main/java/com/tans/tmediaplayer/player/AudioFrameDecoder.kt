@@ -3,6 +3,7 @@ package com.tans.tmediaplayer.player
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import java.util.concurrent.atomic.AtomicBoolean
@@ -33,6 +34,9 @@ internal class AudioFrameDecoder(
 
     private val audioDecoderHandler: Handler by lazy {
         object : Handler(audioDecoderThread.looper) {
+
+            private var skipNextPktRead: Boolean = false
+
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
                 synchronized(this) {
@@ -41,7 +45,68 @@ internal class AudioFrameDecoder(
                     if (nativePlayer != null && state in activeStates) {
                         when (msg.what) {
                             DecoderHandlerMsg.RequestDecode.ordinal -> {
-                                // TODO: Decode audio
+                                if (skipNextPktRead || audioPacketQueue.isCanRead()) {
+                                    if (audioFrameQueue.isCanWrite()) {
+                                        val pkt = if (skipNextPktRead) {
+                                            null
+                                        } else {
+                                            audioPacketQueue.dequeueReadable()
+                                        }
+                                        if (skipNextPktRead || pkt != null) {
+                                            if (pkt?.isEof == true) {
+                                                val frame = audioFrameQueue.dequeueWriteableForce()
+                                                frame.isEof = true
+                                                frame.serial = pkt.serial
+                                                audioFrameQueue.enqueueReadable(frame)
+                                                MediaLog.d(TAG, "Decode audio frame eof.")
+                                                skipNextPktRead = false
+                                                this@AudioFrameDecoder.state.set(DecoderState.Eof)
+                                            } else {
+                                                if (pkt != null && pkt.serial != audioFrameQueue.lastDecodedAudioFrame?.serial) {
+                                                    player.flushAudioCodecBufferInternal(nativePlayer)
+                                                }
+                                                val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)
+                                                val lastPkt = audioPacketQueue.lastDequeuePacket
+                                                when (decodeResult) {
+                                                    DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
+                                                        val frame = audioFrameQueue.dequeueWriteableForce()
+                                                        frame.serial = lastPkt?.serial ?: audioPacketQueue.getSerial()
+                                                        val moveResult = player.moveDecodedAudioFrameToBufferInternal(nativePlayer, frame)
+                                                        if (moveResult == OptResult.Success) {
+                                                            audioFrameQueue.enqueueReadable(frame)
+                                                        } else {
+                                                            audioFrameQueue.enqueueWritable(frame)
+                                                            MediaLog.e(TAG, "Move audio frame fail.")
+                                                        }
+                                                        skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
+                                                        requestDecode()
+                                                    }
+                                                    DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt -> {
+                                                        if (decodeResult == DecodeResult2.Fail) {
+                                                            MediaLog.e(TAG, "Decode audio fail.")
+                                                        }
+                                                        skipNextPktRead = false
+                                                        requestDecode()
+                                                    }
+                                                    DecodeResult2.DecodeEnd -> {
+                                                        skipNextPktRead = false
+                                                    }
+                                                }
+                                            }
+                                            if (pkt != null) {
+                                                audioPacketQueue.enqueueWritable(pkt)
+                                            }
+                                        } else {
+                                            requestDecode()
+                                        }
+                                    } else {
+                                        MediaLog.d(TAG, "Waiting frame queue writeable buffer.")
+                                        this@AudioFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
+                                    }
+                                } else {
+                                    MediaLog.d(TAG, "Waiting packet queue readable buffer.")
+                                    this@AudioFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
+                                }
                             }
                         }
                     }

@@ -96,8 +96,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeVideoNative(
         jlong native_player,
         jlong native_buffer) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
-    return player->decodeVideo(pkt);
+    if (native_buffer != 0L) {
+        auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
+        return player->decodeVideo(pkt);
+    } else {
+        return player->decodeAudio(nullptr);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -127,8 +131,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeAudioNative(
         jlong native_player,
         jlong native_buffer) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
-    return player->decodeAudio(pkt);
+    if (native_buffer != 0) {
+        auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
+        return player->decodeAudio(pkt);
+    } else {
+        return player->decodeAudio(nullptr);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
