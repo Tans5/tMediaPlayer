@@ -51,7 +51,7 @@ internal class PacketReader(
                                 val videoQueueIsFull = mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoDuration > MAX_QUEUE_DURATION
                                 if (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioQueueIsFull && videoQueueIsFull)) {
                                     // queue full
-                                    MediaLog.d(TAG, "Packet queue full, audioSize=${String.format(Locale.US, "%f02", audioSizeInBytes.toFloat() / (1024.0f * 1024.0f))}MB, videoSize=${String.format(Locale.US, "%f02", videoSizeInBytes.toFloat() / (1024.0f * 1024.0f))}MB, audioDuration=$audioDuration, videoDuration=$videoDuration")
+                                    MediaLog.d(TAG, "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration")
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     when (val result = player.readPacketInternal(nativePlayer)) {
