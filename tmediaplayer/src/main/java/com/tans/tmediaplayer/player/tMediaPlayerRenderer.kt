@@ -6,12 +6,14 @@ import android.os.HandlerThread
 import android.os.Message
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.audiotrack.tMediaAudioTrack
+import com.tans.tmediaplayer.player.model.AudioChannel
+import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
+import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.render.tMediaPlayerView
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.system.measureTimeMillis
 
 /**

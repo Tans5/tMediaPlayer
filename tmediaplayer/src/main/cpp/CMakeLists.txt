@@ -157,12 +157,12 @@ add_library(
 target_include_directories(
         tmediaaudiotrack PUBLIC
         tmediaaudiotrack/header
-        tmediaplayer/header
+        tmediaplayer2/header
 )
 
 target_link_libraries(
         tmediaaudiotrack
-        tmediaplayer
+        tmediaplayer2
         ${OpenSLES-lib}
 )
 # endregion

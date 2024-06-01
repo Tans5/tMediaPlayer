@@ -36,8 +36,8 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_enqueueBufferNative(
         jlong native_audio_track,
         jlong native_buffer) {
     auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
-    auto buffer = reinterpret_cast<tMediaDecodeBuffer *>(native_buffer);
-    return audioTrack->enqueueBuffer(buffer->audioBuffer);
+    auto buffer = reinterpret_cast<tMediaAudioBuffer *>(native_buffer);
+    return audioTrack->enqueueBuffer(buffer);
 }
 
 extern "C" JNIEXPORT jint JNICALL

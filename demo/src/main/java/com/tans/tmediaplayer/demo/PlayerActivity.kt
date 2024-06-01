@@ -10,9 +10,8 @@ import androidx.activity.addCallback
 import com.tans.tmediaplayer.player.OptResult
 import com.tans.tmediaplayer.demo.databinding.PlayerActivityBinding
 import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
-import com.tans.tmediaplayer.player.AudioSampleBitDepth
-import com.tans.tmediaplayer.player.AudioSampleRate
-import com.tans.tmediaplayer.player.tMediaPlayer
+import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
+import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.tMediaPlayer2
 import com.tans.tmediaplayer.player.tMediaPlayerListener
 import com.tans.tmediaplayer.player.tMediaPlayerState

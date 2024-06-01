@@ -3,7 +3,10 @@ package com.tans.tmediaplayer.player
 import android.os.SystemClock
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.model.AudioChannel
+import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleFormat
+import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.model.AudioStreamInfo
 import com.tans.tmediaplayer.player.model.FFmpegCodec
 import com.tans.tmediaplayer.player.model.MediaInfo
