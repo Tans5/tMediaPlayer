@@ -8,5 +8,6 @@ data class VideoStreamInfo(
     val videoCodec: FFmpegCodec,
     val videoBitrate: Int,
     val videoPixelBitDepth: Int,
-    val videoPixelFormat: VideoPixelFormat
+    val videoPixelFormat: VideoPixelFormat,
+    val isAttachment: Boolean = false
 )

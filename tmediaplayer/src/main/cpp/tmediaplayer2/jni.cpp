@@ -100,7 +100,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_decodeVideoNative(
         auto *pkt = reinterpret_cast<AVPacket *>(native_buffer);
         return player->decodeVideo(pkt);
     } else {
-        return player->decodeAudio(nullptr);
+        return player->decodeVideo(nullptr);
     }
 }
 
@@ -222,6 +222,16 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer2_getMetadataNative(
 // endregion
 
 // region Video stream info
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer2_videoStreamIsAttachmentNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->videoIsAttachPic;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer2_videoWidthNative(
         JNIEnv * env,

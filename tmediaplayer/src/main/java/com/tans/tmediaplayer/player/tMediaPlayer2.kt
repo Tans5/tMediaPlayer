@@ -231,8 +231,11 @@ class tMediaPlayer2(
                 audioBitrate = audioBitrateNative(nativePlayer),
                 audioSampleBitDepth = audioSampleBitDepthNative(nativePlayer),
                 audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.UNKNOWN
-            )
+            ).apply {
+                MediaLog.d(TAG, "Find audio stream: $this")
+            }
         } else {
+            MediaLog.d(TAG, "Don't find audio stream")
             null
         }
         val videoStreamInfo: VideoStreamInfo? = if (containVideoStreamNative(nativePlayer)) {
@@ -246,9 +249,13 @@ class tMediaPlayer2(
                 videoCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN,
                 videoBitrate = videoBitrateNative(nativePlayer),
                 videoPixelBitDepth = videoPixelBitDepthNative(nativePlayer),
-                videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN
-            )
+                videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN,
+                isAttachment = videoStreamIsAttachmentNative(nativePlayer)
+            ).apply {
+                MediaLog.d(TAG, "Find video stream: $this")
+            }
         } else {
+            MediaLog.d(TAG, "Don't find video stream")
             null
         }
         return MediaInfo(
@@ -397,6 +404,9 @@ class tMediaPlayer2(
     // endregion
 
     // region Native video stream info
+
+    private external fun videoStreamIsAttachmentNative(nativeBuffer: Long): Boolean
+
     private external fun videoWidthNative(nativePlayer: Long): Int
 
     private external fun videoHeightNative(nativePlayer: Long): Int

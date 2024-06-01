@@ -6,6 +6,7 @@ import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -35,7 +36,8 @@ internal class PacketReader(
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
                 synchronized(this) {
-                    val nativePlayer = player.getMediaInfo()?.nativePlayer
+                    val mediaInfo = player.getMediaInfo()
+                    val nativePlayer = mediaInfo?.nativePlayer
                     val state = getState()
                     if (nativePlayer != null && (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer)) {
                         when (msg.what) {
@@ -44,9 +46,12 @@ internal class PacketReader(
                                 val videoSizeInBytes = videoPacketQueue.getSizeInBytes()
                                 val audioDuration = audioPacketQueue.getDuration()
                                 val videoDuration = videoPacketQueue.getDuration()
-                                if (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioDuration > MAX_QUEUE_DURATION && videoDuration > MAX_QUEUE_DURATION)) {
+
+                                val audioQueueIsFull = mediaInfo.audioStreamInfo == null || audioDuration > MAX_QUEUE_DURATION
+                                val videoQueueIsFull = mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoDuration > MAX_QUEUE_DURATION
+                                if (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioQueueIsFull && videoQueueIsFull)) {
                                     // queue full
-                                    MediaLog.d(TAG, "Packet queue full, audioSize=${audioSizeInBytes.toFloat() / 1024.0f * 1024.0f}MB, videoSize=${videoSizeInBytes.toFloat() / 1024.0f * 1024.0f}MB, audioDuration=$audioDuration, videoDuration=$videoDuration")
+                                    MediaLog.d(TAG, "Packet queue full, audioSize=${String.format(Locale.US, "%f02", audioSizeInBytes.toFloat() / (1024.0f * 1024.0f))}MB, videoSize=${String.format(Locale.US, "%f02", videoSizeInBytes.toFloat() / (1024.0f * 1024.0f))}MB, audioDuration=$audioDuration, videoDuration=$videoDuration")
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     when (val result = player.readPacketInternal(nativePlayer)) {
@@ -71,17 +76,18 @@ internal class PacketReader(
                                             requestReadPkt()
                                         }
                                         ReadPacketResult.ReadEof -> {
-                                            val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
-                                            videoEofPkt.isEof = true
-                                            videoPacketQueue.enqueueReadable(videoEofPkt)
-
-                                            val audioEofPkt = audioPacketQueue.dequeueWriteableForce()
-                                            audioEofPkt.isEof = true
-                                            audioPacketQueue.enqueueReadable(audioEofPkt)
-
-                                            player.readableVideoPacketReady()
-                                            player.readableAudioPacketReady()
-                                            requestReadPkt()
+                                            if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
+                                                val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
+                                                videoEofPkt.isEof = true
+                                                videoPacketQueue.enqueueReadable(videoEofPkt)
+                                                player.readableVideoPacketReady()
+                                            }
+                                            if (mediaInfo.audioStreamInfo != null) {
+                                                val audioEofPkt = audioPacketQueue.dequeueWriteableForce()
+                                                audioEofPkt.isEof = true
+                                                audioPacketQueue.enqueueReadable(audioEofPkt)
+                                                player.readableAudioPacketReady()
+                                            }
                                             MediaLog.d(TAG, "Read pkt eof.")
                                         }
                                         ReadPacketResult.ReadFail -> {
