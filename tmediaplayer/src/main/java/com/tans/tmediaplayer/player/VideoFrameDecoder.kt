@@ -95,6 +95,9 @@ internal class VideoFrameDecoder(
                                                         if (decodeResult == DecodeResult2.Fail) {
                                                             MediaLog.e(TAG, "Decode video fail.")
                                                         }
+                                                        if (decodeResult == DecodeResult2.FailAndNeedMorePkt) {
+                                                            MediaLog.d(TAG, "Decode video fail and need more pkt.")
+                                                        }
                                                         skipNextPktRead = false
                                                         requestDecode()
                                                     }

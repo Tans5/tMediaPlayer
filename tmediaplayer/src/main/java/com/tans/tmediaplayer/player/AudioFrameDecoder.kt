@@ -95,6 +95,9 @@ internal class AudioFrameDecoder(
                                                         if (decodeResult == DecodeResult2.Fail) {
                                                             MediaLog.e(TAG, "Decode audio fail.")
                                                         }
+                                                        if (decodeResult == DecodeResult2.FailAndNeedMorePkt) {
+                                                            MediaLog.d(TAG, "Decode audio fail and need more pkt.")
+                                                        }
                                                         skipNextPktRead = false
                                                         requestDecode()
                                                     }

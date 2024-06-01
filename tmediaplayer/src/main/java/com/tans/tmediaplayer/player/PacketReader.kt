@@ -46,26 +46,20 @@ internal class PacketReader(
                                 val videoDuration = videoPacketQueue.getDuration()
                                 if (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioDuration > MAX_QUEUE_DURATION && videoDuration > MAX_QUEUE_DURATION)) {
                                     // queue full
-                                    MediaLog.d(TAG, "Packet queue full, audioSize=$audioSizeInBytes, videoSize=$videoSizeInBytes, audioDuration=$audioDuration, videoDuration=$videoDuration")
+                                    MediaLog.d(TAG, "Packet queue full, audioSize=${audioSizeInBytes.toFloat() / 1024.0f * 1024.0f}MB, videoSize=${videoSizeInBytes.toFloat() / 1024.0f * 1024.0f}MB, audioDuration=$audioDuration, videoDuration=$videoDuration")
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
-                                    val result = player.readPacketInternal(nativePlayer)
-                                    // MediaLog.d(TAG, "ReadPacket result: $result")
-                                    when (result) {
-                                        ReadPacketResult.ReadVideoSuccess -> {
+                                    when (val result = player.readPacketInternal(nativePlayer)) {
+                                        ReadPacketResult.ReadVideoSuccess, ReadPacketResult.ReadVideoAttachmentSuccess -> {
                                             val pkt = videoPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             videoPacketQueue.enqueueReadable(pkt)
-                                            player.readableVideoPacketReady()
-                                            requestReadPkt()
-                                        }
-                                        ReadPacketResult.ReadVideoAttachmentSuccess -> {
-                                            val pkt = videoPacketQueue.dequeueWriteableForce()
-                                            player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
-                                            videoPacketQueue.enqueueReadable(pkt)
-                                            val eofPkt = videoPacketQueue.dequeueWriteableForce()
-                                            eofPkt.isEof = true
-                                            videoPacketQueue.enqueueReadable(eofPkt)
+                                            if (result == ReadPacketResult.ReadVideoAttachmentSuccess) {
+                                                val eofPkt = videoPacketQueue.dequeueWriteableForce()
+                                                eofPkt.isEof = true
+                                                videoPacketQueue.enqueueReadable(eofPkt)
+                                                MediaLog.d(TAG, "Read video attachment.")
+                                            }
                                             player.readableVideoPacketReady()
                                             requestReadPkt()
                                         }
@@ -80,12 +74,15 @@ internal class PacketReader(
                                             val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
                                             videoEofPkt.isEof = true
                                             videoPacketQueue.enqueueReadable(videoEofPkt)
+
                                             val audioEofPkt = audioPacketQueue.dequeueWriteableForce()
                                             audioEofPkt.isEof = true
-                                            videoPacketQueue.enqueueReadable(audioEofPkt)
+                                            audioPacketQueue.enqueueReadable(audioEofPkt)
+
                                             player.readableVideoPacketReady()
                                             player.readableAudioPacketReady()
                                             requestReadPkt()
+                                            MediaLog.d(TAG, "Read pkt eof.")
                                         }
                                         ReadPacketResult.ReadFail -> {
                                             MediaLog.e(TAG, "Read pkt fail.")
