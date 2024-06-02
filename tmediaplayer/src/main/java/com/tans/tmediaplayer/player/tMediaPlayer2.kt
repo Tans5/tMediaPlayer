@@ -78,6 +78,18 @@ class tMediaPlayer2(
         )
     }
 
+    private val videoClock: Clock by lazy {
+        Clock()
+    }
+
+    private val audioClock: Clock by lazy {
+        Clock()
+    }
+
+    private val externalClock: Clock by lazy {
+        Clock()
+    }
+
 
     // region public methods
     @Synchronized
@@ -100,6 +112,9 @@ class tMediaPlayer2(
         videoFrameQueue.flushReadableBuffer()
         audioDecoder.removeAllHandlerMessages()
         videoDecoder.removeAllHandlerMessages()
+        videoClock.initClock(videoPacketQueue)
+        audioClock.initClock(audioPacketQueue)
+        externalClock.initClock(null)
         val nativePlayer = createPlayerNative()
         val result = prepareNative(
             nativePlayer = nativePlayer,
