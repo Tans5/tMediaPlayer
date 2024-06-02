@@ -150,7 +150,7 @@ internal class AudioRenderer(
         synchronized(this) {
             val state = getState()
             if (state != RendererState.NotInit && state != RendererState.Released) {
-                this.state.set(state)
+                this.state.set(RendererState.Released)
                 audioTrack.release()
                 while (waitingRenderFrames.isNotEmpty()) {
                     val b = waitingRenderFrames.pollFirst()
