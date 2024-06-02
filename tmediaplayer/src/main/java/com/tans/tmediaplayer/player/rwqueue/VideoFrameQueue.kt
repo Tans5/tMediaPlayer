@@ -26,7 +26,6 @@ internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
             b.imageType = player.getVideoFrameTypeNativeInternal(b.nativeFrame)
             b.width = player.getVideoWidthNativeInternal(b.nativeFrame)
             b.height = player.getVideoHeightNativeInternal(b.nativeFrame)
-            val nativePlayer = player.getMediaInfo()!!.nativePlayer
             when (b.imageType) {
                 ImageRawType.Yuv420p -> {
                     // Y
@@ -34,21 +33,21 @@ internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
                     if (b.yBuffer?.size != ySize) {
                         b.yBuffer = ByteArray(ySize)
                     }
-                    player.getVideoFrameYBytesNativeInternal(nativePlayer, b.yBuffer!!)
+                    player.getVideoFrameYBytesNativeInternal(b.nativeFrame, b.yBuffer!!)
 
                     // U
                     val uSize = player.getVideoFrameUSizeNativeInternal(b.nativeFrame)
                     if (b.uBuffer?.size != uSize) {
                         b.uBuffer = ByteArray(uSize)
                     }
-                    player.getVideoFrameUBytesNativeInternal(nativePlayer, b.uBuffer!!)
+                    player.getVideoFrameUBytesNativeInternal(b.nativeFrame, b.uBuffer!!)
 
                     // V
                     val vSize = player.getVideoFrameVSizeNativeInternal(b.nativeFrame)
                     if (b.vBuffer?.size != vSize) {
                         b.vBuffer = ByteArray(vSize)
                     }
-                    player.getVideoFrameVBytesNativeInternal(nativePlayer, b.vBuffer!!)
+                    player.getVideoFrameVBytesNativeInternal(b.nativeFrame, b.vBuffer!!)
                 }
                 ImageRawType.Nv12, ImageRawType.Nv21 -> {
                     // Y
@@ -56,14 +55,14 @@ internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
                     if (b.yBuffer?.size != ySize) {
                         b.yBuffer = ByteArray(ySize)
                     }
-                    player.getVideoFrameYBytesNativeInternal(nativePlayer, b.yBuffer!!)
+                    player.getVideoFrameYBytesNativeInternal(b.nativeFrame, b.yBuffer!!)
 
                     // UV/VU
                     val uvSize = player.getVideoFrameUVSizeNativeInternal(b.nativeFrame)
                     if (b.uvBuffer?.size != uvSize) {
                         b.uvBuffer = ByteArray(uvSize)
                     }
-                    player.getVideoFrameUVBytesNativeInternal(nativePlayer, b.uvBuffer!!)
+                    player.getVideoFrameUVBytesNativeInternal(b.nativeFrame, b.uvBuffer!!)
                 }
                 ImageRawType.Rgba -> {
                     // Rgba
@@ -71,7 +70,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
                     if (b.rgbaBuffer?.size != rgbaSize) {
                         b.rgbaBuffer = ByteArray(rgbaSize)
                     }
-                    player.getVideoFrameRgbaBytesNativeInternal(nativePlayer, b.rgbaBuffer!!)
+                    player.getVideoFrameRgbaBytesNativeInternal(b.nativeFrame, b.rgbaBuffer!!)
                 }
                 ImageRawType.Unknown -> {
 

@@ -631,7 +631,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
         return OptFail;
     }
     auto time_base = audio_stream->time_base;
-    if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
+    if (time_base.den > 0 && audio_frame->pts != AV_NOPTS_VALUE) {
         audioBuffer->pts = (long) ((double)audio_frame->pts * av_q2d(time_base) * 1000.0);
     } else {
         audioBuffer->pts = 0L;

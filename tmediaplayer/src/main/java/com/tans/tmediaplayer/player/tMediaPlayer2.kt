@@ -78,15 +78,15 @@ class tMediaPlayer2(
         )
     }
 
-    private val videoClock: Clock by lazy {
+    internal val videoClock: Clock by lazy {
         Clock()
     }
 
-    private val audioClock: Clock by lazy {
+    internal val audioClock: Clock by lazy {
         Clock()
     }
 
-    private val externalClock: Clock by lazy {
+    internal val externalClock: Clock by lazy {
         Clock()
     }
 
