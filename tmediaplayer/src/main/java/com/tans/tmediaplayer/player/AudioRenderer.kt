@@ -86,7 +86,7 @@ internal class AudioRenderer(
                                 val frame = audioFrameQueue.dequeueReadable()
                                 if (frame != null) {
                                     if (!frame.isEof) {
-                                        if (frame.serial == audioPacketQueue.getSerial() || audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
+                                        if (frame.serial == audioPacketQueue.getSerial() && audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
                                             waitingRenderFrames.addLast(frame)
                                         } else {
                                             MediaLog.e(TAG, "Audio render fail.")
