@@ -358,13 +358,11 @@ class tMediaPlayer2(
         if (result == OptResult.Success) {
             audioRenderer.flush()
             audioPacketQueue.flushReadableBuffer()
-            writeableAudioPacketReady()
             videoPacketQueue.flushReadableBuffer()
-            writeableVideoPacketReady()
             audioFrameQueue.flushReadableBuffer()
-            writeableAudioFrameReady()
             videoFrameQueue.flushReadableBuffer()
-            writeableVideoFrameReady()
+            audioDecoder.requestDecode()
+            videoDecoder.requestDecode()
         }
         val mediaInfo = getMediaInfo()
         if (state is tMediaPlayerState.Seeking && mediaInfo != null) {

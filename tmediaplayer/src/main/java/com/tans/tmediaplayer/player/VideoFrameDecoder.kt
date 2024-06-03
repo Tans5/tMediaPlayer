@@ -90,6 +90,9 @@ internal class VideoFrameDecoder(
                                                             MediaLog.e(TAG, "Move video frame fail.")
                                                         }
                                                         skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
+                                                        if (skipNextPktRead) {
+                                                            MediaLog.d(TAG, "Skip read next video packet.")
+                                                        }
                                                         requestDecode()
                                                     }
                                                     DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
