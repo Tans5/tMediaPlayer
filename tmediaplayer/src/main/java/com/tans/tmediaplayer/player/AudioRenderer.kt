@@ -31,8 +31,7 @@ internal class AudioRenderer(
         ) {
             val frame = waitingRenderFrames.pollFirst()
             if (frame != null) {
-                val pts = player.getAudioPtsInternal(frame.pts)
-                player.audioClock.setClock(pts, frame.serial)
+                player.audioClock.setClock(frame.pts, frame.serial)
                 player.externalClock.syncToClock(player.audioClock)
                 audioFrameQueue.enqueueWritable(frame)
                 player.writeableAudioFrameReady()
@@ -84,22 +83,31 @@ internal class AudioRenderer(
                                 }
                                 val frame = audioFrameQueue.dequeueReadable()
                                 if (frame != null) {
-                                    val result = audioTrack.enqueueBuffer(frame.nativeFrame)
-                                    if (result == OptResult.Success) {
-                                        waitingRenderFrames.addLast(frame)
+                                    if (!frame.isEof) {
+                                        val result = audioTrack.enqueueBuffer(frame.nativeFrame)
+                                        if (result == OptResult.Success) {
+                                            waitingRenderFrames.addLast(frame)
+                                        } else {
+                                            MediaLog.e(TAG, "Audio render fail.")
+                                            audioFrameQueue.enqueueWritable(frame)
+                                            player.writeableAudioFrameReady()
+                                        }
+                                        if (state == RendererState.WaitingReadableFrameBuffer) {
+                                            this@AudioRenderer.state.set(RendererState.Playing)
+                                        }
+                                        requestRender()
                                     } else {
-                                        MediaLog.e(TAG, "Audio render fail.")
+                                        this@AudioRenderer.state.set(RendererState.Eof)
                                         audioFrameQueue.enqueueWritable(frame)
+                                        MediaLog.d(TAG, "Render audio frame eof.")
                                         player.writeableAudioFrameReady()
                                     }
-                                    if (state == RendererState.WaitingReadableFrameBuffer) {
-                                        this@AudioRenderer.state.set(RendererState.Playing)
-                                    }
-                                    requestRender()
                                 } else {
                                     this@AudioRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                     MediaLog.d(TAG, "Waiting readable audio frame.")
                                 }
+                            } else {
+                                MediaLog.e(TAG, "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo")
                             }
                         }
                     }
@@ -119,8 +127,13 @@ internal class AudioRenderer(
     fun play() {
         val state = getState()
         if (state == RendererState.Paused || state == RendererState.WaitingReadableFrameBuffer) {
+            if (state == RendererState.Paused) {
+                this.state.set(RendererState.Playing)
+            }
             requestRender()
             audioTrack.play()
+        } else {
+            MediaLog.e(TAG, "Play error, because of state: $state")
         }
     }
 
@@ -129,6 +142,8 @@ internal class AudioRenderer(
         if (state == RendererState.Playing || state == RendererState.WaitingReadableFrameBuffer) {
             this.state.set(RendererState.Paused)
             audioTrack.pause()
+        } else {
+            MediaLog.e(TAG, "Pause error, because of state: $state")
         }
     }
 
@@ -143,6 +158,8 @@ internal class AudioRenderer(
                 }
             }
             player.writeableAudioFrameReady()
+        } else {
+            MediaLog.e(TAG, "Flush error, because of state: $state")
         }
     }
 
@@ -165,6 +182,8 @@ internal class AudioRenderer(
                         audioFrameQueue.enqueueWritable(b)
                     }
                 }
+            } else {
+                MediaLog.e(TAG, "Release error, because of state: $state")
             }
         }
     }
@@ -176,6 +195,8 @@ internal class AudioRenderer(
         if (state in canRenderStates) {
             videoRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
             videoRendererHandler.sendEmptyMessage(RendererHandlerMsg.RequestRender.ordinal)
+        } else {
+            MediaLog.e(TAG, "Request render error, because of state: $state")
         }
     }
 

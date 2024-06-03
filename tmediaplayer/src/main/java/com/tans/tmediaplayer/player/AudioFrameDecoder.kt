@@ -73,6 +73,7 @@ internal class AudioFrameDecoder(
                                                 player.readableAudioFrameReady()
                                             } else {
                                                 if (serialChanged) {
+                                                    MediaLog.d(TAG, "Serial changed, flush audio decoder, serial: $packetSerial")
                                                     player.flushAudioCodecBufferInternal(nativePlayer)
                                                 }
                                                 val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)

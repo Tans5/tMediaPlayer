@@ -73,6 +73,7 @@ internal class VideoFrameDecoder(
                                                 player.readableVideoFrameReady()
                                             } else {
                                                 if (serialChanged) {
+                                                    MediaLog.d(TAG, "Serial changed, flush video decoder, serial: $packetSerial")
                                                     player.flushVideoCodecBufferInternal(nativePlayer)
                                                 }
                                                 val decodeResult = player.decodeVideoInternal(nativePlayer, pkt)

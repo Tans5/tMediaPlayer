@@ -169,8 +169,8 @@ class tMediaPlayer2(
         return if (playingState != null) {
             MediaLog.d(tMediaPlayer.TAG, "Request play.")
             playReadPacketInternal(playingState.mediaInfo.nativePlayer)
-            audioRenderer.play()
             dispatchNewState(playingState)
+            audioRenderer.play()
             OptResult.Success
         } else {
             MediaLog.e(tMediaPlayer.TAG, "Wrong state: $state for play() method.")
