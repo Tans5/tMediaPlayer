@@ -90,6 +90,16 @@ class tMediaPlayer2(
         Clock()
     }
 
+    private val audioRenderer: AudioRenderer by lazy {
+        AudioRenderer(
+            outputChannel = audioOutputChannel,
+            outputSampleRate = audioOutputSampleRate,
+            outputSampleBitDepth = audioOutputSampleBitDepth,
+            audioFrameQueue = audioFrameQueue,
+            player = this
+        )
+    }
+
 
     // region public methods
     @Synchronized
@@ -132,6 +142,7 @@ class tMediaPlayer2(
             packetReader.requestReadPkt()
             audioDecoder.requestDecode()
             videoDecoder.requestDecode()
+            audioRenderer
         } else {
             // Load media file fail.
             releaseNative(nativePlayer)
@@ -143,26 +154,111 @@ class tMediaPlayer2(
 
     @Synchronized
     override fun play(): OptResult {
-        // TODO:
-        return OptResult.Fail
+        val state = getState()
+        val playingState = when (state) {
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Error -> null
+            is tMediaPlayerState.Paused -> state.play()
+            is tMediaPlayerState.PlayEnd -> state.play()
+            is tMediaPlayerState.Playing -> null
+            is tMediaPlayerState.Prepared -> state.play()
+            is tMediaPlayerState.Stopped -> state.play()
+            is tMediaPlayerState.Seeking -> null
+            tMediaPlayerState.Released -> null
+        }
+        return if (playingState != null) {
+            MediaLog.d(tMediaPlayer.TAG, "Request play.")
+            playReadPacketInternal(playingState.mediaInfo.nativePlayer)
+            audioRenderer.play()
+            dispatchNewState(playingState)
+            OptResult.Success
+        } else {
+            MediaLog.e(tMediaPlayer.TAG, "Wrong state: $state for play() method.")
+            OptResult.Fail
+        }
     }
 
     @Synchronized
     override fun pause(): OptResult {
-        // TODO:
-        return OptResult.Fail
+        val state = getState()
+        val pauseState = when (state) {
+            is tMediaPlayerState.Error -> null
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Paused -> null
+            is tMediaPlayerState.PlayEnd -> null
+            is tMediaPlayerState.Playing -> state.pause()
+            is tMediaPlayerState.Prepared -> null
+            is tMediaPlayerState.Stopped -> null
+            is tMediaPlayerState.Seeking -> null
+            tMediaPlayerState.Released -> null
+        }
+        return if (pauseState != null) {
+            MediaLog.d(tMediaPlayer.TAG, "Request pause.")
+            pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
+            audioRenderer.pause()
+            dispatchNewState(pauseState)
+            OptResult.Success
+        } else {
+            MediaLog.e(tMediaPlayer.TAG, "Wrong state: $state for pause() method.")
+            OptResult.Fail
+        }
     }
 
     @Synchronized
     override fun seekTo(position: Long): OptResult {
-        // TODO:
-        return OptResult.Fail
+        val state = getState()
+        val seekingState: tMediaPlayerState.Seeking? = when (state) {
+            is tMediaPlayerState.Error -> null
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Paused -> state.seek(position)
+            is tMediaPlayerState.PlayEnd -> state.seek(position)
+            is tMediaPlayerState.Playing -> state.seek(position)
+            is tMediaPlayerState.Prepared -> state.seek(position)
+            is tMediaPlayerState.Stopped -> state.seek(position)
+            is tMediaPlayerState.Seeking -> null
+            tMediaPlayerState.Released -> null
+        }
+        val mediaInfo = getMediaInfo()
+        return if (mediaInfo != null && seekingState != null) {
+            if (position !in 0 .. mediaInfo.duration) {
+                MediaLog.e(tMediaPlayer.TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
+                OptResult.Fail
+            } else {
+                audioRenderer.pause()
+                packetReader.requestSeek(position)
+                dispatchNewState(seekingState)
+                OptResult.Success
+            }
+        } else {
+            MediaLog.e(tMediaPlayer.TAG, "Wrong state: $state for seekTo() method.")
+            OptResult.Fail
+        }
     }
 
     @Synchronized
     override fun stop(): OptResult {
-        // TODO:
-        return OptResult.Fail
+        val state = getState()
+        val stopState = when (state) {
+            is tMediaPlayerState.Error -> null
+            tMediaPlayerState.NoInit -> null
+            is tMediaPlayerState.Paused -> state.stop()
+            is tMediaPlayerState.PlayEnd -> null
+            is tMediaPlayerState.Playing -> state.stop()
+            is tMediaPlayerState.Prepared -> null
+            is tMediaPlayerState.Stopped -> null
+            is tMediaPlayerState.Seeking -> null
+            tMediaPlayerState.Released -> null
+        }
+        return if (stopState != null) {
+            MediaLog.d(tMediaPlayer.TAG, "Request stop.")
+            dispatchNewState(stopState)
+            packetReader.requestSeek(0L)
+            audioRenderer.pause()
+            OptResult.Success
+        } else {
+            MediaLog.e(tMediaPlayer.TAG, "Wrong state: $state for stop() method.")
+            OptResult.Fail
+        }
     }
 
     @Synchronized
@@ -187,6 +283,7 @@ class tMediaPlayer2(
                     packetReader.release()
                     audioDecoder.release()
                     audioDecoder.release()
+                    audioRenderer.release()
                 }
             }
         }
@@ -215,6 +312,31 @@ class tMediaPlayer2(
     // endregion
 
     // region Player internal methods.
+
+    internal fun seekResult(position: Long, result: OptResult) {
+        val state = getState()
+        if (result == OptResult.Success) {
+            audioRenderer.flush()
+            audioPacketQueue.flushReadableBuffer()
+            writeableAudioPacketReady()
+            videoPacketQueue.flushReadableBuffer()
+            writeableVideoPacketReady()
+            audioFrameQueue.flushReadableBuffer()
+            writeableAudioFrameReady()
+            videoFrameQueue.flushReadableBuffer()
+            writeableVideoFrameReady()
+        }
+        if (state is tMediaPlayerState.Seeking) {
+            val lastState = state.lastState
+            if (lastState is tMediaPlayerState.Playing) {
+                audioRenderer.play()
+            }
+            dispatchNewState(lastState)
+        } else {
+            MediaLog.e(TAG, "Wrong state for handing seeking result: $state")
+        }
+    }
+
     private fun getMediaInfoByState(state: tMediaPlayerState): MediaInfo? {
         return when (state) {
             tMediaPlayerState.NoInit -> null
@@ -333,7 +455,7 @@ class tMediaPlayer2(
     }
 
     internal fun readableAudioFrameReady() {
-        // TODO: notify audio renderer
+        audioRenderer.readableFrameReady()
     }
 
     internal fun writeableVideoFrameReady() {

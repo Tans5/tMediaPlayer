@@ -118,6 +118,7 @@ internal class PacketReader(
                                     } else {
                                         MediaLog.e(TAG, "Seek to $position fail, cost $cost ms")
                                     }
+                                    player.seekResult(position, result)
                                     requestReadPkt()
                                 }
                             }

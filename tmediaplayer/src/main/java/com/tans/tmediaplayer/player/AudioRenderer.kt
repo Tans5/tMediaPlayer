@@ -146,6 +146,13 @@ internal class AudioRenderer(
         }
     }
 
+    fun readableFrameReady() {
+        val state = getState()
+        if (state == RendererState.WaitingReadableFrameBuffer) {
+            requestRender()
+        }
+    }
+
     fun release() {
         synchronized(this) {
             val state = getState()
