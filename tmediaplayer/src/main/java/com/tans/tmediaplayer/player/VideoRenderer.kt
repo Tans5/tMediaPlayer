@@ -76,6 +76,7 @@ internal class VideoRenderer(
                                             return@synchronized
                                         }
                                         if (frame.serial != lastFrame.serial) {
+                                            MediaLog.d(TAG, "Serial changed, reset frame timer.")
                                             frameTimer = SystemClock.uptimeMillis()
                                         }
                                         val lastDuration = frameDuration(lastFrame, frame)
@@ -83,6 +84,7 @@ internal class VideoRenderer(
                                         val time = SystemClock.uptimeMillis()
                                         if (time < frameTimer + delay) {
                                             val remainingTime = min(frameTimer + delay - time, VIDEO_REFRESH_RATE)
+                                            MediaLog.d(TAG, "Frame=${frame.pts}, need delay ${remainingTime}ms to display.")
                                             requestRender(remainingTime)
                                             return@synchronized
                                         }
@@ -90,6 +92,7 @@ internal class VideoRenderer(
                                         videoFrameQueue.dequeueReadable()
                                         frameTimer += delay
                                         if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
+                                            MediaLog.d(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
                                             frameTimer = time
                                         }
                                         player.videoClock.setClock(frame.pts, frame.serial)
@@ -99,6 +102,7 @@ internal class VideoRenderer(
                                         if (nextFrame != null) {
                                             val duration = frameDuration(lastRenderFrame, nextFrame)
                                             if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
+                                                MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
                                                 videoFrameQueue.dequeueReadable()
                                                 videoFrameQueue.enqueueWritable(nextFrame)
                                                 player.writeableVideoFrameReady()
@@ -124,6 +128,7 @@ internal class VideoRenderer(
                                                             player.writeableVideoFrameReady()
                                                         }
                                                     } else {
+                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
                                                         videoFrameQueue.enqueueWritable(frame)
                                                         player.writeableVideoFrameReady()
                                                     }
@@ -142,6 +147,7 @@ internal class VideoRenderer(
                                                             player.writeableVideoFrameReady()
                                                         }
                                                     } else {
+                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
                                                         videoFrameQueue.enqueueWritable(frame)
                                                         player.writeableVideoFrameReady()
                                                     }
@@ -160,6 +166,7 @@ internal class VideoRenderer(
                                                             player.writeableVideoFrameReady()
                                                         }
                                                     } else {
+                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
                                                         videoFrameQueue.enqueueWritable(frame)
                                                         player.writeableVideoFrameReady()
                                                     }
@@ -176,6 +183,7 @@ internal class VideoRenderer(
                                                             player.writeableVideoFrameReady()
                                                         }
                                                     } else {
+                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
                                                         videoFrameQueue.enqueueWritable(frame)
                                                         player.writeableVideoFrameReady()
                                                     }
@@ -224,7 +232,7 @@ internal class VideoRenderer(
                 val syncType = player.getSyncType()
                 return if (syncType != SyncType.VideoMaster) {
                     val diff = player.videoClock.getClock() - player.getMasterClock()
-                    val threshold: Long = max(min(diff, SYNC_THRESHOLD_MAX), SYNC_THRESHOLD_MIN)
+                    val threshold: Long = max(min(delay, SYNC_THRESHOLD_MAX), SYNC_THRESHOLD_MIN)
                     if (diff <= - threshold) {
                         max(0L, delay + diff)
                     } else if (diff >= threshold && delay >= SYNC_FRAMEDUP_THRESHOLD) {
