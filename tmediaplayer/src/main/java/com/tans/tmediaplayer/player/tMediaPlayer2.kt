@@ -363,19 +363,18 @@ class tMediaPlayer2(
             videoFrameQueue.flushReadableBuffer()
             writeableVideoFrameReady()
         }
-        if (state is tMediaPlayerState.Seeking) {
+        val mediaInfo = getMediaInfo()
+        if (state is tMediaPlayerState.Seeking && mediaInfo != null) {
             val lastState = state.lastState
             if (lastState is tMediaPlayerState.Playing) {
                 audioRenderer.play()
                 videoRenderer.play()
-            }
-            if (lastState is tMediaPlayerState.PlayEnd) {
-                dispatchNewState(tMediaPlayerState.Paused(lastState.mediaInfo))
-            } else {
                 dispatchNewState(lastState)
+            } else {
+                dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
             }
         } else {
-            MediaLog.e(TAG, "Wrong state for handing seeking result: $state")
+            MediaLog.d(TAG, "Wrong state for handing seeking result: $state")
         }
     }
 
@@ -478,7 +477,7 @@ class tMediaPlayer2(
         if (state is tMediaPlayerState.Playing) {
             val mediaInfo = state.mediaInfo
             if ((mediaInfo.videoStreamInfo == null || videoRenderer.getState() == RendererState.Eof) &&
-                (mediaInfo.audioStreamInfo == null || videoRenderer.getState() == RendererState.Eof)) {
+                (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)) {
                 MediaLog.d(TAG, "Render end.")
                 videoClock.setClock(mediaInfo.duration, -1)
                 videoClock.pause()
