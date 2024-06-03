@@ -89,7 +89,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         tMediaFrameLoader
         val viewBinding = PlayerActivityBinding.bind(contentView)
 
-        // mediaPlayer.attachPlayerView(viewBinding.playerView)
+        mediaPlayer.attachPlayerView(viewBinding.playerView)
 
         renderStateNewCoroutine({ it.progress.duration }) { duration ->
             viewBinding.durationTv.text = duration.formatDuration()
@@ -185,11 +185,11 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
 
         }
 
-//        viewBinding.settingsIv.clicks(this) {
-//            viewBinding.actionLayout.hide()
-//            val d = PlayerSettingsDialog(playerView = viewBinding.playerView)
-//            d.show(supportFragmentManager, "PlayerSettingsDialog#${System.currentTimeMillis()}}")
-//        }
+        viewBinding.settingsIv.clicks(this) {
+            viewBinding.actionLayout.hide()
+            val d = PlayerSettingsDialog(playerView = viewBinding.playerView)
+            d.show(supportFragmentManager, "PlayerSettingsDialog#${System.currentTimeMillis()}}")
+        }
 
         viewBinding.actionLayout.setOnClickListener {  }
     }
