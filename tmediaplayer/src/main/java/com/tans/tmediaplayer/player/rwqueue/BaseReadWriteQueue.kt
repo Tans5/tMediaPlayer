@@ -66,10 +66,14 @@ internal abstract class BaseReadWriteQueue<T : Any> {
         return if (isReleased.get()) {
             false
         } else {
-            if (writeableQueueSize() > 0) {
+            if (maxQueueSize == INFINITY_MAX_QUEUE_SIZE) {
                 true
             } else {
-                maxQueueSize > currentQueueSize.get()
+                if (writeableQueueSize() > 0) {
+                    true
+                } else {
+                    maxQueueSize - currentQueueSize.get() > 1
+                }
             }
         }
     }
@@ -82,7 +86,7 @@ internal abstract class BaseReadWriteQueue<T : Any> {
                 recycleBuffer(b)
                 currentQueueSize.decrementAndGet()
             } else {
-                writeableQueue.addLast(b)
+                writeableQueue.addFirst(b)
             }
         }
     }
