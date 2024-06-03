@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
+import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -20,6 +21,7 @@ internal class AudioRenderer(
     outputSampleBitDepth: AudioSampleBitDepth,
     bufferQueueSize: Int = 18,
     private val audioFrameQueue: AudioFrameQueue,
+    private val audioPacketQueue: PacketQueue,
     private val player: tMediaPlayer2
 ) {
     private val audioTrack: tMediaAudioTrack by lazy {
@@ -44,8 +46,8 @@ internal class AudioRenderer(
     // Is read thread ready?
     private val isLooperPrepared: AtomicBoolean by lazy { AtomicBoolean(false) }
 
-    // Video renderer thread.
-    private val videoRendererThread: HandlerThread by lazy {
+    // Audio renderer thread.
+    private val audioRendererThread: HandlerThread by lazy {
         object : HandlerThread("tMP_AudioRenderer", Thread.MAX_PRIORITY) {
             override fun onLooperPrepared() {
                 super.onLooperPrepared()
@@ -60,8 +62,8 @@ internal class AudioRenderer(
         LinkedBlockingDeque()
     }
 
-    private val videoRendererHandler: Handler by lazy {
-        object : Handler(videoRendererThread.looper) {
+    private val audioRendererHandler: Handler by lazy {
+        object : Handler(audioRendererThread.looper) {
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -84,15 +86,14 @@ internal class AudioRenderer(
                                 val frame = audioFrameQueue.dequeueReadable()
                                 if (frame != null) {
                                     if (!frame.isEof) {
-                                        val result = audioTrack.enqueueBuffer(frame.nativeFrame)
-                                        if (result == OptResult.Success) {
+                                        if (frame.serial == audioPacketQueue.getSerial() || audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
                                             waitingRenderFrames.addLast(frame)
                                         } else {
                                             MediaLog.e(TAG, "Audio render fail.")
                                             audioFrameQueue.enqueueWritable(frame)
                                             player.writeableAudioFrameReady()
                                         }
-                                        if (state == RendererState.WaitingReadableFrameBuffer) {
+                                        if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                             this@AudioRenderer.state.set(RendererState.Playing)
                                         }
                                         requestRender()
@@ -117,17 +118,19 @@ internal class AudioRenderer(
     }
 
     init {
-        videoRendererThread
+        audioRendererThread
         while (!isLooperPrepared.get()) {}
-        videoRendererHandler
+        audioRendererHandler
         state.set(RendererState.Paused)
         audioTrack
     }
 
     fun play() {
         val state = getState()
-        if (state == RendererState.Paused || state == RendererState.WaitingReadableFrameBuffer) {
-            if (state == RendererState.Paused) {
+        if (state == RendererState.Paused ||
+            state == RendererState.Eof ||
+            state == RendererState.WaitingReadableFrameBuffer) {
+            if (state == RendererState.Paused || state == RendererState.Eof) {
                 this.state.set(RendererState.Playing)
             }
             requestRender()
@@ -139,8 +142,12 @@ internal class AudioRenderer(
 
     fun pause() {
         val state = getState()
-        if (state == RendererState.Playing || state == RendererState.WaitingReadableFrameBuffer) {
-            this.state.set(RendererState.Paused)
+        if (state == RendererState.Playing ||
+            state == RendererState.Eof ||
+            state == RendererState.WaitingReadableFrameBuffer) {
+            if (state == RendererState.Playing || state == RendererState.Eof) {
+                this.state.set(RendererState.Paused)
+            }
             audioTrack.pause()
         } else {
             MediaLog.e(TAG, "Pause error, because of state: $state")
@@ -193,8 +200,8 @@ internal class AudioRenderer(
     private fun requestRender() {
         val state = getState()
         if (state in canRenderStates) {
-            videoRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
-            videoRendererHandler.sendEmptyMessage(RendererHandlerMsg.RequestRender.ordinal)
+            audioRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
+            audioRendererHandler.sendEmptyMessage(RendererHandlerMsg.RequestRender.ordinal)
         } else {
             MediaLog.e(TAG, "Request render error, because of state: $state")
         }
