@@ -2,6 +2,7 @@ package com.tans.tmediaplayer.player
 
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.SyncType.*
 import com.tans.tmediaplayer.player.model.AudioChannel
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleFormat
@@ -77,6 +78,8 @@ class tMediaPlayer2(
             videoFrameQueue = videoFrameQueue
         )
     }
+
+    private val syncType: SyncType = AudioMaster
 
     internal val videoClock: Clock by lazy {
         Clock()
@@ -375,6 +378,35 @@ class tMediaPlayer2(
             }
         } else {
             MediaLog.d(TAG, "Wrong state for handing seeking result: $state")
+        }
+    }
+
+    internal fun getSyncType(): SyncType {
+        val mediaInfo = getMediaInfo()
+        return if (mediaInfo == null) {
+            ExternalClock
+        } else if (syncType == VideoMaster) {
+            if (mediaInfo.videoStreamInfo != null) {
+                VideoMaster
+            } else {
+                AudioMaster
+            }
+        } else if (syncType == AudioMaster) {
+            if (mediaInfo.audioStreamInfo != null) {
+                AudioMaster
+            } else {
+                ExternalClock
+            }
+        } else {
+            ExternalClock
+        }
+    }
+
+    internal fun getMasterClock(): Long {
+        return when (getSyncType()) {
+            VideoMaster -> videoClock.getClock()
+            AudioMaster -> audioClock.getClock()
+            ExternalClock -> externalClock.getClock()
         }
     }
 
