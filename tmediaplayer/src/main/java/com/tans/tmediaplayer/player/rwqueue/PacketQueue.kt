@@ -1,5 +1,6 @@
 package com.tans.tmediaplayer.player.rwqueue
 
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.tMediaPlayer2
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -22,15 +23,14 @@ internal class PacketQueue(
         AtomicInteger(0)
     }
 
-//    var lastDequeuePacket: LastDequeuePacket? = null
-//        private set
-
     override fun allocBuffer(): Packet {
         val nativeBuffer = player.allocPacketInternal()
+        MediaLog.d(TAG, "Alloc new packet, size=${packetSize.incrementAndGet()}")
         return Packet(nativeBuffer)
     }
 
     override fun recycleBuffer(b: Packet) {
+        MediaLog.d(TAG, "Recycle packet, size=${packetSize.decrementAndGet()}")
         player.releasePacketInternal(b.nativePacket)
     }
 
@@ -65,13 +65,6 @@ internal class PacketQueue(
         if (b != null) {
             sizeInBytes.addAndGet(b.sizeInBytes * -1L)
             duration.addAndGet(b.duration * -1L)
-//            lastDequeuePacket = LastDequeuePacket(
-//                pts = b.pts,
-//                duration = b.duration,
-//                sizeInBytes = b.sizeInBytes,
-//                serial = b.serial,
-//                isEof = b.isEof
-//            )
         }
         return b
     }
@@ -90,12 +83,7 @@ internal class PacketQueue(
     }
 
     companion object {
-//        data class LastDequeuePacket(
-//            val pts: Long,
-//            val duration: Long,
-//            val sizeInBytes: Int,
-//            val serial: Int,
-//            val isEof: Boolean,
-//        )
+        private const val TAG = "PacketQueue"
+        private val packetSize = AtomicInteger()
     }
 }

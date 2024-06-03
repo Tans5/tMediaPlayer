@@ -168,6 +168,9 @@ class tMediaPlayer2(
         }
         return if (playingState != null) {
             MediaLog.d(tMediaPlayer.TAG, "Request play.")
+            videoClock.play()
+            audioClock.play()
+            externalClock.play()
             playReadPacketInternal(playingState.mediaInfo.nativePlayer)
             dispatchNewState(playingState)
             audioRenderer.play()
@@ -194,6 +197,9 @@ class tMediaPlayer2(
         }
         return if (pauseState != null) {
             MediaLog.d(tMediaPlayer.TAG, "Request pause.")
+            videoClock.pause()
+            audioClock.pause()
+            externalClock.pause()
             pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
             audioRenderer.pause()
             dispatchNewState(pauseState)
@@ -251,6 +257,12 @@ class tMediaPlayer2(
         }
         return if (stopState != null) {
             MediaLog.d(tMediaPlayer.TAG, "Request stop.")
+            videoClock.setClock(stopState.mediaInfo.duration, -1)
+            videoClock.pause()
+            audioClock.setClock(stopState.mediaInfo.duration, -1)
+            audioClock.pause()
+            externalClock.setClock(stopState.mediaInfo.duration, -1)
+            externalClock.pause()
             dispatchNewState(stopState)
             packetReader.requestSeek(0L)
             audioRenderer.pause()
@@ -291,8 +303,18 @@ class tMediaPlayer2(
     }
 
     override fun getProgress(): Long {
-        // TODO:
-        return 0L
+        val info = getMediaInfo()
+        return if (info != null) {
+            if (info.audioStreamInfo != null) {
+                audioClock.getClock()
+            } else if (info.videoStreamInfo != null) {
+                videoClock.getClock()
+            } else {
+                0L
+            }
+        } else {
+            0L
+        }
     }
 
     override fun getState(): tMediaPlayerState = state.get()
@@ -460,10 +482,12 @@ class tMediaPlayer2(
 
     internal fun writeableVideoFrameReady() {
         videoDecoder.writeableFrameReady()
+        dispatchProgress(videoClock.getClock())
     }
 
     internal fun writeableAudioFrameReady() {
         audioDecoder.writeableFrameReady()
+        dispatchProgress(audioClock.getClock())
     }
     // endregion
 

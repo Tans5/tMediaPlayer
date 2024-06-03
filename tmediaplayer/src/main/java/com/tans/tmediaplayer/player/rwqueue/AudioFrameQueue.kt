@@ -1,21 +1,22 @@
 package com.tans.tmediaplayer.player.rwqueue
 
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.tMediaPlayer2
+import java.util.concurrent.atomic.AtomicInteger
 
 internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWriteQueue<AudioFrame>() {
-
-//    var lastDecodedAudioFrame: LastDecodedAudioFrame? = null
-//        private set
 
     override val maxQueueSize: Int = 16
 
     override fun allocBuffer(): AudioFrame {
         val nativeFrame = player.allocAudioBufferInternal()
+        MediaLog.d(TAG, "Alloc new audio frame, size=${frameSize.incrementAndGet()}")
         return AudioFrame(nativeFrame)
     }
 
     override fun recycleBuffer(b: AudioFrame) {
         player.releaseAudioBufferInternal(b.nativeFrame)
+        MediaLog.d(TAG, "Recycle audio frame, size=${frameSize.decrementAndGet()}")
     }
 
     /**
@@ -24,12 +25,6 @@ internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
     override fun enqueueReadable(b: AudioFrame) {
         b.pts = player.getAudioPtsInternal(b.nativeFrame)
         b.duration = player.getAudioDurationInternal(b.nativeFrame)
-//        lastDecodedAudioFrame = LastDecodedAudioFrame(
-//            pts = b.pts,
-//            duration = b.duration,
-//            serial = b.serial,
-//            isEof = b.isEof
-//        )
         super.enqueueReadable(b)
     }
 
@@ -42,11 +37,7 @@ internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
     }
 
     companion object {
-//        data class LastDecodedAudioFrame(
-//            val pts: Long,
-//            val duration: Long,
-//            val serial: Int,
-//            val isEof: Boolean
-//        )
+        private const val TAG = "AudioFrameQueue"
+        private val frameSize = AtomicInteger()
     }
 }

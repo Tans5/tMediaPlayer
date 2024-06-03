@@ -1,7 +1,9 @@
 package com.tans.tmediaplayer.player.rwqueue
 
+import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.ImageRawType
 import com.tans.tmediaplayer.player.tMediaPlayer2
+import java.util.concurrent.atomic.AtomicInteger
 
 internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWriteQueue<VideoFrame>() {
 
@@ -9,11 +11,13 @@ internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
 
     override fun allocBuffer(): VideoFrame {
         val nativeFrame = player.allocVideoBufferInternal()
+        MediaLog.d(TAG, "Alloc new video frame, size=${frameSize.incrementAndGet()}")
         return VideoFrame(nativeFrame)
     }
 
     override fun recycleBuffer(b: VideoFrame) {
         player.releaseVideoBufferInternal(b.nativeFrame)
+        MediaLog.d(TAG, "Recycle video frame, size=${frameSize.decrementAndGet()}")
     }
 
     /**
@@ -89,5 +93,10 @@ internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWrit
         b.height = 0
         b.isEof = false
         super.enqueueWritable(b)
+    }
+
+    companion object {
+        private const val TAG = "VideoFrameQueue"
+        private val frameSize = AtomicInteger()
     }
 }
