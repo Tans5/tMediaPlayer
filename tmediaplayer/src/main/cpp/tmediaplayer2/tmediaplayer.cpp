@@ -388,7 +388,11 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
     ret = avcodec_receive_frame(codec_ctx, frame);
     if (ret < 0) {
         if (ret == AVERROR(EAGAIN)) {
-            return DecodeFailAndNeedMorePkt;
+            if (skipNextReadPkt) {
+                return decode(codec_ctx, frame, pkt);
+            } else {
+                return DecodeFailAndNeedMorePkt;
+            }
         }
         if (ret == AVERROR_EOF) {
             return DecodeEnd;
