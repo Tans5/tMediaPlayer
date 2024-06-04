@@ -65,13 +65,16 @@ internal class PacketReader(
                                                 videoPacketQueue.enqueueReadable(eofPkt)
                                                 MediaLog.d(TAG, "Read video attachment.")
                                             }
+                                            MediaLog.d(TAG, "Read video pkt: $pkt")
                                             player.readableVideoPacketReady()
                                             requestReadPkt()
+
                                         }
                                         ReadPacketResult.ReadAudioSuccess -> {
                                             val pkt = audioPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             audioPacketQueue.enqueueReadable(pkt)
+                                            MediaLog.d(TAG, "Read audio pkt: $pkt")
                                             player.readableAudioPacketReady()
                                             requestReadPkt()
                                         }

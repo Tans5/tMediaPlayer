@@ -3,12 +3,13 @@ package com.tans.tmediaplayer.player
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
+import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.system.measureTimeMillis
 
 internal class VideoFrameDecoder(
     private val player: tMediaPlayer2,
@@ -56,60 +57,61 @@ internal class VideoFrameDecoder(
                                             videoPacketQueue.dequeueReadable()
                                         }
                                         val serialChanged = if (pkt != null) {
-                                            val changed = pkt.serial != packetSerial
+                                            val changed = pkt.serial != packetSerial || pkt.isEof
                                             packetSerial = pkt.serial
                                             changed
                                         } else {
                                             false
                                         }
+                                        if (serialChanged) {
+                                            MediaLog.d(TAG, "Serial changed, flush video decoder, serial: $packetSerial")
+                                            player.flushVideoCodecBufferInternal(nativePlayer)
+                                        }
                                         if (skipNextPktRead || pkt != null) {
+                                            skipNextPktRead = false
                                             if (pkt?.isEof == true) {
                                                 val frame = videoFrameQueue.dequeueWriteableForce()
                                                 frame.isEof = true
                                                 frame.serial = packetSerial
                                                 videoFrameQueue.enqueueReadable(frame)
                                                 MediaLog.d(TAG, "Decode video frame eof.")
-                                                skipNextPktRead = false
                                                 this@VideoFrameDecoder.state.set(DecoderState.Eof)
                                                 player.readableVideoFrameReady()
                                             } else {
-                                                if (serialChanged) {
-                                                    MediaLog.d(TAG, "Serial changed, flush video decoder, serial: $packetSerial")
-                                                    player.flushVideoCodecBufferInternal(nativePlayer)
-                                                }
-                                                val cost = measureTimeMillis {
-                                                    val decodeResult = player.decodeVideoInternal(nativePlayer, pkt)
-                                                    when (decodeResult) {
-                                                        DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
-                                                            val frame = videoFrameQueue.dequeueWriteableForce()
-                                                            frame.serial = packetSerial
-                                                            val moveResult = player.moveDecodedVideoFrameToBufferInternal(nativePlayer, frame)
-                                                            if (moveResult == OptResult.Success) {
-                                                                videoFrameQueue.enqueueReadable(frame)
-                                                                player.readableVideoFrameReady()
-                                                            } else {
-                                                                videoFrameQueue.enqueueWritable(frame)
-                                                                MediaLog.e(TAG, "Move video frame fail.")
-                                                            }
-                                                            skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
-                                                            if (skipNextPktRead) {
-                                                                MediaLog.d(TAG, "Skip read next video packet.")
-                                                            }
-                                                            requestDecode()
+                                                val start = SystemClock.uptimeMillis()
+                                                val decodeResult = player.decodeVideoInternal(nativePlayer, pkt)
+                                                var videoFrame: VideoFrame? = null
+                                                when (decodeResult) {
+                                                    DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
+                                                        val frame =
+                                                            videoFrameQueue.dequeueWriteableForce()
+                                                        frame.serial = packetSerial
+                                                        val moveResult =
+                                                            player.moveDecodedVideoFrameToBufferInternal(
+                                                                nativePlayer,
+                                                                frame
+                                                            )
+                                                        if (moveResult == OptResult.Success) {
+                                                            videoFrame = frame
+                                                            videoFrameQueue.enqueueReadable(frame)
+                                                            player.readableVideoFrameReady()
+                                                        } else {
+                                                            videoFrameQueue.enqueueWritable(frame)
+                                                            MediaLog.e(TAG, "Move video frame fail.")
                                                         }
-                                                        DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
-                                                            if (decodeResult == DecodeResult2.Fail) {
-                                                                MediaLog.e(TAG, "Decode video fail.")
-                                                            }
-                                                            if (decodeResult == DecodeResult2.FailAndNeedMorePkt) {
-                                                                MediaLog.d(TAG, "Decode video fail and need more pkt.")
-                                                            }
-                                                            skipNextPktRead = false
-                                                            requestDecode()
+                                                        skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
+                                                        requestDecode()
+                                                    }
+
+                                                    DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
+                                                        if (decodeResult == DecodeResult2.Fail) {
+                                                            MediaLog.e(TAG, "Decode video fail.")
                                                         }
+                                                        requestDecode()
                                                     }
                                                 }
-                                                MediaLog.d(TAG, "Decode video cost ${cost}ms")
+                                                val end = SystemClock.uptimeMillis()
+                                                MediaLog.d(TAG, "Decode video cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, videoFrame=${videoFrame}")
                                             }
                                             if (pkt != null) {
                                                 videoPacketQueue.enqueueWritable(pkt)

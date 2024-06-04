@@ -384,6 +384,7 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
             }
         }
     }
+    av_frame_unref(frame);
     ret = avcodec_receive_frame(codec_ctx, frame);
     if (ret < 0) {
         if (ret == AVERROR(EAGAIN)) {

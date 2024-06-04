@@ -15,4 +15,8 @@ internal class VideoFrame(val nativeFrame: Long) {
     var uvBuffer: ByteArray? = null
     var rgbaBuffer: ByteArray? = null
     var isEof: Boolean = false
+
+    override fun toString(): String {
+        return "[pts=$pts,duration=${duration},serial=${serial},isEof=${isEof}]"
+    }
 }

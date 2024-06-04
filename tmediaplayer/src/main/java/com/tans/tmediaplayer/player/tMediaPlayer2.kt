@@ -172,10 +172,16 @@ class tMediaPlayer2(
             tMediaPlayerState.NoInit -> null
             is tMediaPlayerState.Error -> null
             is tMediaPlayerState.Paused -> state.play()
-            is tMediaPlayerState.PlayEnd -> state.play()
             is tMediaPlayerState.Playing -> null
             is tMediaPlayerState.Prepared -> state.play()
-            is tMediaPlayerState.Stopped -> state.play()
+            is tMediaPlayerState.Stopped,  -> {
+                packetReader.requestSeek(0L)
+                state.play()
+            }
+            is tMediaPlayerState.PlayEnd -> {
+                packetReader.requestSeek(0L)
+                state.play()
+            }
             is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
         }
@@ -280,7 +286,6 @@ class tMediaPlayer2(
             externalClock.setClock(stopState.mediaInfo.duration, -1)
             externalClock.pause()
             dispatchNewState(stopState)
-            packetReader.requestSeek(0L)
             audioRenderer.pause()
             videoRenderer.pause()
             OptResult.Success
@@ -515,7 +520,6 @@ class tMediaPlayer2(
                 audioClock.pause()
                 externalClock.setClock(mediaInfo.duration, -1)
                 externalClock.pause()
-                packetReader.requestSeek(0L)
                 audioRenderer.pause()
                 videoRenderer.pause()
                 dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
