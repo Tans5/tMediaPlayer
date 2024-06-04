@@ -8,6 +8,7 @@ import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.system.measureTimeMillis
 
 internal class AudioFrameDecoder(
     private val player: tMediaPlayer2,
@@ -76,33 +77,37 @@ internal class AudioFrameDecoder(
                                                     MediaLog.d(TAG, "Serial changed, flush audio decoder, serial: $packetSerial")
                                                     player.flushAudioCodecBufferInternal(nativePlayer)
                                                 }
-                                                val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)
-                                                when (decodeResult) {
-                                                    DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
-                                                        val frame = audioFrameQueue.dequeueWriteableForce()
-                                                        frame.serial = packetSerial
-                                                        val moveResult = player.moveDecodedAudioFrameToBufferInternal(nativePlayer, frame)
-                                                        if (moveResult == OptResult.Success) {
-                                                            audioFrameQueue.enqueueReadable(frame)
-                                                            player.readableAudioFrameReady()
-                                                        } else {
-                                                            audioFrameQueue.enqueueWritable(frame)
-                                                            MediaLog.e(TAG, "Move audio frame fail.")
+                                                val cost = measureTimeMillis {
+                                                    val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)
+                                                    when (decodeResult) {
+                                                        DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
+                                                            val frame = audioFrameQueue.dequeueWriteableForce()
+                                                            frame.serial = packetSerial
+                                                            val moveResult = player.moveDecodedAudioFrameToBufferInternal(nativePlayer, frame)
+                                                            if (moveResult == OptResult.Success) {
+                                                                audioFrameQueue.enqueueReadable(frame)
+                                                                player.readableAudioFrameReady()
+                                                            } else {
+                                                                audioFrameQueue.enqueueWritable(frame)
+                                                                MediaLog.e(TAG, "Move audio frame fail.")
+                                                            }
+                                                            skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
+                                                            requestDecode()
                                                         }
-                                                        skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
-                                                        requestDecode()
-                                                    }
-                                                    DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
-                                                        if (decodeResult == DecodeResult2.Fail) {
-                                                            MediaLog.e(TAG, "Decode audio fail.")
+                                                        DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
+                                                            if (decodeResult == DecodeResult2.Fail) {
+                                                                MediaLog.e(TAG, "Decode audio fail.")
+                                                            }
+                                                            if (decodeResult == DecodeResult2.FailAndNeedMorePkt) {
+                                                                MediaLog.d(TAG, "Decode audio fail and need more pkt.")
+                                                            }
+                                                            skipNextPktRead = false
+                                                            requestDecode()
                                                         }
-                                                        if (decodeResult == DecodeResult2.FailAndNeedMorePkt) {
-                                                            MediaLog.d(TAG, "Decode audio fail and need more pkt.")
-                                                        }
-                                                        skipNextPktRead = false
-                                                        requestDecode()
                                                     }
                                                 }
+                                                MediaLog.d(TAG, "Decode audio cost ${cost}ms.")
+
                                             }
                                             if (pkt != null) {
                                                 audioPacketQueue.enqueueWritable(pkt)

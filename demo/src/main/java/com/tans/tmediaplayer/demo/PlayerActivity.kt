@@ -31,7 +31,9 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
     private val mediaPlayer: tMediaPlayer2 by lazyViewModelField("mediaPlayer") {
         tMediaPlayer2(
             audioOutputSampleRate = AudioSampleRate.Rate96000,
-            audioOutputSampleBitDepth = AudioSampleBitDepth.ThreeTwoBits)
+            audioOutputSampleBitDepth = AudioSampleBitDepth.ThreeTwoBits,
+            enableVideoHardwareDecoder = true
+        )
     }
 
     private fun View.isVisible(): Boolean = this.visibility == View.VISIBLE
