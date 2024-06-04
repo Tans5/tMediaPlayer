@@ -70,7 +70,7 @@ internal class VideoRenderer(
                                             lastRenderFrame = LastRenderFrame(frame)
                                             videoFrameQueue.dequeueReadable()
                                             videoFrameQueue.enqueueWritable(frame)
-                                            player.writeableAudioFrameReady()
+                                            player.writeableVideoFrameReady()
                                             MediaLog.d(TAG, "Serial changed, skip render.")
                                             requestRender()
                                             return@synchronized
