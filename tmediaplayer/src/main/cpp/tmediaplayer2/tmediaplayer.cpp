@@ -376,17 +376,14 @@ tMediaOptResult tMediaPlayerContext::seekTo(int64_t targetPosInMillis) {
 tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *pkt) {
     bool skipNextReadPkt = false;
     int ret;
-    if (pkt != nullptr) {
-        ret = avcodec_send_packet(codec_ctx, pkt);
+    ret = avcodec_send_packet(codec_ctx, pkt);
+    if (ret != AVERROR(EAGAIN)) {
+        av_packet_unref(pkt);
+        skipNextReadPkt = true;
+    }
+    if (ret < 0) {
         if (ret != AVERROR(EAGAIN)) {
-            av_packet_unref(pkt);
-        }
-        if (ret < 0) {
-            if (ret == AVERROR(EAGAIN)) {
-                skipNextReadPkt = true;
-            } else {
-                return DecodeFail;
-            }
+            return DecodeFail;
         }
     }
     ret = avcodec_receive_frame(codec_ctx, frame);
@@ -408,7 +405,7 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
-    AVPacket *v_pkt = nullptr;
+    AVPacket *v_pkt = video_pkt;
     if (targetPkt != nullptr) {
         v_pkt = video_pkt;
         av_packet_move_ref(v_pkt, targetPkt);
@@ -605,9 +602,8 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
-    AVPacket *a_pkt = nullptr;
+    AVPacket *a_pkt = audio_pkt;
     if (targetPkt != nullptr) {
-        a_pkt = audio_pkt;
         av_packet_move_ref(a_pkt, targetPkt);
     }
     return decode(audio_decoder_ctx, audio_frame, a_pkt);
