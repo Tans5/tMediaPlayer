@@ -338,6 +338,7 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
             // audio
             return ReadAudioSuccess;
         }
+        av_packet_unref(pkt);
         return UnknownPkt;
     }
 }
