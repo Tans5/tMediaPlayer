@@ -577,7 +577,7 @@ tMediaDecodeBuffer* tMediaPlayerContext::decode(tMediaDecodeBuffer *lastBuffer) 
             buffer->decodeResult = parseResult;
             return buffer;
         }
-        if (audio_stream != nullptr &&
+        if (false && audio_stream != nullptr &&
             pkt->stream_index == audio_stream->index &&
             audio_decoder_ctx != nullptr) {
             tMediaDecodeBuffer * buffer = nullptr;
