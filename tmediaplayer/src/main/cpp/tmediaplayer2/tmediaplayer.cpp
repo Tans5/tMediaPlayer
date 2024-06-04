@@ -384,6 +384,7 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
     if (ret < 0 && ret != AVERROR(EAGAIN)) {
         return DecodeFail;
     }
+    av_frame_unref(frame);
     ret = avcodec_receive_frame(codec_ctx, frame);
     if (ret < 0) {
         if (ret == AVERROR(EAGAIN)) {
@@ -403,12 +404,10 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
-    AVPacket *v_pkt = video_pkt;
     if (targetPkt != nullptr) {
-        v_pkt = video_pkt;
-        av_packet_move_ref(v_pkt, targetPkt);
+        av_packet_move_ref(video_pkt, targetPkt);
     }
-    return decode(video_decoder_ctx, video_frame, v_pkt);
+    return decode(video_decoder_ctx, video_frame, video_pkt);
 }
 
 void tMediaPlayerContext::flushVideoCodecBuffer() {
@@ -600,11 +599,10 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
-    AVPacket *a_pkt = audio_pkt;
     if (targetPkt != nullptr) {
-        av_packet_move_ref(a_pkt, targetPkt);
+        av_packet_move_ref(audio_pkt, targetPkt);
     }
-    return decode(audio_decoder_ctx, audio_frame, a_pkt);
+    return decode(audio_decoder_ctx, audio_frame, audio_pkt);
 }
 
 void tMediaPlayerContext::flushAudioCodecBuffer() {
