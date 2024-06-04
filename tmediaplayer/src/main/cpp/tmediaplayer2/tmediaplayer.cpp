@@ -258,6 +258,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
 //        }
         LOGD("Prepare video decoder success.");
         this->video_frame = av_frame_alloc();
+        this->video_pkt = av_packet_alloc();
     }
 
     // Audio
@@ -302,6 +303,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         }
         LOGD("Prepare audio decoder success.");
         this->audio_frame = av_frame_alloc();
+        this->audio_pkt = av_packet_alloc();
     }
 
     // decode need buffers.
@@ -316,7 +318,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
 }
 
 tMediaReadPktResult tMediaPlayerContext::readPacket() {
-    av_packet_unref(pkt);
     int ret = av_read_frame(format_ctx, pkt);
     if (ret < 0) {
         if (ret == AVERROR_EOF || avio_feof(format_ctx->pb)) {
@@ -376,6 +377,9 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
     int ret;
     if (pkt != nullptr) {
         ret = avcodec_send_packet(codec_ctx, pkt);
+        if (ret != AVERROR(EAGAIN)) {
+            av_packet_unref(pkt);
+        }
         if (ret < 0) {
             if (ret == AVERROR(EAGAIN)) {
                 skipNextReadPkt = true;
@@ -384,7 +388,6 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
             }
         }
     }
-    av_frame_unref(frame);
     ret = avcodec_receive_frame(codec_ctx, frame);
     if (ret < 0) {
         if (ret == AVERROR(EAGAIN)) {
@@ -404,7 +407,12 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
-    return decode(video_decoder_ctx, video_frame, targetPkt);
+    AVPacket *v_pkt = nullptr;
+    if (targetPkt != nullptr) {
+        v_pkt = video_pkt;
+        av_packet_move_ref(v_pkt, targetPkt);
+    }
+    return decode(video_decoder_ctx, video_frame, v_pkt);
 }
 
 void tMediaPlayerContext::flushVideoCodecBuffer() {
@@ -591,11 +599,17 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         video_width = w;
         video_height = h;
     }
+    av_frame_unref(video_frame);
     return OptSuccess;
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
-    return decode(audio_decoder_ctx, audio_frame, targetPkt);
+    AVPacket *a_pkt = nullptr;
+    if (targetPkt != nullptr) {
+        a_pkt = audio_pkt;
+        av_packet_move_ref(a_pkt, targetPkt);
+    }
+    return decode(audio_decoder_ctx, audio_frame, a_pkt);
 }
 
 void tMediaPlayerContext::flushAudioCodecBuffer() {
@@ -647,6 +661,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     if (contentBufferSize != lineSize) {
         LOGE("output lineSize=%d, contentBufferSize=%d", lineSize, contentBufferSize);
     }
+    av_frame_unref(audio_frame);
     return OptSuccess;
 }
 
@@ -690,8 +705,14 @@ void tMediaPlayerContext::release() {
         video_sws_ctx = nullptr;
     }
     if (video_frame != nullptr) {
+        av_frame_unref(video_frame);
         av_frame_free(&video_frame);
         video_frame = nullptr;
+    }
+    if (video_pkt != nullptr) {
+        av_packet_unref(video_pkt);
+        av_packet_free(&video_pkt);
+        video_pkt = nullptr;
     }
 
     // Audio free.
@@ -705,8 +726,14 @@ void tMediaPlayerContext::release() {
         audio_swr_ctx = nullptr;
     }
     if (audio_frame != nullptr) {
+        av_frame_unref(audio_frame);
         av_frame_free(&audio_frame);
         audio_frame = nullptr;
+    }
+    if (audio_pkt != nullptr) {
+        av_packet_unref(audio_pkt);
+        av_packet_free(&audio_pkt);
+        audio_pkt = nullptr;
     }
     free(this);
     LOGD("Release media player");

@@ -117,6 +117,7 @@ typedef struct tMediaPlayerContext {
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
     AVFrame *video_frame = nullptr;
+    AVPacket *video_pkt = nullptr;
 
     /**
      * Audio
@@ -138,6 +139,7 @@ typedef struct tMediaPlayerContext {
     int audio_output_channels = 2;
     AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
     AVFrame *audio_frame = nullptr;
+    AVPacket *audio_pkt = nullptr;
 
 
     tMediaOptResult prepare(
