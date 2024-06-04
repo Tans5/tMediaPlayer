@@ -374,17 +374,15 @@ tMediaOptResult tMediaPlayerContext::seekTo(int64_t targetPosInMillis) {
 }
 
 tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *pkt) {
-    bool skipNextReadPkt = false;
+
     int ret;
     ret = avcodec_send_packet(codec_ctx, pkt);
     if (ret != AVERROR(EAGAIN)) {
         av_packet_unref(pkt);
-        skipNextReadPkt = true;
     }
-    if (ret < 0) {
-        if (ret != AVERROR(EAGAIN)) {
-            return DecodeFail;
-        }
+    bool skipNextReadPkt = ret == AVERROR(EAGAIN);
+    if (ret < 0 && ret != AVERROR(EAGAIN)) {
+        return DecodeFail;
     }
     ret = avcodec_receive_frame(codec_ctx, frame);
     if (ret < 0) {
