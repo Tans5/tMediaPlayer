@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
-import com.tans.tmediaplayer.player.OptResult
-import com.tans.tmediaplayer.player.toOptResult
+import com.tans.tmediaplayer.player.model.OptResult
+import com.tans.tmediaplayer.player.model.toOptResult
 import java.io.File
 import java.nio.ByteBuffer
 import kotlin.math.max

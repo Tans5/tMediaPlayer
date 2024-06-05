@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.model
 
 enum class OptResult { Success, Fail }
 

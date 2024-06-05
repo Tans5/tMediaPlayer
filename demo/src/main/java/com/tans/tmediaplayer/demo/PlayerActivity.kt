@@ -7,7 +7,7 @@ import android.util.Log
 import android.view.View
 import android.widget.SeekBar
 import androidx.activity.addCallback
-import com.tans.tmediaplayer.player.OptResult
+import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.demo.databinding.PlayerActivityBinding
 import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth

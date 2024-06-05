@@ -1,6 +1,6 @@
 package com.tans.tmediaplayer.player.rwqueue
 
-import com.tans.tmediaplayer.player.ImageRawType
+import com.tans.tmediaplayer.player.model.ImageRawType
 
 internal class VideoFrame(val nativeFrame: Long) {
     var pts: Long = 0L

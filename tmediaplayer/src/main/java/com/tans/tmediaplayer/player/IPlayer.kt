@@ -1,7 +1,8 @@
 package com.tans.tmediaplayer.player
 
 import com.tans.tmediaplayer.player.model.MediaInfo
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.model.OptResult
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 
 
 internal interface IPlayer {

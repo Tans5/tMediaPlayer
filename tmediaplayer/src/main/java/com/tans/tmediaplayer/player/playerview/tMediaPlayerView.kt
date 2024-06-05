@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player.render
+package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
 import android.opengl.GLES30
@@ -7,11 +7,11 @@ import android.opengl.Matrix
 import android.util.AttributeSet
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
-import com.tans.tmediaplayer.player.render.filter.FilterImageTexture
-import com.tans.tmediaplayer.player.render.texconverter.RgbaImageTextureConverter
-import com.tans.tmediaplayer.player.render.texconverter.Yuv420pImageTextureConverter
-import com.tans.tmediaplayer.player.render.texconverter.Yuv420spImageTextureConverter
+import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
+import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
+import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConverter
+import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420pImageTextureConverter
+import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420spImageTextureConverter
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig

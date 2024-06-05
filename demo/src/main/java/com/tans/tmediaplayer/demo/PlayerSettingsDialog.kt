@@ -7,9 +7,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.SeekBar
 import com.tans.tmediaplayer.demo.databinding.PlayerSettingsDialogBinding
-import com.tans.tmediaplayer.player.render.filter.AsciiArtImageFilter
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
-import com.tans.tmediaplayer.player.tMediaPlayer
+import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tuiutils.dialog.BaseCoroutineStateDialogFragment
 import com.tans.tuiutils.dialog.createDefaultDialog
 

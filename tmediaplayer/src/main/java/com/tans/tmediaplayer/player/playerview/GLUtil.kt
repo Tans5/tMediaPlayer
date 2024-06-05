@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player.render
+package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
 import android.opengl.GLES30

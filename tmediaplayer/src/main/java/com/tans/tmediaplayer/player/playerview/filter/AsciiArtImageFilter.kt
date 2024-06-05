@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player.render.filter
+package com.tans.tmediaplayer.player.playerview.filter
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,13 +11,13 @@ import android.os.SystemClock
 import androidx.annotation.FloatRange
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.player.render.compileShaderProgram
-import com.tans.tmediaplayer.player.render.glGenBuffers
-import com.tans.tmediaplayer.player.render.glGenTextureAndSetDefaultParams
-import com.tans.tmediaplayer.player.render.glGenVertexArrays
-import com.tans.tmediaplayer.player.render.offScreenRender
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
-import com.tans.tmediaplayer.player.render.toGlBuffer
+import com.tans.tmediaplayer.player.playerview.compileShaderProgram
+import com.tans.tmediaplayer.player.playerview.glGenBuffers
+import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
+import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
+import com.tans.tmediaplayer.player.playerview.offScreenRender
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.toGlBuffer
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.util.concurrent.atomic.AtomicBoolean

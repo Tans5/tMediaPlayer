@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.model
 
 // 10s
 internal const val NO_SYNC_THRESHOLD = 10000L

@@ -1,13 +1,16 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.decoder
 
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.model.DecodeResult
+import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 

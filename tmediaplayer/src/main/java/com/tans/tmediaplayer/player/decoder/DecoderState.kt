@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.decoder
 
 internal enum class DecoderState {
     NotInit,

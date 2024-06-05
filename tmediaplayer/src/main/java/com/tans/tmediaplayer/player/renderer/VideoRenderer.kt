@@ -1,14 +1,22 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.renderer
 
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.model.ImageRawType
+import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
+import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
+import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
+import com.tans.tmediaplayer.player.model.SyncType
+import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
+import com.tans.tmediaplayer.player.tMediaPlayer
+import com.tans.tmediaplayer.player.tMediaPlayerState
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
@@ -36,7 +44,11 @@ internal class VideoRenderer(
         }.apply { start() }
     }
 
-    private val canRenderStates = arrayOf(RendererState.Playing, RendererState.Eof, RendererState.WaitingReadableFrameBuffer)
+    private val canRenderStates = arrayOf(
+        RendererState.Playing,
+        RendererState.Eof,
+        RendererState.WaitingReadableFrameBuffer
+    )
 
     private val videoRendererHandler: Handler by lazy {
         object : Handler(videoRendererThread.looper) {
@@ -260,7 +272,8 @@ internal class VideoRenderer(
         val state = getState()
         if (state == RendererState.Paused ||
             state == RendererState.Eof ||
-            state == RendererState.WaitingReadableFrameBuffer) {
+            state == RendererState.WaitingReadableFrameBuffer
+        ) {
             if (state == RendererState.Paused || state == RendererState.Eof) {
                 this.state.set(RendererState.Playing)
             }
@@ -274,7 +287,8 @@ internal class VideoRenderer(
         val state = getState()
         if (state == RendererState.Playing ||
             state == RendererState.Eof ||
-            state == RendererState.WaitingReadableFrameBuffer) {
+            state == RendererState.WaitingReadableFrameBuffer
+        ) {
             if (state == RendererState.Playing || state == RendererState.Eof) {
                 this.state.set(RendererState.Paused)
             }

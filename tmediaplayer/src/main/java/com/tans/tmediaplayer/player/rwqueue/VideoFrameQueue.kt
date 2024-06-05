@@ -1,7 +1,7 @@
 package com.tans.tmediaplayer.player.rwqueue
 
 import com.tans.tmediaplayer.MediaLog
-import com.tans.tmediaplayer.player.ImageRawType
+import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 

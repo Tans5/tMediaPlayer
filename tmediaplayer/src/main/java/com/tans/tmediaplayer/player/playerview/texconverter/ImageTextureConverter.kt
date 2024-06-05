@@ -1,7 +1,7 @@
-package com.tans.tmediaplayer.player.render.texconverter
+package com.tans.tmediaplayer.player.playerview.texconverter
 
 import android.content.Context
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 
 interface ImageTextureConverter {
     fun convertImageToTexture(

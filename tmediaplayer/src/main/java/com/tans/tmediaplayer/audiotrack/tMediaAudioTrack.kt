@@ -5,8 +5,8 @@ import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.model.AudioChannel
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleRate
-import com.tans.tmediaplayer.player.OptResult
-import com.tans.tmediaplayer.player.toOptResult
+import com.tans.tmediaplayer.player.model.OptResult
+import com.tans.tmediaplayer.player.model.toOptResult
 import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")

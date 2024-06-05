@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.renderer
 
 import android.os.Handler
 import android.os.HandlerThread
@@ -8,9 +8,12 @@ import com.tans.tmediaplayer.audiotrack.tMediaAudioTrack
 import com.tans.tmediaplayer.player.model.AudioChannel
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleRate
+import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.tMediaPlayer
+import com.tans.tmediaplayer.player.tMediaPlayerState
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference

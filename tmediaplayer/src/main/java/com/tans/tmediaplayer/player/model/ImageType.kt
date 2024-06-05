@@ -1,6 +1,6 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.model
 
-enum class ImageRawType {
+internal enum class ImageRawType {
     Yuv420p,
     Nv12,
     Nv21,

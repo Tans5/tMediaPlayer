@@ -1,7 +1,7 @@
-package com.tans.tmediaplayer.player.render.filter
+package com.tans.tmediaplayer.player.playerview.filter
 
 import android.content.Context
-import com.tans.tmediaplayer.player.render.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 
 interface ImageFilter {
 

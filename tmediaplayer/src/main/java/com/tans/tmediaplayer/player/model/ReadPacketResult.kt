@@ -1,6 +1,6 @@
-package com.tans.tmediaplayer.player
+package com.tans.tmediaplayer.player.model
 
-enum class ReadPacketResult {
+internal enum class ReadPacketResult {
     ReadVideoSuccess,
     ReadVideoAttachmentSuccess,
     ReadAudioSuccess,
@@ -9,6 +9,6 @@ enum class ReadPacketResult {
     UnknownPkt
 }
 
-fun Int.toReadPacketResult(): ReadPacketResult {
+internal fun Int.toReadPacketResult(): ReadPacketResult {
     return ReadPacketResult.entries.find { it.ordinal == this } ?: ReadPacketResult.ReadFail
 }

@@ -1,4 +1,4 @@
-package com.tans.tmediaplayer.player.render.filter
+package com.tans.tmediaplayer.player.playerview.filter
 
 data class FilterImageTexture(
     val texture: Int,
