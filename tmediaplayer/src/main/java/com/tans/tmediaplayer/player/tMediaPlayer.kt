@@ -570,7 +570,7 @@ class tMediaPlayer(
 
     internal fun writeableVideoFrameReady() {
         videoDecoder.writeableFrameReady()
-        if (getSyncType() != AudioMaster) {
+        if (getSyncType() != AudioMaster || audioRenderer.getState() == RendererState.Eof) {
             dispatchProgress(videoClock.getClock())
         }
         checkPlayEnd()
@@ -578,7 +578,7 @@ class tMediaPlayer(
 
     internal fun writeableAudioFrameReady() {
         audioDecoder.writeableFrameReady()
-        if (getSyncType() != VideoMaster) {
+        if (getSyncType() != VideoMaster || videoRenderer.getState() == RendererState.Eof) {
             dispatchProgress(audioClock.getClock())
         }
         checkPlayEnd()
