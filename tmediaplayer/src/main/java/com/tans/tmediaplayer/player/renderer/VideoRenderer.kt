@@ -209,6 +209,9 @@ internal class VideoRenderer(
                                             videoFrameQueue.enqueueWritable(frame)
                                             player.writeableVideoFrameReady()
                                         }
+                                        if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
+                                            this@VideoRenderer.state.set(RendererState.Playing)
+                                        }
                                         requestRender(VIDEO_REFRESH_RATE)
                                     } else {
                                         videoFrameQueue.dequeueReadable()
@@ -218,7 +221,9 @@ internal class VideoRenderer(
                                         player.writeableVideoFrameReady()
                                     }
                                 } else {
-                                    this@VideoRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
+                                    if (state == RendererState.Playing) {
+                                        this@VideoRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
+                                    }
                                     MediaLog.d(TAG, "Waiting readable video frame.")
                                 }
                             }
@@ -274,7 +279,7 @@ internal class VideoRenderer(
             state == RendererState.Eof ||
             state == RendererState.WaitingReadableFrameBuffer
         ) {
-            if (state == RendererState.Paused || state == RendererState.Eof) {
+            if (state == RendererState.Paused) {
                 this.state.set(RendererState.Playing)
             }
             requestRender()
@@ -285,11 +290,8 @@ internal class VideoRenderer(
 
     fun pause() {
         val state = getState()
-        if (state == RendererState.Playing ||
-            state == RendererState.Eof ||
-            state == RendererState.WaitingReadableFrameBuffer
-        ) {
-            if (state == RendererState.Playing || state == RendererState.Eof) {
+        if (state in canRenderStates) {
+            if (state == RendererState.Playing) {
                 this.state.set(RendererState.Paused)
             }
         } else {

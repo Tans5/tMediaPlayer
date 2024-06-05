@@ -151,7 +151,7 @@ internal class AudioRenderer(
         if (state == RendererState.Paused ||
             state == RendererState.Eof ||
             state == RendererState.WaitingReadableFrameBuffer) {
-            if (state == RendererState.Paused || state == RendererState.Eof) {
+            if (state == RendererState.Paused) {
                 this.state.set(RendererState.Playing)
             }
             requestRender()
@@ -164,7 +164,7 @@ internal class AudioRenderer(
     fun pause() {
         val state = getState()
         if (state in canRenderStates) {
-            if (state == RendererState.Playing || state == RendererState.Eof) {
+            if (state == RendererState.Playing) {
                 this.state.set(RendererState.Paused)
             }
             audioTrack.pause()
