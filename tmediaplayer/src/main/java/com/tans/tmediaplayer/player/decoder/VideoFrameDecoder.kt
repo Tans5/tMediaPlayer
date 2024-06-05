@@ -51,7 +51,7 @@ internal class VideoFrameDecoder(
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
-                synchronized(this) {
+                synchronized(this@VideoFrameDecoder) {
                     val nativePlayer = player.getMediaInfo()?.nativePlayer
                     val state = getState()
                     if (nativePlayer != null && state in activeStates) {

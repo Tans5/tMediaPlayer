@@ -38,7 +38,7 @@ internal class PacketReader(
         object : Handler(pktReaderThread.looper) {
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
-                synchronized(this) {
+                synchronized(this@PacketReader) {
                     val mediaInfo = player.getMediaInfo()
                     val nativePlayer = mediaInfo?.nativePlayer
                     val state = getState()

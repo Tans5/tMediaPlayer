@@ -144,6 +144,7 @@ class tMediaPlayer(
                     if (lastMediaInfo != null) {
                         // Release last nativePlayer.
                         releaseNative(lastMediaInfo.nativePlayer)
+                        MediaLog.d(TAG, "Release last native player.")
                     }
 
                     // Flush pkt and frame queues.
@@ -367,6 +368,7 @@ class tMediaPlayer(
                     videoDecoder.release()
                     audioRenderer.release()
                     videoRenderer.release()
+                    MediaLog.d(TAG, "Release player")
                 }
             }
         }

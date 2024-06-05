@@ -46,7 +46,7 @@ internal class AudioFrameDecoder(
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
-                synchronized(this) {
+                synchronized(this@AudioFrameDecoder) {
                     val nativePlayer = player.getMediaInfo()?.nativePlayer
                     val state = getState()
                     if (nativePlayer != null && state in activeStates) {

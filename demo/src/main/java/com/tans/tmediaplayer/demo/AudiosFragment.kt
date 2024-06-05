@@ -32,9 +32,9 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
         launch { refreshAudios() }
     }
 
-    private val player: tMediaPlayer by lazy {
-        tMediaPlayer()
-    }
+//    private val player: tMediaPlayer by lazy {
+//        tMediaPlayer()
+//    }
 
     override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
         val viewBinding = AudiosFragmentBinding.bind(contentView)
@@ -57,9 +57,9 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
                     .placeholder(R.drawable.ic_audio)
                     .into(itemViewBinding.audioImgIv)
                 itemViewBinding.root.clicks(this) {
-                    player.prepare(audio.file?.canonicalPath ?: "")
-                    player.play()
-                   // startActivity(PlayerActivity.createIntent(requireActivity(), audio.file?.canonicalPath ?: ""))
+//                    player.prepare(audio.file?.canonicalPath ?: "")
+//                    player.play()
+                   startActivity(PlayerActivity.createIntent(requireActivity(), audio.file?.canonicalPath ?: ""))
                 }
             }
         ).build()
@@ -102,10 +102,10 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        player.release()
-    }
+//    override fun onDestroy() {
+//        super.onDestroy()
+//        player.release()
+//    }
 
     companion object {
         data class AudioAndLoadModel(
