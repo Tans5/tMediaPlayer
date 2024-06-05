@@ -131,62 +131,71 @@ class tMediaPlayer(
     // region public methods
     @Synchronized
     override fun prepare(file: String): OptResult {
-        val lastState = getState()
-        if (lastState == tMediaPlayerState.Released) {
-            MediaLog.e(TAG, "Prepare fail, player has released.")
-            return OptResult.Fail
+        synchronized(packetReader) {
+            synchronized(audioDecoder) {
+                synchronized(videoDecoder) {
+                    val lastState = getState()
+                    if (lastState == tMediaPlayerState.Released) {
+                        MediaLog.e(TAG, "Prepare fail, player has released.")
+                        return OptResult.Fail
+                    }
+                    val lastMediaInfo = getMediaInfo()
+                    dispatchNewState(tMediaPlayerState.NoInit)
+                    if (lastMediaInfo != null) {
+                        // Release last nativePlayer.
+                        releaseNative(lastMediaInfo.nativePlayer)
+                    }
+
+                    // Flush pkt and frame queues.
+                    audioPacketQueue.flushReadableBuffer()
+                    videoPacketQueue.flushReadableBuffer()
+                    audioFrameQueue.flushReadableBuffer()
+                    videoFrameQueue.flushReadableBuffer()
+                    audioRenderer.flush()
+
+                    // Remove reader and decoders jobs.
+                    packetReader.removeAllHandlerMessages()
+                    audioDecoder.removeAllHandlerMessages()
+                    videoDecoder.removeAllHandlerMessages()
+
+                    // Reset clocks
+                    videoClock.initClock(videoPacketQueue)
+                    audioClock.initClock(audioPacketQueue)
+                    externalClock.initClock(null)
+                    val nativePlayer = createPlayerNative()
+                    val result = prepareNative(
+                        nativePlayer = nativePlayer,
+                        file = file,
+                        requestHw = enableVideoHardwareDecoder,
+                        targetAudioChannels = audioOutputChannel.channel,
+                        targetAudioSampleRate = audioOutputSampleRate.rate,
+                        targetAudioSampleBitDepth = audioOutputSampleBitDepth.depth
+                    ).toOptResult()
+                    if (result == OptResult.Success) {
+                        // Load media file success.
+                        val mediaInfo = getMediaInfo(nativePlayer)
+                        MediaLog.d(TAG, "Prepare player success: $mediaInfo")
+                        dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
+
+                        // Start reader and decoders
+                        packetReader.requestReadPkt()
+                        audioDecoder.requestDecode()
+                        videoDecoder.requestDecode()
+
+                        // Renderers do init if not.
+                        audioRenderer
+                        videoRenderer
+                    } else {
+                        // Load media file fail.
+                        releaseNative(nativePlayer)
+                        MediaLog.e(TAG, "Prepare player fail.")
+                        dispatchNewState(tMediaPlayerState.Error("Prepare player fail."))
+                    }
+                    return result
+                }
+            }
         }
-        val lastMediaInfo = getMediaInfo()
-        if (lastMediaInfo != null) {
-            // Release last nativePlayer.
-            releaseNative(lastMediaInfo.nativePlayer)
-        }
-        dispatchNewState(tMediaPlayerState.NoInit)
-        // Flush pkt and frame queues.
-        audioPacketQueue.flushReadableBuffer()
-        videoPacketQueue.flushReadableBuffer()
-        audioFrameQueue.flushReadableBuffer()
-        videoFrameQueue.flushReadableBuffer()
 
-        // Remove reader and decoders jobs.
-        packetReader.removeAllHandlerMessages()
-        audioDecoder.removeAllHandlerMessages()
-        videoDecoder.removeAllHandlerMessages()
-
-        // Reset clocks
-        videoClock.initClock(videoPacketQueue)
-        audioClock.initClock(audioPacketQueue)
-        externalClock.initClock(null)
-        val nativePlayer = createPlayerNative()
-        val result = prepareNative(
-            nativePlayer = nativePlayer,
-            file = file,
-            requestHw = enableVideoHardwareDecoder,
-            targetAudioChannels = audioOutputChannel.channel,
-            targetAudioSampleRate = audioOutputSampleRate.rate,
-            targetAudioSampleBitDepth = audioOutputSampleBitDepth.depth
-        ).toOptResult()
-        if (result == OptResult.Success) {
-            // Load media file success.
-            val mediaInfo = getMediaInfo(nativePlayer)
-            MediaLog.d(TAG, "Prepare player success: $mediaInfo")
-            dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
-
-            // Start reader and decoders
-            packetReader.requestReadPkt()
-            audioDecoder.requestDecode()
-            videoDecoder.requestDecode()
-
-            // Renderers do init if not.
-            audioRenderer
-            videoRenderer
-        } else {
-            // Load media file fail.
-            releaseNative(nativePlayer)
-            MediaLog.e(TAG, "Prepare player fail.")
-            dispatchNewState(tMediaPlayerState.Error("Prepare player fail."))
-        }
-        return result
     }
 
     @Synchronized
