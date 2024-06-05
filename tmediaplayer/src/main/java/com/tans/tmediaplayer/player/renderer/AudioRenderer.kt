@@ -208,6 +208,8 @@ internal class AudioRenderer(
                         audioFrameQueue.enqueueWritable(b)
                     }
                 }
+                audioRendererThread.quit()
+                audioRendererThread.quitSafely()
             } else {
                 MediaLog.e(TAG, "Release error, because of state: $state")
             }

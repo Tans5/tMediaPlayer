@@ -283,8 +283,6 @@ class tMediaPlayer(
                 MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
-                audioRenderer.pause()
-                videoRenderer.pause()
                 packetReader.requestSeek(position)
                 dispatchNewState(seekingState)
                 OptResult.Success
@@ -410,12 +408,8 @@ class tMediaPlayer(
         val mediaInfo = getMediaInfo()
         if (state is tMediaPlayerState.Seeking && mediaInfo != null) {
             val lastState = state.lastState
-            if (lastState is tMediaPlayerState.Playing) {
-                audioRenderer.play()
-                videoRenderer.play()
-                dispatchNewState(lastState)
-            } else {
-                if (result == OptResult.Success) {
+            if (result == OptResult.Success) {
+                if (lastState !is tMediaPlayerState.Playing) {
                     dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
                     if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
                         videoRenderer.requestRenderForce()
@@ -423,6 +417,8 @@ class tMediaPlayer(
                 } else {
                     dispatchNewState(lastState)
                 }
+            } else {
+                dispatchNewState(lastState)
             }
         } else {
             MediaLog.d(TAG, "Wrong state for handing seeking result: $state")
@@ -605,8 +601,8 @@ class tMediaPlayer(
                 audioClock.pause()
                 externalClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
                 externalClock.pause()
-//                audioRenderer.pause()
-//                videoRenderer.pause()
+                audioRenderer.pause()
+                videoRenderer.pause()
                 dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
             }
         }

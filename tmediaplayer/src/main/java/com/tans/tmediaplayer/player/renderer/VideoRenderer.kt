@@ -359,6 +359,8 @@ internal class VideoRenderer(
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
                 this.playerView.set(null)
+                videoRendererThread.quit()
+                videoRendererThread.quitSafely()
             } else {
                 MediaLog.e(TAG, "Release error, because of state: $state")
             }
