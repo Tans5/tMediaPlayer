@@ -142,13 +142,18 @@ class tMediaPlayer(
             releaseNative(lastMediaInfo.nativePlayer)
         }
         dispatchNewState(tMediaPlayerState.NoInit)
-        packetReader.removeAllHandlerMessages()
+        // Flush pkt and frame queues.
         audioPacketQueue.flushReadableBuffer()
         videoPacketQueue.flushReadableBuffer()
         audioFrameQueue.flushReadableBuffer()
         videoFrameQueue.flushReadableBuffer()
+
+        // Remove reader and decoders jobs.
+        packetReader.removeAllHandlerMessages()
         audioDecoder.removeAllHandlerMessages()
         videoDecoder.removeAllHandlerMessages()
+
+        // Reset clocks
         videoClock.initClock(videoPacketQueue)
         audioClock.initClock(audioPacketQueue)
         externalClock.initClock(null)
@@ -166,11 +171,15 @@ class tMediaPlayer(
             val mediaInfo = getMediaInfo(nativePlayer)
             MediaLog.d(TAG, "Prepare player success: $mediaInfo")
             dispatchNewState(tMediaPlayerState.Prepared(mediaInfo))
+
+            // Start reader and decoders
             packetReader.requestReadPkt()
             audioDecoder.requestDecode()
             videoDecoder.requestDecode()
+
+            // Renderers do init if not.
             audioRenderer
-            videoDecoder
+            videoRenderer
         } else {
             // Load media file fail.
             releaseNative(nativePlayer)
@@ -189,7 +198,7 @@ class tMediaPlayer(
             is tMediaPlayerState.Paused -> state.play()
             is tMediaPlayerState.Playing -> null
             is tMediaPlayerState.Prepared -> state.play()
-            is tMediaPlayerState.Stopped,  -> {
+            is tMediaPlayerState.Stopped  -> {
                 packetReader.requestSeek(0L)
                 state.play()
             }
@@ -202,13 +211,17 @@ class tMediaPlayer(
         }
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
+            // Play clocks
             videoClock.play()
             audioClock.play()
             externalClock.play()
-            playReadPacketNative(playingState.mediaInfo.nativePlayer)
-            dispatchNewState(playingState)
+
+            // Play renderers
             audioRenderer.play()
             videoRenderer.play()
+
+            playReadPacketNative(playingState.mediaInfo.nativePlayer)
+            dispatchNewState(playingState)
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for play() method.")
