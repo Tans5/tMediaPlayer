@@ -43,7 +43,7 @@ internal class AudioRenderer(
             }
             val eofFrame = waitingRenderFrames.peekFirst()
             if (eofFrame?.isEof == true) {
-                waitingRenderFrames.removeIf { eofFrame === it }
+                waitingRenderFrames.remove(eofFrame)
                 if (eofFrame.serial == audioPacketQueue.getSerial()) {
                     MediaLog.d(TAG, "render audio eof.")
                     this@AudioRenderer.state.set(RendererState.Eof)
