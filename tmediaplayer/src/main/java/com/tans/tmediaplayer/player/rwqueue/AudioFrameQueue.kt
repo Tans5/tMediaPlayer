@@ -1,10 +1,10 @@
 package com.tans.tmediaplayer.player.rwqueue
 
 import com.tans.tmediaplayer.MediaLog
-import com.tans.tmediaplayer.player.tMediaPlayer2
+import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class AudioFrameQueue(private val player: tMediaPlayer2) : BaseReadWriteQueue<AudioFrame>() {
+internal class AudioFrameQueue(private val player: tMediaPlayer) : BaseReadWriteQueue<AudioFrame>() {
 
     override val maxQueueSize: Int = 16
 

@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.measureTimeMillis
 
 internal class AudioFrameDecoder(
-    private val player: tMediaPlayer2,
+    private val player: tMediaPlayer,
     private val audioPacketQueue: PacketQueue,
     private val audioFrameQueue: AudioFrameQueue
 ) {
@@ -80,7 +80,7 @@ internal class AudioFrameDecoder(
                                                 val cost = measureTimeMillis {
                                                     val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)
                                                     when (decodeResult) {
-                                                        DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
+                                                        DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> {
                                                             val frame = audioFrameQueue.dequeueWriteableForce()
                                                             frame.serial = packetSerial
                                                             val moveResult = player.moveDecodedAudioFrameToBufferInternal(nativePlayer, frame)
@@ -91,14 +91,14 @@ internal class AudioFrameDecoder(
                                                                 audioFrameQueue.enqueueWritable(frame)
                                                                 MediaLog.e(TAG, "Move audio frame fail.")
                                                             }
-                                                            skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
+                                                            skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                                             requestDecode()
                                                         }
-                                                        DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
-                                                            if (decodeResult == DecodeResult2.Fail) {
+                                                        DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
+                                                            if (decodeResult == DecodeResult.Fail) {
                                                                 MediaLog.e(TAG, "Decode audio fail.")
                                                             }
-                                                            if (decodeResult == DecodeResult2.FailAndNeedMorePkt) {
+                                                            if (decodeResult == DecodeResult.FailAndNeedMorePkt) {
                                                                 MediaLog.d(TAG, "Decode audio fail and need more pkt.")
                                                             }
                                                             skipNextPktRead = false

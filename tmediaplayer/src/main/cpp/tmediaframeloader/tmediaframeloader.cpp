@@ -226,8 +226,8 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
         h != videoBuffer->height ||
         videoBuffer->rgbaBuffer == nullptr ||
         videoBuffer->rgbaFrame == nullptr) {
-        LOGE("Decode video create new buffer.");
-        videoBuffer->rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
+        videoBuffer->rgbaContentSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
+        videoBuffer->rgbaBufferSize = videoBuffer->rgbaBufferSize;
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
         }
@@ -236,7 +236,7 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
             videoBuffer->rgbaFrame = nullptr;
         }
         videoBuffer->rgbaFrame = av_frame_alloc();
-        videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaSize * sizeof(uint8_t)));
+        videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(videoBuffer->rgbaBufferSize * sizeof(uint8_t)));
         // Fill rgbaBuffer to rgbaFrame
         av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
                              AV_PIX_FMT_RGBA, w, h, 1);

@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 internal class VideoFrameDecoder(
-    private val player: tMediaPlayer2,
+    private val player: tMediaPlayer,
     private val videoPacketQueue: PacketQueue,
     private val videoFrameQueue: VideoFrameQueue
 ) {
@@ -82,7 +82,7 @@ internal class VideoFrameDecoder(
                                                 val decodeResult = player.decodeVideoInternal(nativePlayer, pkt)
                                                 var videoFrame: VideoFrame? = null
                                                 when (decodeResult) {
-                                                    DecodeResult2.Success, DecodeResult2.SuccessAndSkipNextPkt -> {
+                                                    DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> {
                                                         val frame =
                                                             videoFrameQueue.dequeueWriteableForce()
                                                         frame.serial = packetSerial
@@ -99,12 +99,12 @@ internal class VideoFrameDecoder(
                                                             videoFrameQueue.enqueueWritable(frame)
                                                             MediaLog.e(TAG, "Move video frame fail.")
                                                         }
-                                                        skipNextPktRead = decodeResult == DecodeResult2.SuccessAndSkipNextPkt
+                                                        skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                                         requestDecode()
                                                     }
 
-                                                    DecodeResult2.Fail, DecodeResult2.FailAndNeedMorePkt, DecodeResult2.DecodeEnd -> {
-                                                        if (decodeResult == DecodeResult2.Fail) {
+                                                    DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
+                                                        if (decodeResult == DecodeResult.Fail) {
                                                             MediaLog.e(TAG, "Decode video fail.")
                                                         }
                                                         requestDecode()

@@ -2,10 +2,10 @@ package com.tans.tmediaplayer.player.rwqueue
 
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.ImageRawType
-import com.tans.tmediaplayer.player.tMediaPlayer2
+import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class VideoFrameQueue(private val player: tMediaPlayer2) : BaseReadWriteQueue<VideoFrame>() {
+internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWriteQueue<VideoFrame>() {
 
     override val maxQueueSize: Int = 4
 

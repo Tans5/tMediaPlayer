@@ -1,5 +1,5 @@
 //
-// Created by pengcheng.tan on 2023/7/13.
+// Created by pengcheng.tan on 2024/5/27.
 //
 
 #ifndef TMEDIAPLAYER_TMEDIAPLAYER_H
@@ -25,51 +25,57 @@ enum ImageRawType {
     Nv12,
     Nv21,
     Rgba,
-    Unknown
+    UnknownImgType
 };
 
 typedef struct tMediaVideoBuffer {
     int width = 0;
     int height = 0;
-    ImageRawType type = Unknown;
-    int rgbaSize = 0;
+    ImageRawType type = UnknownImgType;
+    int rgbaBufferSize = 0;
+    int rgbaContentSize = 0;
     AVFrame *rgbaFrame = nullptr;
     uint8_t *rgbaBuffer = nullptr;
-    int ySize = 0;
+    int yBufferSize = 0;
+    int yContentSize = 0;
     uint8_t *yBuffer = nullptr;
-    int uSize = 0;
+    int uBufferSize = 0;
+    int uContentSize = 0;
     uint8_t  *uBuffer = nullptr;
-    int vSize = 0;
+    int vBufferSize = 0;
+    int vContentSize = 0;
     uint8_t  *vBuffer = nullptr;
-    int uvSize = 0;
+    int uvBufferSize = 0;
+    int uvContentSize = 0;
     uint8_t  *uvBuffer = nullptr;
+    long pts = 0L;
+    long duration = 0L;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
     int bufferSize = 0;
     int contentSize = 0;
     uint8_t  *pcmBuffer = nullptr;
+    long pts = 0L;
+    long duration = 0L;
 } tMediaAudioBuffer;
-
-enum tMediaDecodeBufferType {
-    BufferTypeVideo,
-    BufferTypeAudio
-};
 
 enum tMediaDecodeResult {
     DecodeSuccess,
+    DecodeSuccessAndSkipNextPkt,
+    DecodeFail,
+    DecodeFailAndNeedMorePkt,
     DecodeEnd,
-    DecodeFail
 };
 
-typedef struct tMediaDecodeBuffer {
-    tMediaDecodeBufferType type = BufferTypeAudio;
-    tMediaDecodeResult decodeResult = DecodeFail;
-    bool is_last_frame = false;
-    long pts;
-    tMediaVideoBuffer *videoBuffer = nullptr;
-    tMediaAudioBuffer *audioBuffer = nullptr;
-} tMediaDecodeBuffer;
+enum tMediaReadPktResult {
+    ReadVideoSuccess,
+    ReadVideoAttachmentSuccess,
+    ReadAudioSuccess,
+    ReadFail,
+    ReadEof,
+    UnknownPkt
+};
 
 enum tMediaOptResult {
     OptSuccess,
@@ -81,10 +87,7 @@ typedef struct tMediaPlayerContext {
 
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
-    AVFrame *frame = nullptr;
     long duration = 0;
-    bool skipPktRead = false;
-
 
     int metadataCount = 0;
     char ** metadata = nullptr;
@@ -95,10 +98,6 @@ typedef struct tMediaPlayerContext {
     JavaVM* jvm = nullptr;
     jobject jplayer = nullptr;
     jclass jplayerClazz = nullptr;
-    jmethodID callRequestVideoBufferMethodId = nullptr;
-    jmethodID callRequestAudioBufferMethodId = nullptr;
-    jmethodID callEnqueueVideoBufferMethodId = nullptr;
-    jmethodID callEnqueueAudioBufferMethodId = nullptr;
 
     /**
      * Video
@@ -106,7 +105,7 @@ typedef struct tMediaPlayerContext {
     AVStream *video_stream = nullptr;
     AVBufferRef *hardware_ctx = nullptr;
     const AVCodec *video_decoder = nullptr;
-    SwsContext * sws_ctx = nullptr;
+    SwsContext * video_sws_ctx = nullptr;
     int video_width = 0;
     int video_height = 0;
     int video_bits_per_raw_sample = 0;
@@ -117,6 +116,8 @@ typedef struct tMediaPlayerContext {
     bool videoIsAttachPic = false;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
+    AVFrame *video_frame = nullptr;
+    AVPacket *video_pkt = nullptr;
 
     /**
      * Audio
@@ -124,7 +125,7 @@ typedef struct tMediaPlayerContext {
     AVStream *audio_stream = nullptr;
     const AVCodec *audio_decoder = nullptr;
     AVCodecContext *audio_decoder_ctx = nullptr;
-    SwrContext *swr_ctx = nullptr;
+    SwrContext *audio_swr_ctx = nullptr;
     int audio_channels = 0;
     int audio_bits_per_raw_sample = 0;
     AVSampleFormat audio_sample_format = AV_SAMPLE_FMT_NONE;
@@ -137,39 +138,40 @@ typedef struct tMediaPlayerContext {
     AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
     int audio_output_channels = 2;
     AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
+    AVFrame *audio_frame = nullptr;
+    AVPacket *audio_pkt = nullptr;
 
 
-    tMediaOptResult prepare(const char * media_file, bool is_request_hw, int target_audio_channels, int target_audio_sample_rate, int target_audio_sample_bit_depth);
+    tMediaOptResult prepare(
+            const char * media_file,
+            bool is_request_hw,
+            int target_audio_channels,
+            int target_audio_sample_rate,
+            int target_audio_sample_bit_depth);
 
-    tMediaOptResult resetDecodeProgress();
+    tMediaReadPktResult readPacket();
 
-    tMediaOptResult seekTo(long targetPtsInMillis, tMediaDecodeBuffer* videoBuffer, tMediaDecodeBuffer* audioBuffer, bool needDecode);
+    tMediaOptResult pauseReadPacket();
 
-    tMediaOptResult decodeForSeek(long targetPtsMillis, tMediaDecodeBuffer* videoDecodeBuffer, tMediaDecodeBuffer* audioDecodeBuffer, double minStepInMillis, bool skipAudio, bool skipVideo, int maxVideoDoCircleTimes);
+    tMediaOptResult resumeReadPacket();
 
-    tMediaDecodeBuffer* decode(tMediaDecodeBuffer *lastBuffer);
+    void movePacketRef(AVPacket *target);
 
-    tMediaDecodeResult parseDecodeVideoFrameToBuffer(tMediaDecodeBuffer *buffer);
+    tMediaOptResult seekTo(int64_t targetPosInMillis);
 
-    tMediaDecodeResult parseDecodeAudioFrameToBuffer(tMediaDecodeBuffer *buffer);
+    tMediaDecodeResult decodeVideo(AVPacket *targetPkt);
 
-    tMediaDecodeBuffer* requestVideoDecodeBufferFromJava();
+    tMediaOptResult moveDecodedVideoFrameToBuffer(tMediaVideoBuffer* buffer);
 
-    tMediaDecodeBuffer* requestAudioDecodeBufferFromJava();
+    void flushVideoCodecBuffer();
 
-    void enqueueVideoEncodeBufferFromJava(tMediaDecodeBuffer *buffer);
+    tMediaDecodeResult decodeAudio(AVPacket *targetPkt);
 
-    void enqueueAudioEncodeBufferFromJava(tMediaDecodeBuffer *buffer);
+    tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer);
+
+    void flushAudioCodecBuffer();
 
     void release();
 } tMediaPlayerContext;
-
-tMediaDecodeBuffer* allocVideoDecodeBuffer();
-
-tMediaDecodeBuffer* allocAudioDecodeBuffer();
-
-void freeDecodeBuffer(tMediaDecodeBuffer *b);
-
-void copyFrameData(uint8_t * dst, uint8_t * src, int image_width, int image_height, int line_stride, int pixel_stride);
 
 #endif //TMEDIAPLAYER_TMEDIAPLAYER_H

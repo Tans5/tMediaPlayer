@@ -1,12 +1,12 @@
 package com.tans.tmediaplayer.player.rwqueue
 
 import com.tans.tmediaplayer.MediaLog
-import com.tans.tmediaplayer.player.tMediaPlayer2
+import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 internal class PacketQueue(
-    val player: tMediaPlayer2
+    val player: tMediaPlayer
 ) : BaseReadWriteQueue<Packet>() {
 
     override val maxQueueSize: Int = INFINITY_MAX_QUEUE_SIZE

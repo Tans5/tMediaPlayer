@@ -1,10 +1,12 @@
 package com.tans.tmediaplayer.player
 
-enum class DecodeResult { Success, DecodeEnd, Fail }
+enum class DecodeResult {
+    Success,
+    SuccessAndSkipNextPkt,
+    Fail,
+    FailAndNeedMorePkt,
+    DecodeEnd
+}
 fun Int.toDecodeResult(): DecodeResult {
-    return when (this) {
-        DecodeResult.Success.ordinal -> DecodeResult.Success
-        DecodeResult.DecodeEnd.ordinal -> DecodeResult.DecodeEnd
-        else -> DecodeResult.Fail
-    }
+    return DecodeResult.entries.find { it.ordinal == this } ?: DecodeResult.Fail
 }

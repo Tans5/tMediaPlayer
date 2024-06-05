@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 internal class PacketReader(
-    private val player: tMediaPlayer2,
+    private val player: tMediaPlayer,
     private val audioPacketQueue: PacketQueue,
     private val videoPacketQueue: PacketQueue
 ) {

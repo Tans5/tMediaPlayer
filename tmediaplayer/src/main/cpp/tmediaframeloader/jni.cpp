@@ -83,7 +83,7 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoFrameRgbaSizeNa
         jobject j_loader,
         jlong native_loader) {
     auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
-    return loader->videoBuffer->rgbaSize;
+    return loader->videoBuffer->rgbaContentSize;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -93,7 +93,7 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoFrameRgbaBytesN
         jlong native_loader,
         jbyteArray j_bytes) {
     auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
-    env->SetByteArrayRegion(j_bytes, 0, loader->videoBuffer->rgbaSize,
+    env->SetByteArrayRegion(j_bytes, 0, loader->videoBuffer->rgbaContentSize,
                             reinterpret_cast<const jbyte *>(loader->videoBuffer->rgbaBuffer));
 }
 

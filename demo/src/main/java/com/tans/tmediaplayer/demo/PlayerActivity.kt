@@ -13,7 +13,6 @@ import com.tans.tmediaplayer.frameloader.tMediaFrameLoader
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.tMediaPlayer
-import com.tans.tmediaplayer.player.tMediaPlayer2
 import com.tans.tmediaplayer.player.tMediaPlayerListener
 import com.tans.tmediaplayer.player.tMediaPlayerState
 import com.tans.tuiutils.activity.BaseCoroutineStateActivity
@@ -29,8 +28,8 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
 
     override val layoutId: Int = R.layout.player_activity
 
-    private val mediaPlayer: tMediaPlayer2 by lazyViewModelField("mediaPlayer") {
-        tMediaPlayer2(
+    private val mediaPlayer: tMediaPlayer by lazyViewModelField("mediaPlayer") {
+        tMediaPlayer(
             audioOutputSampleRate = AudioSampleRate.Rate96000,
             audioOutputSampleBitDepth = AudioSampleBitDepth.ThreeTwoBits,
             enableVideoHardwareDecoder = true

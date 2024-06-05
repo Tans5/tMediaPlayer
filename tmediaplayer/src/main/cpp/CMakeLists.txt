@@ -78,7 +78,6 @@ find_library(
 # region tmediaplayer
 add_library(
         tmediaplayer SHARED
-        tmediaplayer/media_time.cpp
         tmediaplayer/tmediaplayer.cpp
         tmediaplayer/jni.cpp)
 
@@ -86,34 +85,8 @@ target_include_directories(tmediaplayer PUBLIC
         ffmpeg/header
         tmediaplayer/header)
 
-
 target_link_libraries(
         tmediaplayer
-        # android
-        ${log-lib}
-        ${android-lib}
-
-        # ffmpeg
-        libavcodec
-        libavfilter
-        libavformat
-        libavutil
-        libswresample
-        libswscale)
-# endregion
-
-# region tmediaplayer2
-add_library(
-        tmediaplayer2 SHARED
-        tmediaplayer2/tmediaplayer.cpp
-        tmediaplayer2/jni.cpp)
-
-target_include_directories(tmediaplayer2 PUBLIC
-        ffmpeg/header
-        tmediaplayer2/header)
-
-target_link_libraries(
-        tmediaplayer2
         # android
         ${log-lib}
         ${android-lib}
@@ -157,12 +130,12 @@ add_library(
 target_include_directories(
         tmediaaudiotrack PUBLIC
         tmediaaudiotrack/header
-        tmediaplayer2/header
+        tmediaplayer/header
 )
 
 target_link_libraries(
         tmediaaudiotrack
-        tmediaplayer2
+        tmediaplayer
         ${OpenSLES-lib}
 )
 # endregion

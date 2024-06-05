@@ -17,7 +17,7 @@ import kotlin.math.min
 internal class VideoRenderer(
     private val videoFrameQueue: VideoFrameQueue,
     private val videoPacketQueue: PacketQueue,
-    private val player: tMediaPlayer2
+    private val player: tMediaPlayer
 ) {
     private val playerView: AtomicReference<tMediaPlayerView?> = AtomicReference()
 

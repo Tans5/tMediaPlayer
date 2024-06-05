@@ -22,7 +22,7 @@ internal class AudioRenderer(
     bufferQueueSize: Int = 18,
     private val audioFrameQueue: AudioFrameQueue,
     private val audioPacketQueue: PacketQueue,
-    private val player: tMediaPlayer2
+    private val player: tMediaPlayer
 ) {
     private val audioTrack: tMediaAudioTrack by lazy {
         tMediaAudioTrack(
