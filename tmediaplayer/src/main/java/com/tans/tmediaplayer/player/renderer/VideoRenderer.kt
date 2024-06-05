@@ -104,14 +104,14 @@ internal class VideoRenderer(
                                         videoFrameQueue.dequeueReadable()
                                         frameTimer += delay
                                         if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
-                                            MediaLog.d(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
+                                            MediaLog.e(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
                                             frameTimer = time
                                         }
                                         player.videoClock.setClock(frame.pts, frame.serial)
                                         player.externalClock.syncToClock(player.videoClock)
 
                                         val nextFrame = videoFrameQueue.peekReadable()
-                                        if (nextFrame != null) {
+                                        if (nextFrame != null && !nextFrame.isEof) {
                                             val duration = frameDuration(lastRenderFrame, nextFrame)
                                             if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
                                                 MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
