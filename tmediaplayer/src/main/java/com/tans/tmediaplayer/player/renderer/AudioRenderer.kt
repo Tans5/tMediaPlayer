@@ -123,7 +123,9 @@ internal class AudioRenderer(
                                         waitingRenderFrames.addLast(frame)
                                     }
                                 } else {
-                                    this@AudioRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
+                                    if (state == RendererState.Playing) {
+                                        this@AudioRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
+                                    }
                                     MediaLog.d(TAG, "Waiting readable audio frame.")
                                 }
                             } else {
