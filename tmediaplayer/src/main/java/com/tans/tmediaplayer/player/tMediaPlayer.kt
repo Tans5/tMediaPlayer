@@ -211,6 +211,10 @@ class tMediaPlayer(
         }
         return if (playingState != null) {
             MediaLog.d(TAG, "Request play.")
+
+            playReadPacketNative(playingState.mediaInfo.nativePlayer)
+            dispatchNewState(playingState)
+
             // Play clocks
             videoClock.play()
             audioClock.play()
@@ -220,8 +224,6 @@ class tMediaPlayer(
             audioRenderer.play()
             videoRenderer.play()
 
-            playReadPacketNative(playingState.mediaInfo.nativePlayer)
-            dispatchNewState(playingState)
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for play() method.")
@@ -245,6 +247,9 @@ class tMediaPlayer(
         }
         return if (pauseState != null) {
             MediaLog.d(TAG, "Request pause.")
+            pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
+            dispatchNewState(pauseState)
+
             // Pause clocks
             videoClock.pause()
             audioClock.pause()
@@ -254,8 +259,6 @@ class tMediaPlayer(
             audioRenderer.pause()
             videoRenderer.pause()
 
-            pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
-            dispatchNewState(pauseState)
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for pause() method.")
@@ -309,13 +312,13 @@ class tMediaPlayer(
         }
         return if (stopState != null) {
             MediaLog.d(TAG, "Request stop.")
+            dispatchNewState(stopState)
             videoClock.setClock(stopState.mediaInfo.duration, -1)
             videoClock.pause()
             audioClock.setClock(stopState.mediaInfo.duration, -1)
             audioClock.pause()
             externalClock.setClock(stopState.mediaInfo.duration, -1)
             externalClock.pause()
-            dispatchNewState(stopState)
             audioRenderer.pause()
             videoRenderer.pause()
             dispatchProgress(stopState.mediaInfo.duration, false)
@@ -595,6 +598,7 @@ class tMediaPlayer(
                 (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
             ) {
                 MediaLog.d(TAG, "Render end.")
+                dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
                 videoClock.setClock(mediaInfo.duration, videoPacketQueue.getSerial())
                 videoClock.pause()
                 audioClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
@@ -603,7 +607,6 @@ class tMediaPlayer(
                 externalClock.pause()
                 audioRenderer.pause()
                 videoRenderer.pause()
-                dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
             }
         }
     }
