@@ -66,7 +66,7 @@ internal class VideoRenderer(
                             if (renderForce.get()) {
                                 val frame = videoFrameQueue.dequeueReadable()
                                 if (frame != null) {
-                                    lastRenderFrame = LastRenderFrame(frame)
+                                    // lastRenderFrame = LastRenderFrame(frame)
                                     if (frame.serial != videoPacketQueue.getSerial()) {
                                         videoFrameQueue.enqueueWritable(frame)
                                         player.writeableVideoFrameReady()
@@ -76,7 +76,7 @@ internal class VideoRenderer(
                                     }
                                     renderForce.set(false)
                                     if (!frame.isEof) {
-                                        frameTimer = SystemClock.uptimeMillis()
+                                        // frameTimer = SystemClock.uptimeMillis()
                                         player.videoClock.setClock(frame.pts, frame.serial)
                                         player.externalClock.syncToClock(player.videoClock)
                                         renderVideoFrame(frame)
