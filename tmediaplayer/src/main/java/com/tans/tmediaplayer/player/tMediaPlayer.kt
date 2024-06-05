@@ -417,7 +417,9 @@ class tMediaPlayer(
             } else {
                 if (result == OptResult.Success) {
                     dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
-                    videoRenderer.requestRenderForce()
+                    if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
+                        videoRenderer.requestRenderForce()
+                    }
                 } else {
                     dispatchNewState(lastState)
                 }

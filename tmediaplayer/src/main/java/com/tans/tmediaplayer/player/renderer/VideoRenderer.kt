@@ -50,7 +50,7 @@ internal class VideoRenderer(
         RendererState.WaitingReadableFrameBuffer
     )
 
-    private var renderForce: Boolean = false
+    private val renderForce: AtomicBoolean = AtomicBoolean(false)
 
     private val videoRendererHandler: Handler by lazy {
         object : Handler(videoRendererThread.looper) {
@@ -63,20 +63,33 @@ internal class VideoRenderer(
                 synchronized(this@VideoRenderer) {
                     when (msg.what) {
                         RendererHandlerMsg.RequestRender.ordinal -> {
-                            if (renderForce) {
+                            if (renderForce.get()) {
                                 val frame = videoFrameQueue.dequeueReadable()
-                                if (frame != null && frame.serial == videoPacketQueue.getSerial()) {
-                                    renderForce = false
+                                if (frame != null) {
                                     lastRenderFrame = LastRenderFrame(frame)
-                                    frameTimer = SystemClock.uptimeMillis()
-                                    renderVideoFrame(frame)
-                                    requestRender()
-                                } else {
-                                    if (frame != null) {
+                                    if (frame.serial != videoPacketQueue.getSerial()) {
                                         videoFrameQueue.enqueueWritable(frame)
                                         player.writeableVideoFrameReady()
+                                        MediaLog.e(TAG, "Serial changed, skip force render.")
                                         requestRender()
+                                        return@synchronized
                                     }
+                                    renderForce.set(true)
+                                    if (!frame.isEof) {
+                                        frameTimer = SystemClock.uptimeMillis()
+                                        player.videoClock.setClock(frame.pts, frame.serial)
+                                        player.externalClock.syncToClock(player.videoClock)
+                                        renderVideoFrame(frame)
+                                        requestRender(VIDEO_REFRESH_RATE)
+                                        MediaLog.d(TAG, "Force render video success.")
+                                    } else {
+                                        this@VideoRenderer.state.set(RendererState.Eof)
+                                        videoFrameQueue.enqueueWritable(frame)
+                                        player.writeableVideoFrameReady()
+                                        MediaLog.d(TAG, "Force render video frame eof.")
+                                    }
+                                } else {
+                                    MediaLog.d(TAG, "Force render waiting readable video frame")
                                 }
                             } else {
                                 val playerState = player.getState()
@@ -94,17 +107,17 @@ internal class VideoRenderer(
                                     }
                                     val frame = videoFrameQueue.peekReadable()
                                     if (frame != null) {
+                                        if (frame.serial != videoPacketQueue.getSerial()) {
+                                            lastRenderFrame = LastRenderFrame(frame)
+                                            videoFrameQueue.dequeueReadable()
+                                            videoFrameQueue.enqueueWritable(frame)
+                                            player.writeableVideoFrameReady()
+                                            MediaLog.d(TAG, "Serial changed, skip render.")
+                                            requestRender()
+                                            return@synchronized
+                                        }
                                         if (!frame.isEof) {
                                             val lastFrame = lastRenderFrame
-                                            if (frame.serial != videoPacketQueue.getSerial()) {
-                                                lastRenderFrame = LastRenderFrame(frame)
-                                                videoFrameQueue.dequeueReadable()
-                                                videoFrameQueue.enqueueWritable(frame)
-                                                player.writeableVideoFrameReady()
-                                                MediaLog.d(TAG, "Serial changed, skip render.")
-                                                requestRender()
-                                                return@synchronized
-                                            }
                                             if (frame.serial != lastFrame.serial) {
                                                 MediaLog.d(TAG, "Serial changed, reset frame timer.")
                                                 frameTimer = SystemClock.uptimeMillis()
@@ -146,10 +159,11 @@ internal class VideoRenderer(
                                             }
                                             requestRender(VIDEO_REFRESH_RATE)
                                         } else {
+                                            lastRenderFrame = LastRenderFrame(frame)
                                             videoFrameQueue.dequeueReadable()
                                             this@VideoRenderer.state.set(RendererState.Eof)
                                             videoFrameQueue.enqueueWritable(frame)
-                                            MediaLog.d(TAG, "render video frame eof.")
+                                            MediaLog.d(TAG, "Render video frame eof.")
                                             player.writeableVideoFrameReady()
                                         }
                                     } else {
@@ -159,13 +173,6 @@ internal class VideoRenderer(
                                         MediaLog.d(TAG, "Waiting readable video frame.")
                                     }
                                 }
-                            }
-                        }
-                        RendererHandlerMsg.RequestRenderForce.ordinal -> {
-                            if (!renderForce) {
-                                renderForce = true
-                                removeMessages(RendererHandlerMsg.RequestRender.ordinal)
-                                sendEmptyMessage(RendererHandlerMsg.RequestRender.ordinal)
                             }
                         }
                     }
@@ -332,7 +339,7 @@ internal class VideoRenderer(
 
     fun readableFrameReady() {
         val state = getState()
-        if (state == RendererState.WaitingReadableFrameBuffer || renderForce) {
+        if (state == RendererState.WaitingReadableFrameBuffer || renderForce.get()) {
             requestRender()
         }
     }
@@ -340,7 +347,9 @@ internal class VideoRenderer(
     fun requestRenderForce() {
         val state = getState()
         if (state != RendererState.NotInit && state != RendererState.Released) {
-            videoRendererHandler.sendEmptyMessage(RendererHandlerMsg.RequestRenderForce.ordinal)
+            if (renderForce.compareAndSet(false, true)) {
+                requestRender()
+            }
         }
     }
 
@@ -364,7 +373,7 @@ internal class VideoRenderer(
 
     private fun requestRender(delay: Long = 0) {
         val state = getState()
-        if (state in canRenderStates || renderForce) {
+        if (state in canRenderStates || renderForce.get()) {
             videoRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
             videoRendererHandler.sendEmptyMessageDelayed(RendererHandlerMsg.RequestRender.ordinal, delay)
         } else {
