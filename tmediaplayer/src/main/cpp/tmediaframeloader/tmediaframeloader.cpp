@@ -227,7 +227,7 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
         videoBuffer->rgbaBuffer == nullptr ||
         videoBuffer->rgbaFrame == nullptr) {
         videoBuffer->rgbaContentSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
-        videoBuffer->rgbaBufferSize = videoBuffer->rgbaBufferSize;
+        videoBuffer->rgbaBufferSize = videoBuffer->rgbaContentSize;
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
         }

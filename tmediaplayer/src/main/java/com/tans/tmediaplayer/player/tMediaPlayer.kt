@@ -347,7 +347,7 @@ class tMediaPlayer(
                     videoFrameQueue.release()
                     packetReader.release()
                     audioDecoder.release()
-                    audioDecoder.release()
+                    videoDecoder.release()
                     audioRenderer.release()
                     videoRenderer.release()
                 }
