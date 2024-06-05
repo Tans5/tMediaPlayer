@@ -5,4 +5,8 @@ internal class AudioFrame(val nativeFrame: Long) {
     var duration: Long = 0L
     var serial: Int = 0
     var isEof: Boolean = false
+
+    override fun toString(): String {
+        return "[pts=$pts,duration=${duration},serial=${serial},isEof=${isEof}]"
+    }
 }

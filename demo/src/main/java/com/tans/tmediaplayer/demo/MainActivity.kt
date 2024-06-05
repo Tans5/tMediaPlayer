@@ -50,6 +50,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
                 override fun getItemCount(): Int = fragments.size
                 override fun createFragment(position: Int): Fragment = fragments[TabType.entries[position]]!!
             }
+            viewBinding.viewPager.isSaveEnabled = false
             viewBinding.viewPager.offscreenPageLimit = fragments.size
             viewBinding.tabLayout.addOnTabSelectedListener(object :
                 TabLayout.OnTabSelectedListener {

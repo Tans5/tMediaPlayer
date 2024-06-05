@@ -57,7 +57,7 @@ internal class VideoFrameDecoder(
                                             videoPacketQueue.dequeueReadable()
                                         }
                                         val serialChanged = if (pkt != null) {
-                                            val changed = pkt.serial != packetSerial || pkt.isEof
+                                            val changed = pkt.serial != packetSerial
                                             packetSerial = pkt.serial
                                             changed
                                         } else {
