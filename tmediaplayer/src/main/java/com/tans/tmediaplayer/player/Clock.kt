@@ -11,13 +11,13 @@ internal class Clock {
     private var ptsDrift: Long = -1L
     private var speed: Double = 1.0
     private var serial: Int = -1
-    private var paused: Boolean = false
+    private var paused: Boolean = true
     private var packetQueue: PacketQueue? = null
 
     @Synchronized
     fun initClock(pktQueue: PacketQueue?) {
         speed = 1.0
-        paused = false
+        paused = true
         packetQueue = pktQueue
         pts = -1
         lastUpdate = SystemClock.uptimeMillis()

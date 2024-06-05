@@ -151,7 +151,7 @@ class tMediaPlayer(
                     videoPacketQueue.flushReadableBuffer()
                     audioFrameQueue.flushReadableBuffer()
                     videoFrameQueue.flushReadableBuffer()
-                    audioRenderer.flush()
+
 
                     // Remove reader and decoders jobs.
                     packetReader.removeAllHandlerMessages()
@@ -162,6 +162,11 @@ class tMediaPlayer(
                     videoClock.initClock(videoPacketQueue)
                     audioClock.initClock(audioPacketQueue)
                     externalClock.initClock(null)
+
+                    // renders
+                    audioRenderer.flush()
+                    audioRenderer.pause()
+                    videoRenderer.pause()
                     val nativePlayer = createPlayerNative()
                     val result = prepareNative(
                         nativePlayer = nativePlayer,

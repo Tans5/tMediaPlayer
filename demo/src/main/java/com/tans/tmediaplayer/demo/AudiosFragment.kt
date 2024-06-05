@@ -8,6 +8,7 @@ import com.bumptech.glide.Glide
 import com.tans.tmediaplayer.demo.databinding.AudioItemLayoutBinding
 import com.tans.tmediaplayer.demo.databinding.AudiosFragmentBinding
 import com.tans.tmediaplayer.demo.glide.MediaImageModel
+import com.tans.tmediaplayer.player.tMediaPlayer
 import com.tans.tuiutils.adapter.impl.builders.SimpleAdapterBuilderImpl
 import com.tans.tuiutils.adapter.impl.databinders.DataBinderImpl
 import com.tans.tuiutils.adapter.impl.datasources.FlowDataSourceImpl
@@ -31,6 +32,10 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
         launch { refreshAudios() }
     }
 
+    private val player: tMediaPlayer by lazy {
+        tMediaPlayer()
+    }
+
     override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
         val viewBinding = AudiosFragmentBinding.bind(contentView)
         viewBinding.refreshLayout.refreshes(this, Dispatchers.IO) {
@@ -52,7 +57,9 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
                     .placeholder(R.drawable.ic_audio)
                     .into(itemViewBinding.audioImgIv)
                 itemViewBinding.root.clicks(this) {
-                    startActivity(PlayerActivity.createIntent(requireActivity(), audio.file?.canonicalPath ?: ""))
+                    player.prepare(audio.file?.canonicalPath ?: "")
+                    player.play()
+                   // startActivity(PlayerActivity.createIntent(requireActivity(), audio.file?.canonicalPath ?: ""))
                 }
             }
         ).build()
@@ -93,6 +100,11 @@ class AudiosFragment : BaseCoroutineStateFragment<AudiosFragment.Companion.State
         updateState {
             it.copy(audios = audios)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        player.release()
     }
 
     companion object {

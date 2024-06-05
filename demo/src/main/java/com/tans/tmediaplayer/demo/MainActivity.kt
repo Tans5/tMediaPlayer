@@ -3,6 +3,7 @@ package com.tans.tmediaplayer.demo
 import android.Manifest
 import android.os.Build
 import android.view.View
+import androidx.activity.addCallback
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayout
@@ -29,6 +30,9 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
     override fun CoroutineScope.firstLaunchInitDataCoroutine() {  }
 
     override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
+        onBackPressedDispatcher.addCallback {
+            finish()
+        }
         val permissionsNeed = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionsNeed.add(Manifest.permission.READ_MEDIA_IMAGES)
