@@ -50,6 +50,8 @@ internal class VideoRenderer(
         RendererState.WaitingReadableFrameBuffer
     )
 
+    private var renderForce: Boolean = false
+
     private val videoRendererHandler: Handler by lazy {
         object : Handler(videoRendererThread.looper) {
 
@@ -61,174 +63,203 @@ internal class VideoRenderer(
                 synchronized(this@VideoRenderer) {
                     when (msg.what) {
                         RendererHandlerMsg.RequestRender.ordinal -> {
-                            val playerState = player.getState()
-                            val state = getState()
-                            val mediaInfo = player.getMediaInfo()
-                            if (mediaInfo != null && state in canRenderStates) {
-                                if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Playing) {
-                                    this@VideoRenderer.state.set(RendererState.Playing)
+                            if (renderForce) {
+                                val frame = videoFrameQueue.dequeueReadable()
+                                if (frame != null && frame.serial == videoPacketQueue.getSerial()) {
+                                    renderForce = false
+                                    lastRenderFrame = LastRenderFrame(frame)
+                                    frameTimer = SystemClock.uptimeMillis()
+                                    renderVideoFrame(frame)
                                     requestRender()
-                                    return@synchronized
+                                } else {
+                                    if (frame != null) {
+                                        videoFrameQueue.enqueueWritable(frame)
+                                        player.writeableVideoFrameReady()
+                                        requestRender()
+                                    }
                                 }
-                                if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Paused) {
-                                    this@VideoRenderer.state.set(RendererState.Paused)
-                                    return@synchronized
-                                }
-                                val frame = videoFrameQueue.peekReadable()
-                                if (frame != null) {
-                                    if (!frame.isEof) {
-                                        val lastFrame = lastRenderFrame
-                                        if (frame.serial != videoPacketQueue.getSerial()) {
+                            } else {
+                                val playerState = player.getState()
+                                val state = getState()
+                                val mediaInfo = player.getMediaInfo()
+                                if (mediaInfo != null && state in canRenderStates) {
+                                    if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Playing) {
+                                        this@VideoRenderer.state.set(RendererState.Playing)
+                                        requestRender()
+                                        return@synchronized
+                                    }
+                                    if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Paused) {
+                                        this@VideoRenderer.state.set(RendererState.Paused)
+                                        return@synchronized
+                                    }
+                                    val frame = videoFrameQueue.peekReadable()
+                                    if (frame != null) {
+                                        if (!frame.isEof) {
+                                            val lastFrame = lastRenderFrame
+                                            if (frame.serial != videoPacketQueue.getSerial()) {
+                                                lastRenderFrame = LastRenderFrame(frame)
+                                                videoFrameQueue.dequeueReadable()
+                                                videoFrameQueue.enqueueWritable(frame)
+                                                player.writeableVideoFrameReady()
+                                                MediaLog.d(TAG, "Serial changed, skip render.")
+                                                requestRender()
+                                                return@synchronized
+                                            }
+                                            if (frame.serial != lastFrame.serial) {
+                                                MediaLog.d(TAG, "Serial changed, reset frame timer.")
+                                                frameTimer = SystemClock.uptimeMillis()
+                                            }
+                                            val lastDuration = frameDuration(lastFrame, frame)
+                                            val delay = computeTargetDelay(lastDuration)
+                                            val time = SystemClock.uptimeMillis()
+                                            if (time < frameTimer + delay) {
+                                                val remainingTime = min(frameTimer + delay - time, VIDEO_REFRESH_RATE)
+                                                MediaLog.d(TAG, "Frame=${frame.pts}, need delay ${remainingTime}ms to display.")
+                                                requestRender(remainingTime)
+                                                return@synchronized
+                                            }
                                             lastRenderFrame = LastRenderFrame(frame)
                                             videoFrameQueue.dequeueReadable()
-                                            videoFrameQueue.enqueueWritable(frame)
-                                            player.writeableVideoFrameReady()
-                                            MediaLog.d(TAG, "Serial changed, skip render.")
-                                            requestRender()
-                                            return@synchronized
-                                        }
-                                        if (frame.serial != lastFrame.serial) {
-                                            MediaLog.d(TAG, "Serial changed, reset frame timer.")
-                                            frameTimer = SystemClock.uptimeMillis()
-                                        }
-                                        val lastDuration = frameDuration(lastFrame, frame)
-                                        val delay = computeTargetDelay(lastDuration)
-                                        val time = SystemClock.uptimeMillis()
-                                        if (time < frameTimer + delay) {
-                                            val remainingTime = min(frameTimer + delay - time, VIDEO_REFRESH_RATE)
-                                            MediaLog.d(TAG, "Frame=${frame.pts}, need delay ${remainingTime}ms to display.")
-                                            requestRender(remainingTime)
-                                            return@synchronized
-                                        }
-                                        lastRenderFrame = LastRenderFrame(frame)
-                                        videoFrameQueue.dequeueReadable()
-                                        frameTimer += delay
-                                        if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
-                                            MediaLog.e(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
-                                            frameTimer = time
-                                        }
-                                        player.videoClock.setClock(frame.pts, frame.serial)
-                                        player.externalClock.syncToClock(player.videoClock)
-
-                                        val nextFrame = videoFrameQueue.peekReadable()
-                                        if (nextFrame != null && !nextFrame.isEof) {
-                                            val duration = frameDuration(lastRenderFrame, nextFrame)
-                                            if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
-                                                MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
-                                                videoFrameQueue.dequeueReadable()
-                                                videoFrameQueue.enqueueWritable(nextFrame)
-                                                player.writeableVideoFrameReady()
+                                            frameTimer += delay
+                                            if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
+                                                MediaLog.e(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
+                                                frameTimer = time
                                             }
-                                        }
+                                            player.videoClock.setClock(frame.pts, frame.serial)
+                                            player.externalClock.syncToClock(player.videoClock)
 
-                                        val playerView = this@VideoRenderer.playerView.get()
-                                        if (playerView != null) {
-                                            when (frame.imageType) {
-                                                ImageRawType.Yuv420p -> {
-                                                    val y = frame.yBuffer
-                                                    val u = frame.uBuffer
-                                                    val v = frame.vBuffer
-                                                    if (y != null && u != null && v != null) {
-                                                        playerView.requestRenderYuv420pFrame(
-                                                            width = frame.width,
-                                                            height = frame.height,
-                                                            yBytes = y,
-                                                            uBytes = u,
-                                                            vBytes = v
-                                                        ) {
-                                                            videoFrameQueue.enqueueWritable(frame)
-                                                            player.writeableVideoFrameReady()
-                                                        }
-                                                    } else {
-                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                                        videoFrameQueue.enqueueWritable(frame)
-                                                        player.writeableVideoFrameReady()
-                                                    }
-                                                }
-                                                ImageRawType.Nv12 -> {
-                                                    val y = frame.yBuffer
-                                                    val uv = frame.uvBuffer
-                                                    if (y != null && uv != null) {
-                                                        playerView.requestRenderNv12Frame(
-                                                            width = frame.width,
-                                                            height = frame.height,
-                                                            yBytes = y,
-                                                            uvBytes = uv
-                                                        ) {
-                                                            videoFrameQueue.enqueueWritable(frame)
-                                                            player.writeableVideoFrameReady()
-                                                        }
-                                                    } else {
-                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                                        videoFrameQueue.enqueueWritable(frame)
-                                                        player.writeableVideoFrameReady()
-                                                    }
-                                                }
-                                                ImageRawType.Nv21 -> {
-                                                    val y = frame.yBuffer
-                                                    val vu = frame.uvBuffer
-                                                    if (y != null && vu != null) {
-                                                        playerView.requestRenderNv21Frame(
-                                                            width = frame.width,
-                                                            height = frame.height,
-                                                            yBytes = y,
-                                                            vuBytes = vu
-                                                        ) {
-                                                            videoFrameQueue.enqueueWritable(frame)
-                                                            player.writeableVideoFrameReady()
-                                                        }
-                                                    } else {
-                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                                        videoFrameQueue.enqueueWritable(frame)
-                                                        player.writeableVideoFrameReady()
-                                                    }
-                                                }
-                                                ImageRawType.Rgba -> {
-                                                    val rgba = frame.rgbaBuffer
-                                                    if (rgba != null) {
-                                                        playerView.requestRenderRgbaFrame(
-                                                            width = frame.width,
-                                                            height = frame.height,
-                                                            imageBytes = rgba
-                                                        ) {
-                                                            videoFrameQueue.enqueueWritable(frame)
-                                                            player.writeableVideoFrameReady()
-                                                        }
-                                                    } else {
-                                                        MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                                        videoFrameQueue.enqueueWritable(frame)
-                                                        player.writeableVideoFrameReady()
-                                                    }
-                                                }
-                                                ImageRawType.Unknown -> {
-                                                    videoFrameQueue.enqueueWritable(frame)
+                                            val nextFrame = videoFrameQueue.peekReadable()
+                                            if (nextFrame != null && !nextFrame.isEof) {
+                                                val duration = frameDuration(lastRenderFrame, nextFrame)
+                                                if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
+                                                    MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
+                                                    videoFrameQueue.dequeueReadable()
+                                                    videoFrameQueue.enqueueWritable(nextFrame)
                                                     player.writeableVideoFrameReady()
                                                 }
                                             }
+
+                                            renderVideoFrame(frame)
+
+                                            if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
+                                                this@VideoRenderer.state.set(RendererState.Playing)
+                                            }
+                                            requestRender(VIDEO_REFRESH_RATE)
                                         } else {
+                                            videoFrameQueue.dequeueReadable()
+                                            this@VideoRenderer.state.set(RendererState.Eof)
                                             videoFrameQueue.enqueueWritable(frame)
+                                            MediaLog.d(TAG, "render video frame eof.")
                                             player.writeableVideoFrameReady()
                                         }
-                                        if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
-                                            this@VideoRenderer.state.set(RendererState.Playing)
-                                        }
-                                        requestRender(VIDEO_REFRESH_RATE)
                                     } else {
-                                        videoFrameQueue.dequeueReadable()
-                                        this@VideoRenderer.state.set(RendererState.Eof)
-                                        videoFrameQueue.enqueueWritable(frame)
-                                        MediaLog.d(TAG, "render video frame eof.")
-                                        player.writeableVideoFrameReady()
+                                        if (state == RendererState.Playing) {
+                                            this@VideoRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
+                                        }
+                                        MediaLog.d(TAG, "Waiting readable video frame.")
                                     }
-                                } else {
-                                    if (state == RendererState.Playing) {
-                                        this@VideoRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
-                                    }
-                                    MediaLog.d(TAG, "Waiting readable video frame.")
                                 }
                             }
                         }
+                        RendererHandlerMsg.RequestRenderForce.ordinal -> {
+                            if (!renderForce) {
+                                renderForce = true
+                                removeMessages(RendererHandlerMsg.RequestRender.ordinal)
+                                sendEmptyMessage(RendererHandlerMsg.RequestRender.ordinal)
+                            }
+                        }
                     }
+                }
+            }
+
+            fun renderVideoFrame(frame: VideoFrame) {
+                val playerView = this@VideoRenderer.playerView.get()
+                if (playerView != null) {
+                    when (frame.imageType) {
+                        ImageRawType.Yuv420p -> {
+                            val y = frame.yBuffer
+                            val u = frame.uBuffer
+                            val v = frame.vBuffer
+                            if (y != null && u != null && v != null) {
+                                playerView.requestRenderYuv420pFrame(
+                                    width = frame.width,
+                                    height = frame.height,
+                                    yBytes = y,
+                                    uBytes = u,
+                                    vBytes = v
+                                ) {
+                                    videoFrameQueue.enqueueWritable(frame)
+                                    player.writeableVideoFrameReady()
+                                }
+                            } else {
+                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                videoFrameQueue.enqueueWritable(frame)
+                                player.writeableVideoFrameReady()
+                            }
+                        }
+                        ImageRawType.Nv12 -> {
+                            val y = frame.yBuffer
+                            val uv = frame.uvBuffer
+                            if (y != null && uv != null) {
+                                playerView.requestRenderNv12Frame(
+                                    width = frame.width,
+                                    height = frame.height,
+                                    yBytes = y,
+                                    uvBytes = uv
+                                ) {
+                                    videoFrameQueue.enqueueWritable(frame)
+                                    player.writeableVideoFrameReady()
+                                }
+                            } else {
+                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                videoFrameQueue.enqueueWritable(frame)
+                                player.writeableVideoFrameReady()
+                            }
+                        }
+                        ImageRawType.Nv21 -> {
+                            val y = frame.yBuffer
+                            val vu = frame.uvBuffer
+                            if (y != null && vu != null) {
+                                playerView.requestRenderNv21Frame(
+                                    width = frame.width,
+                                    height = frame.height,
+                                    yBytes = y,
+                                    vuBytes = vu
+                                ) {
+                                    videoFrameQueue.enqueueWritable(frame)
+                                    player.writeableVideoFrameReady()
+                                }
+                            } else {
+                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                videoFrameQueue.enqueueWritable(frame)
+                                player.writeableVideoFrameReady()
+                            }
+                        }
+                        ImageRawType.Rgba -> {
+                            val rgba = frame.rgbaBuffer
+                            if (rgba != null) {
+                                playerView.requestRenderRgbaFrame(
+                                    width = frame.width,
+                                    height = frame.height,
+                                    imageBytes = rgba
+                                ) {
+                                    videoFrameQueue.enqueueWritable(frame)
+                                    player.writeableVideoFrameReady()
+                                }
+                            } else {
+                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                videoFrameQueue.enqueueWritable(frame)
+                                player.writeableVideoFrameReady()
+                            }
+                        }
+                        ImageRawType.Unknown -> {
+                            videoFrameQueue.enqueueWritable(frame)
+                            player.writeableVideoFrameReady()
+                        }
+                    }
+                } else {
+                    videoFrameQueue.enqueueWritable(frame)
+                    player.writeableVideoFrameReady()
                 }
             }
 
@@ -301,8 +332,15 @@ internal class VideoRenderer(
 
     fun readableFrameReady() {
         val state = getState()
-        if (state == RendererState.WaitingReadableFrameBuffer) {
+        if (state == RendererState.WaitingReadableFrameBuffer || renderForce) {
             requestRender()
+        }
+    }
+
+    fun requestRenderForce() {
+        val state = getState()
+        if (state != RendererState.NotInit && state != RendererState.Released) {
+            videoRendererHandler.sendEmptyMessage(RendererHandlerMsg.RequestRenderForce.ordinal)
         }
     }
 
@@ -326,7 +364,7 @@ internal class VideoRenderer(
 
     private fun requestRender(delay: Long = 0) {
         val state = getState()
-        if (state in canRenderStates) {
+        if (state in canRenderStates || renderForce) {
             videoRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
             videoRendererHandler.sendEmptyMessageDelayed(RendererHandlerMsg.RequestRender.ordinal, delay)
         } else {

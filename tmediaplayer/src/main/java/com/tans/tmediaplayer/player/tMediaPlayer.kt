@@ -415,7 +415,12 @@ class tMediaPlayer(
                 videoRenderer.play()
                 dispatchNewState(lastState)
             } else {
-                dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
+                if (result == OptResult.Success) {
+                    dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
+                    videoRenderer.requestRenderForce()
+                } else {
+                    dispatchNewState(lastState)
+                }
             }
         } else {
             MediaLog.d(TAG, "Wrong state for handing seeking result: $state")
