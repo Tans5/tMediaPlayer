@@ -245,12 +245,16 @@ class tMediaPlayer(
         }
         return if (pauseState != null) {
             MediaLog.d(TAG, "Request pause.")
+            // Pause clocks
             videoClock.pause()
             audioClock.pause()
             externalClock.pause()
-            pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
+
+            // Pause renders
             audioRenderer.pause()
             videoRenderer.pause()
+
+            pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
             dispatchNewState(pauseState)
             OptResult.Success
         } else {
@@ -316,6 +320,7 @@ class tMediaPlayer(
             dispatchNewState(stopState)
             audioRenderer.pause()
             videoRenderer.pause()
+            dispatchProgress(stopState.mediaInfo.duration, false)
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for stop() method.")
@@ -396,6 +401,11 @@ class tMediaPlayer(
             videoFrameQueue.flushReadableBuffer()
             audioDecoder.requestDecode()
             videoDecoder.requestDecode()
+
+            videoClock.setClock(position, videoPacketQueue.getSerial())
+            audioClock.setClock(position, audioPacketQueue.getSerial())
+            externalClock.setClock(position, audioPacketQueue.getSerial())
+            dispatchProgress(position, false)
         }
         val mediaInfo = getMediaInfo()
         if (state is tMediaPlayerState.Seeking && mediaInfo != null) {
@@ -417,7 +427,7 @@ class tMediaPlayer(
         return if (mediaInfo == null) {
             ExternalClock
         } else if (syncType == VideoMaster) {
-            if (mediaInfo.videoStreamInfo != null) {
+            if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
                 VideoMaster
             } else {
                 AudioMaster
@@ -521,13 +531,9 @@ class tMediaPlayer(
         }
     }
 
-    private fun dispatchProgress(progress: Long) {
+    private fun dispatchProgress(progress: Long, checkState: Boolean = true) {
         val state = getState()
-        if (state !is tMediaPlayerState.PlayEnd &&
-            state !is tMediaPlayerState.Error &&
-            state !is tMediaPlayerState.Stopped &&
-            state !is tMediaPlayerState.Seeking &&
-            state !is tMediaPlayerState.NoInit) {
+        if (!checkState || state is tMediaPlayerState.Playing) {
             val info = getMediaInfo()
             if (info != null) {
                 callbackExecutor.execute {
@@ -536,22 +542,6 @@ class tMediaPlayer(
             }
         } else {
             MediaLog.e(TAG, "Ignore progress update, because of state: $state")
-        }
-        if (state is tMediaPlayerState.Playing) {
-            val mediaInfo = state.mediaInfo
-            if ((mediaInfo.videoStreamInfo == null || videoRenderer.getState() == RendererState.Eof) &&
-                (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)) {
-                MediaLog.d(TAG, "Render end.")
-                videoClock.setClock(mediaInfo.duration, -1)
-                videoClock.pause()
-                audioClock.setClock(mediaInfo.duration, -1)
-                audioClock.pause()
-                externalClock.setClock(mediaInfo.duration, -1)
-                externalClock.pause()
-                audioRenderer.pause()
-                videoRenderer.pause()
-                dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
-            }
         }
     }
 
@@ -580,12 +570,39 @@ class tMediaPlayer(
 
     internal fun writeableVideoFrameReady() {
         videoDecoder.writeableFrameReady()
-        dispatchProgress(videoClock.getClock())
+        if (getSyncType() != AudioMaster) {
+            dispatchProgress(videoClock.getClock())
+        }
+        checkPlayEnd()
     }
 
     internal fun writeableAudioFrameReady() {
         audioDecoder.writeableFrameReady()
-        dispatchProgress(audioClock.getClock())
+        if (getSyncType() != VideoMaster) {
+            dispatchProgress(audioClock.getClock())
+        }
+        checkPlayEnd()
+    }
+
+    private fun checkPlayEnd() {
+        val state = getState()
+        if (state is tMediaPlayerState.Playing) {
+            val mediaInfo = state.mediaInfo
+            if ((mediaInfo.videoStreamInfo == null || videoRenderer.getState() == RendererState.Eof) &&
+                (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
+            ) {
+                MediaLog.d(TAG, "Render end.")
+                videoClock.setClock(mediaInfo.duration, videoPacketQueue.getSerial())
+                videoClock.pause()
+                audioClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
+                audioClock.pause()
+                externalClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
+                externalClock.pause()
+//                audioRenderer.pause()
+//                videoRenderer.pause()
+                dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
+            }
+        }
     }
     // endregion
 
