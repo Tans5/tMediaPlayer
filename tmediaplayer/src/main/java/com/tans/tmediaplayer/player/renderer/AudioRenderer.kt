@@ -41,16 +41,6 @@ internal class AudioRenderer(
                 audioFrameQueue.enqueueWritable(frame)
                 player.writeableAudioFrameReady()
             }
-            val eofFrame = waitingRenderFrames.peekFirst()
-            if (eofFrame?.isEof == true) {
-                waitingRenderFrames.remove(eofFrame)
-                if (eofFrame.serial == audioPacketQueue.getSerial()) {
-                    MediaLog.d(TAG, "render audio eof.")
-                    this@AudioRenderer.state.set(RendererState.Eof)
-                }
-                audioFrameQueue.enqueueWritable(eofFrame)
-                player.writeableAudioFrameReady()
-            }
         }
     }
 
@@ -119,8 +109,17 @@ internal class AudioRenderer(
                                         }
                                         requestRender()
                                     } else {
-                                        MediaLog.d(TAG, "Receive eof frame.")
-                                        waitingRenderFrames.addLast(frame)
+                                        while (waitingRenderFrames.isNotEmpty()) {
+                                            val b = waitingRenderFrames.pollFirst()
+                                            if (b != null) {
+                                                Thread.sleep(b.duration.coerceAtLeast(0))
+                                                audioFrameQueue.enqueueWritable(b)
+                                            }
+                                        }
+                                        MediaLog.d(TAG, "Render audio eof.")
+                                        this@AudioRenderer.state.set(RendererState.Eof)
+                                        audioFrameQueue.enqueueWritable(frame)
+                                        player.writeableAudioFrameReady()
                                     }
                                 } else {
                                     if (state == RendererState.Playing) {
