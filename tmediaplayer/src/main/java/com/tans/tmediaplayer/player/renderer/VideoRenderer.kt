@@ -74,7 +74,7 @@ internal class VideoRenderer(
                                         requestRender()
                                         return@synchronized
                                     }
-                                    renderForce.set(true)
+                                    renderForce.set(false)
                                     if (!frame.isEof) {
                                         frameTimer = SystemClock.uptimeMillis()
                                         player.videoClock.setClock(frame.pts, frame.serial)
