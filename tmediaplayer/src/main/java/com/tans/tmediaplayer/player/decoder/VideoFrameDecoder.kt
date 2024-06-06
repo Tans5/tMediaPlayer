@@ -120,6 +120,9 @@ internal class VideoFrameDecoder(
                                                 }
                                                 val end = SystemClock.uptimeMillis()
                                                 MediaLog.d(TAG, "Decode video cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, videoFrame=${videoFrame}")
+                                                if (state != DecoderState.Ready) {
+                                                    this@VideoFrameDecoder.state.set(DecoderState.Ready)
+                                                }
                                             }
                                             if (pkt != null) {
                                                 videoPacketQueue.enqueueWritable(pkt)
@@ -149,6 +152,7 @@ internal class VideoFrameDecoder(
         while (!isLooperPrepared.get()) {}
         videoDecoderHandler
         state.set(DecoderState.Ready)
+        MediaLog.d(TAG, "Video decoder inited.")
     }
 
     fun requestDecode() {
@@ -156,39 +160,35 @@ internal class VideoFrameDecoder(
         if (state in activeStates) {
             videoDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
             videoDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+        } else {
+            MediaLog.e(TAG, "Request decode fail, wrong state: $state")
         }
     }
 
     fun readablePacketReady() {
         val state = getState()
         if (state == DecoderState.WaitingReadablePacketBuffer) {
-            videoDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
-            videoDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+            requestDecode()
         }
     }
 
     fun writeableFrameReady() {
         val state = getState()
         if (state == DecoderState.WaitingWritableFrameBuffer) {
-            videoDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
-            videoDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
-        }
-    }
-
-    fun removeAllHandlerMessages() {
-        for (e in DecoderHandlerMsg.entries) {
-            videoDecoderHandler.removeMessages(e.ordinal)
+            requestDecode()
         }
     }
 
     fun release() {
         synchronized(this) {
             val oldState = getState()
-            if (oldState in activeStates) {
+            if (oldState != DecoderState.NotInit && oldState != DecoderState.Released) {
                 state.set(DecoderState.Released)
-                removeAllHandlerMessages()
                 videoDecoderThread.quit()
                 videoDecoderThread.quitSafely()
+                MediaLog.d(TAG, "Video decoder released.")
+            } else {
+                MediaLog.e(TAG, "Release fail, wrong state: $oldState")
             }
         }
     }

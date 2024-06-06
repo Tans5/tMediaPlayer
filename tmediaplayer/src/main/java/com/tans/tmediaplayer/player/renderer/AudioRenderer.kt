@@ -143,6 +143,7 @@ internal class AudioRenderer(
         audioRendererHandler
         state.set(RendererState.Paused)
         audioTrack
+        MediaLog.d(TAG, "Audio renderer inited.")
     }
 
     fun play() {
@@ -209,6 +210,7 @@ internal class AudioRenderer(
                 }
                 audioRendererThread.quit()
                 audioRendererThread.quitSafely()
+                MediaLog.d(TAG, "Audio renderer released.")
             } else {
                 MediaLog.e(TAG, "Release error, because of state: $state")
             }

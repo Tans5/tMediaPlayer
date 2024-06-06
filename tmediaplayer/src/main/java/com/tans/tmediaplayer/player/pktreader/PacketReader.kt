@@ -34,6 +34,8 @@ internal class PacketReader(
         }.apply { start() }
     }
 
+    private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer)
+
     private val pktReaderHandler: Handler by lazy {
         object : Handler(pktReaderThread.looper) {
             override fun handleMessage(msg: Message) {
@@ -42,7 +44,7 @@ internal class PacketReader(
                     val mediaInfo = player.getMediaInfo()
                     val nativePlayer = mediaInfo?.nativePlayer
                     val state = getState()
-                    if (nativePlayer != null && (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer)) {
+                    if (nativePlayer != null && state in activeStates) {
                         when (msg.what) {
                             HandlerMsg.RequestReadPkt.ordinal -> {
                                 val audioSizeInBytes = audioPacketQueue.getSizeInBytes()
@@ -140,32 +142,36 @@ internal class PacketReader(
         while (!isLooperPrepared.get()) {}
         pktReaderHandler
         state.set(ReaderState.Ready)
+        MediaLog.d(TAG, "Packet reader inited.")
     }
 
     fun requestReadPkt() {
         val state = getState()
-        if (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer) {
+        if (state in activeStates) {
             pktReaderHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
             pktReaderHandler.sendEmptyMessage(HandlerMsg.RequestReadPkt.ordinal)
+        } else {
+            MediaLog.e(TAG, "Request read pkt fail, wrong state: $state")
         }
     }
 
     fun requestSeek(targetPosition: Long) {
         val state = getState()
-        if (state == ReaderState.Ready || state == ReaderState.WaitingWritableBuffer) {
+        if (state in activeStates) {
             pktReaderHandler.removeMessages(HandlerMsg.RequestSeek.ordinal)
             val msg = pktReaderHandler.obtainMessage()
             msg.what = HandlerMsg.RequestSeek.ordinal
             msg.obj = targetPosition
             pktReaderHandler.sendMessage(msg)
+        } else {
+            MediaLog.e(TAG, "Request seek fail, wrong state: $state")
         }
     }
 
     fun writeablePacketBufferReady() {
         val state = getState()
         if (state == ReaderState.WaitingWritableBuffer) {
-            pktReaderHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
-            pktReaderHandler.sendEmptyMessage(HandlerMsg.RequestReadPkt.ordinal)
+            requestReadPkt()
         }
     }
 
@@ -174,18 +180,14 @@ internal class PacketReader(
     fun release() {
         synchronized(this) {
             val oldState = getState()
-            if (oldState == ReaderState.Ready || oldState == ReaderState.WaitingWritableBuffer) {
+            if (oldState != ReaderState.NotInit && oldState != ReaderState.Released) {
                 state.set(ReaderState.Released)
-                removeAllHandlerMessages()
                 pktReaderThread.quit()
                 pktReaderThread.quitSafely()
+                MediaLog.d(TAG, "Package reader released.")
+            } else {
+                MediaLog.e(TAG, "Release fail, wrong state: $state")
             }
-        }
-    }
-
-    fun removeAllHandlerMessages() {
-        for (e in HandlerMsg.entries) {
-            pktReaderHandler.removeMessages(e.ordinal)
         }
     }
 

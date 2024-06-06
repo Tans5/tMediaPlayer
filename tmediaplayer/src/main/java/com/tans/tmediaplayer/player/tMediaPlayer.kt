@@ -154,20 +154,11 @@ class tMediaPlayer(
                     videoFrameQueue.flushReadableBuffer()
 
 
-                    // Remove reader and decoders jobs.
-                    packetReader.removeAllHandlerMessages()
-                    audioDecoder.removeAllHandlerMessages()
-                    videoDecoder.removeAllHandlerMessages()
-
                     // Reset clocks
                     videoClock.initClock(videoPacketQueue)
                     audioClock.initClock(audioPacketQueue)
                     externalClock.initClock(null)
 
-                    // renders
-                    audioRenderer.flush()
-                    audioRenderer.pause()
-                    videoRenderer.pause()
                     val nativePlayer = createPlayerNative()
                     val result = prepareNative(
                         nativePlayer = nativePlayer,
@@ -188,9 +179,10 @@ class tMediaPlayer(
                         audioDecoder.requestDecode()
                         videoDecoder.requestDecode()
 
-                        // Renderers do init if not.
-                        audioRenderer
-                        videoRenderer
+                        // Renderers
+                        audioRenderer.flush()
+                        audioRenderer.pause()
+                        videoRenderer.pause()
                     } else {
                         // Load media file fail.
                         releaseNative(nativePlayer)
@@ -301,8 +293,8 @@ class tMediaPlayer(
                 MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
-                packetReader.requestSeek(position)
                 dispatchNewState(seekingState)
+                packetReader.requestSeek(position)
                 OptResult.Success
             }
         } else {
@@ -328,12 +320,16 @@ class tMediaPlayer(
         return if (stopState != null) {
             MediaLog.d(TAG, "Request stop.")
             dispatchNewState(stopState)
-            videoClock.setClock(stopState.mediaInfo.duration, -1)
+
+            // Update clocks and pause them.
+            videoClock.setClock(stopState.mediaInfo.duration, videoPacketQueue.getSerial())
             videoClock.pause()
-            audioClock.setClock(stopState.mediaInfo.duration, -1)
+            audioClock.setClock(stopState.mediaInfo.duration, audioPacketQueue.getSerial())
             audioClock.pause()
-            externalClock.setClock(stopState.mediaInfo.duration, -1)
+            externalClock.setClock(stopState.mediaInfo.duration, audioPacketQueue.getSerial())
             externalClock.pause()
+
+            // Pause renderers
             audioRenderer.pause()
             videoRenderer.pause()
             dispatchProgress(stopState.mediaInfo.duration, false)
@@ -359,15 +355,22 @@ class tMediaPlayer(
                     }
                     dispatchNewState(tMediaPlayerState.Released)
                     listener.set(null)
-                    audioPacketQueue.release()
-                    videoPacketQueue.release()
-                    audioFrameQueue.release()
-                    videoFrameQueue.release()
+
+                    // Packet reader
                     packetReader.release()
+                    // Decoders
                     audioDecoder.release()
                     videoDecoder.release()
+                    // Renders
                     audioRenderer.release()
                     videoRenderer.release()
+
+                    // Packet queues
+                    audioPacketQueue.release()
+                    videoPacketQueue.release()
+                    // Frame queues
+                    audioFrameQueue.release()
+                    videoFrameQueue.release()
                     MediaLog.d(TAG, "Release player")
                 }
             }
@@ -376,17 +379,10 @@ class tMediaPlayer(
     }
 
     override fun getProgress(): Long {
-        val info = getMediaInfo()
-        return if (info != null) {
-            if (info.audioStreamInfo != null) {
-                audioClock.getClock()
-            } else if (info.videoStreamInfo != null) {
-                videoClock.getClock()
-            } else {
-                0L
-            }
-        } else {
-            0L
+        return when (getSyncType()) {
+            VideoMaster -> videoClock.getClock()
+            AudioMaster -> audioClock.getClock()
+            ExternalClock -> externalClock.getClock()
         }
     }
 
@@ -411,17 +407,19 @@ class tMediaPlayer(
     internal fun seekResult(position: Long, result: OptResult) {
         val state = getState()
         if (result == OptResult.Success) {
+            // Audio renderer
             audioRenderer.flush()
-            audioPacketQueue.flushReadableBuffer()
-            videoPacketQueue.flushReadableBuffer()
+            // Frame queues
             audioFrameQueue.flushReadableBuffer()
             videoFrameQueue.flushReadableBuffer()
+            // Decoders
             audioDecoder.requestDecode()
             videoDecoder.requestDecode()
-
+            // Clocks
             videoClock.setClock(position, videoPacketQueue.getSerial())
             audioClock.setClock(position, audioPacketQueue.getSerial())
             externalClock.setClock(position, audioPacketQueue.getSerial())
+
             dispatchProgress(position, false)
         }
         val mediaInfo = getMediaInfo()
@@ -429,6 +427,7 @@ class tMediaPlayer(
             val lastState = state.lastState
             if (result == OptResult.Success) {
                 if (lastState !is tMediaPlayerState.Playing) {
+                    // If new state is pause, force render a video frame.
                     dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
                     if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
                         videoRenderer.requestRenderForce()
@@ -440,6 +439,7 @@ class tMediaPlayer(
                 dispatchNewState(lastState)
             }
         } else {
+            // Stop and PlayEnd state replay.
             MediaLog.d(TAG, "Wrong state for handing seeking result: $state")
         }
     }
@@ -458,7 +458,7 @@ class tMediaPlayer(
             if (mediaInfo.audioStreamInfo != null) {
                 AudioMaster
             } else {
-                ExternalClock
+                VideoMaster
             }
         } else {
             ExternalClock
@@ -615,12 +615,14 @@ class tMediaPlayer(
             ) {
                 MediaLog.d(TAG, "Render end.")
                 dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
+                // Clocks
                 videoClock.setClock(mediaInfo.duration, videoPacketQueue.getSerial())
                 videoClock.pause()
                 audioClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
                 audioClock.pause()
                 externalClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
                 externalClock.pause()
+                // Renders
                 audioRenderer.pause()
                 videoRenderer.pause()
             }

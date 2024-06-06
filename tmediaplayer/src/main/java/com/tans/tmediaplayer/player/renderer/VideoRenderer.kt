@@ -96,6 +96,7 @@ internal class VideoRenderer(
                                 val state = getState()
                                 val mediaInfo = player.getMediaInfo()
                                 if (mediaInfo != null && state in canRenderStates) {
+                                    // If now is waiting buffer, sync play state from player
                                     if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Playing) {
                                         this@VideoRenderer.state.set(RendererState.Playing)
                                         requestRender()
@@ -117,6 +118,9 @@ internal class VideoRenderer(
                                             return@synchronized
                                         }
                                         if (!frame.isEof) {
+                                            if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
+                                                this@VideoRenderer.state.set(RendererState.Playing)
+                                            }
                                             val lastFrame = lastRenderFrame
                                             if (frame.serial != lastFrame.serial) {
                                                 MediaLog.d(TAG, "Serial changed, reset frame timer.")
@@ -153,10 +157,6 @@ internal class VideoRenderer(
                                             }
 
                                             renderVideoFrame(frame)
-
-                                            if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
-                                                this@VideoRenderer.state.set(RendererState.Playing)
-                                            }
                                             requestRender(VIDEO_REFRESH_RATE)
                                         } else {
                                             lastRenderFrame = LastRenderFrame(frame)
@@ -309,6 +309,7 @@ internal class VideoRenderer(
         while (!isLooperPrepared.get()) {}
         videoRendererHandler
         state.set(RendererState.Paused)
+        MediaLog.d(TAG, "Video renderer inited.")
     }
 
     fun play() {
@@ -349,7 +350,11 @@ internal class VideoRenderer(
         if (state != RendererState.NotInit && state != RendererState.Released) {
             if (renderForce.compareAndSet(false, true)) {
                 requestRender()
+            } else {
+                MediaLog.e(TAG, "Force render error, already have a force render task.")
             }
+        } else {
+            MediaLog.e(TAG, "Force render error, because of state: $state")
         }
     }
 
@@ -361,6 +366,7 @@ internal class VideoRenderer(
                 this.playerView.set(null)
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
+                MediaLog.d(TAG, "Video renderer released.")
             } else {
                 MediaLog.e(TAG, "Release error, because of state: $state")
             }

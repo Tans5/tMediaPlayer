@@ -78,7 +78,6 @@ internal class AudioFrameDecoder(
                                                 frame.serial = packetSerial
                                                 audioFrameQueue.enqueueReadable(frame)
                                                 MediaLog.d(TAG, "Decode audio frame eof.")
-                                                skipNextPktRead = false
                                                 this@AudioFrameDecoder.state.set(DecoderState.Eof)
                                                 player.readableAudioFrameReady()
                                             } else {
@@ -111,7 +110,9 @@ internal class AudioFrameDecoder(
                                                 }
                                                 val end = SystemClock.uptimeMillis()
                                                 MediaLog.d(TAG, "Decode audio cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, audioFrame=${audioFrame}")
-
+                                                if (state != DecoderState.Ready) {
+                                                    this@AudioFrameDecoder.state.set(DecoderState.Ready)
+                                                }
                                             }
                                             if (pkt != null) {
                                                 audioPacketQueue.enqueueWritable(pkt)
@@ -141,6 +142,7 @@ internal class AudioFrameDecoder(
         while (!isLooperPrepared.get()) {}
         audioDecoderHandler
         state.set(DecoderState.Ready)
+        MediaLog.d(TAG, "Audio decoder inited.")
     }
 
     fun requestDecode() {
@@ -148,39 +150,35 @@ internal class AudioFrameDecoder(
         if (state in activeStates) {
             audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
             audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+        } else {
+            MediaLog.e(TAG, "Request decode fail, wrong state: $state")
         }
     }
 
     fun readablePacketReady() {
         val state = getState()
         if (state == DecoderState.WaitingReadablePacketBuffer) {
-            audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
-            audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+            requestDecode()
         }
     }
 
     fun writeableFrameReady() {
         val state = getState()
         if (state == DecoderState.WaitingWritableFrameBuffer) {
-            audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
-            audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
-        }
-    }
-
-    fun removeAllHandlerMessages() {
-        for (e in DecoderHandlerMsg.entries) {
-            audioDecoderHandler.removeMessages(e.ordinal)
+            requestDecode()
         }
     }
 
     fun release() {
         synchronized(this) {
             val oldState = getState()
-            if (oldState in activeStates) {
+            if (oldState != DecoderState.NotInit && oldState != DecoderState.Released) {
                 state.set(DecoderState.Released)
-                removeAllHandlerMessages()
                 audioDecoderThread.quit()
                 audioDecoderThread.quitSafely()
+                MediaLog.d(TAG, "Video decoder released.")
+            } else {
+                MediaLog.e(TAG, "Release fail, wrong state: $oldState")
             }
         }
     }
