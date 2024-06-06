@@ -20,8 +20,7 @@ object tMediaFrameLoader {
 
     fun loadMediaFileFrame(
         mediaFile: String,
-        position: Long = 0L,
-        needRealTime: Boolean = false
+        position: Long = 0L
     ): Bitmap? {
         val file = File(mediaFile)
         if (file.isFile && file.canRead()) {
@@ -36,7 +35,6 @@ object tMediaFrameLoader {
                 result = getFrameNative(
                     nativeFrameLoader = nativeLoader,
                     position = min(max(0, position), videoDuration),
-                    needRealTime = needRealTime
                 ).toOptResult()
                 if (result != OptResult.Success) {
                     return null
@@ -52,7 +50,7 @@ object tMediaFrameLoader {
             } finally {
                 releaseNative(nativeLoader)
                 val end = SystemClock.uptimeMillis()
-                MediaLog.d(TAG, "Load frame $mediaFile: position=$position, needRealTime=$needRealTime, cost=${end - start}ms")
+                MediaLog.d(TAG, "Load frame $mediaFile: position=$position, cost=${end - start}ms")
             }
         } else {
             return null
@@ -63,7 +61,7 @@ object tMediaFrameLoader {
 
     private external fun prepareNative(nativeFrameLoader: Long, filePath: String): Int
 
-    private external fun getFrameNative(nativeFrameLoader: Long, position: Long, needRealTime: Boolean): Int
+    private external fun getFrameNative(nativeFrameLoader: Long, position: Long): Int
 
     private external fun durationNative(nativeFrameLoader: Long): Long
 

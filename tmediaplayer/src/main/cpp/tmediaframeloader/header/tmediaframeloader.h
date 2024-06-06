@@ -42,9 +42,9 @@ typedef struct tMediaFrameLoaderContext {
 
     tMediaOptResult prepare(const char * media_file);
 
-    tMediaOptResult getFrame(long framePosition, bool needRealTime);
+    tMediaOptResult getFrame(long framePosition);
 
-    tMediaOptResult decodeForGetFrame(long framePosition, double minStepInMillis, bool needRealTime, int maxVideoDoCircleTimes);
+    tMediaOptResult decodeForGetFrame();
 
     tMediaOptResult parseDecodeVideoFrameToBuffer();
 

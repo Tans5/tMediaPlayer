@@ -41,13 +41,12 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getFrameNative(
         JNIEnv * env,
         jobject j_frame_loader,
         jlong native_loader,
-        jlong position,
-        jboolean needRealTime) {
+        jlong position) {
     auto *loader = reinterpret_cast<tMediaFrameLoaderContext*>(native_loader);
     if (loader == nullptr) {
         return OptFail;
     }
-    return loader->getFrame(position, needRealTime);
+    return loader->getFrame(position);
 }
 
 extern "C" JNIEXPORT jlong JNICALL
