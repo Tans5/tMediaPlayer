@@ -342,7 +342,7 @@ class AsciiArtImageFilter : ImageFilter {
         }
     }
 
-    private inline fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
+    private fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
 
     private val lastCharOffsetCacheArray: AtomicReference<FloatArrayBufferCache?> by lazy {
         AtomicReference(null)
