@@ -77,15 +77,6 @@ internal class AudioRenderer(
                             val state = getState()
                             val mediaInfo = player.getMediaInfo()
                             if (mediaInfo != null && state in canRenderStates) {
-                                if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Playing) {
-                                    this@AudioRenderer.state.set(RendererState.Playing)
-                                    requestRender()
-                                    return@synchronized
-                                }
-                                if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Paused) {
-                                    this@AudioRenderer.state.set(RendererState.Paused)
-                                    return@synchronized
-                                }
                                 val frame = audioFrameQueue.dequeueReadable()
                                 if (frame != null) {
                                     if (frame.serial != audioPacketQueue.getSerial()) {
@@ -147,29 +138,28 @@ internal class AudioRenderer(
     }
 
     fun play() {
-        val state = getState()
-        if (state == RendererState.Paused ||
-            state == RendererState.Eof ||
-            state == RendererState.WaitingReadableFrameBuffer) {
-            if (state == RendererState.Paused || state == RendererState.Eof) {
+        synchronized(this) {
+            val state = getState()
+            if (state == RendererState.Paused ||
+                state == RendererState.Eof) {
                 this.state.set(RendererState.Playing)
+                requestRender()
+                audioTrack.play()
+            } else {
+                MediaLog.e(TAG, "Play error, because of state: $state")
             }
-            requestRender()
-            audioTrack.play()
-        } else {
-            MediaLog.e(TAG, "Play error, because of state: $state")
         }
     }
 
     fun pause() {
-        val state = getState()
-        if (state in canRenderStates) {
-            if (state == RendererState.Playing || state == RendererState.Eof) {
+        synchronized(this) {
+            val state = getState()
+            if (state in canRenderStates) {
                 this.state.set(RendererState.Paused)
+                audioTrack.pause()
+            } else {
+                MediaLog.e(TAG, "Pause error, because of state: $state")
             }
-            audioTrack.pause()
-        } else {
-            MediaLog.e(TAG, "Pause error, because of state: $state")
         }
     }
 

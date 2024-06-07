@@ -92,20 +92,9 @@ internal class VideoRenderer(
                                     MediaLog.d(TAG, "Force render waiting readable video frame")
                                 }
                             } else {
-                                val playerState = player.getState()
                                 val state = getState()
                                 val mediaInfo = player.getMediaInfo()
                                 if (mediaInfo != null && state in canRenderStates) {
-                                    // If now is waiting buffer, sync play state from player
-                                    if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Playing) {
-                                        this@VideoRenderer.state.set(RendererState.Playing)
-                                        requestRender()
-                                        return@synchronized
-                                    }
-                                    if (state == RendererState.WaitingReadableFrameBuffer && playerState is tMediaPlayerState.Paused) {
-                                        this@VideoRenderer.state.set(RendererState.Paused)
-                                        return@synchronized
-                                    }
                                     val frame = videoFrameQueue.peekReadable()
                                     if (frame != null) {
                                         if (frame.serial != videoPacketQueue.getSerial()) {
@@ -313,28 +302,27 @@ internal class VideoRenderer(
     }
 
     fun play() {
-        val state = getState()
-        if (state == RendererState.Paused ||
-            state == RendererState.Eof ||
-            state == RendererState.WaitingReadableFrameBuffer
-        ) {
-            if (state == RendererState.Paused || state == RendererState.Eof) {
+        synchronized(this) {
+            val state = getState()
+            if (state == RendererState.Paused ||
+                state == RendererState.Eof
+            ) {
                 this.state.set(RendererState.Playing)
+                requestRender()
+            } else {
+                MediaLog.e(TAG, "Play error, because of state: $state")
             }
-            requestRender()
-        } else {
-            MediaLog.e(TAG, "Play error, because of state: $state")
         }
     }
 
     fun pause() {
-        val state = getState()
-        if (state in canRenderStates) {
-            if (state == RendererState.Playing || state == RendererState.Eof) {
+        synchronized(this) {
+            val state = getState()
+            if (state in canRenderStates) {
                 this.state.set(RendererState.Paused)
+            } else {
+                MediaLog.e(TAG, "Pause error, because of state: $state")
             }
-        } else {
-            MediaLog.e(TAG, "Pause error, because of state: $state")
         }
     }
 

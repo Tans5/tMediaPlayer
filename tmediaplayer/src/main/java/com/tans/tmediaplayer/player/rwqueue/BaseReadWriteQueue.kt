@@ -15,15 +15,15 @@ internal abstract class BaseReadWriteQueue<T : Any> {
         AtomicInteger(0)
     }
 
-    protected val isReleased: AtomicBoolean by lazy {
+    private val isReleased: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
 
-    protected val readableQueue: LinkedBlockingDeque<T> by lazy {
+    private val readableQueue: LinkedBlockingDeque<T> by lazy {
         LinkedBlockingDeque<T>()
     }
 
-    protected val writeableQueue: LinkedBlockingDeque<T> by lazy {
+    private val writeableQueue: LinkedBlockingDeque<T> by lazy {
         LinkedBlockingDeque<T>()
     }
 
@@ -72,7 +72,7 @@ internal abstract class BaseReadWriteQueue<T : Any> {
                 if (writeableQueueSize() > 0) {
                     true
                 } else {
-                    maxQueueSize - currentQueueSize.get() > 1
+                    maxQueueSize > getCurrentQueueSize()
                 }
             }
         }
@@ -82,7 +82,7 @@ internal abstract class BaseReadWriteQueue<T : Any> {
         if (isReleased.get()) {
             recycleBuffer(b)
         } else {
-            if (getCurrentQueueSize() >= maxQueueSize) {
+            if (maxQueueSize != INFINITY_MAX_QUEUE_SIZE && getCurrentQueueSize() > maxQueueSize) {
                 recycleBuffer(b)
                 currentQueueSize.decrementAndGet()
             } else {
