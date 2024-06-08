@@ -70,6 +70,7 @@ internal class PacketReader(
                                                 val eofPkt = videoPacketQueue.dequeueWriteableForce()
                                                 eofPkt.isEof = true
                                                 videoPacketQueue.enqueueReadable(eofPkt)
+                                                player.readableVideoPacketReady()
                                                 MediaLog.d(TAG, "Read video attachment.")
                                             } else {
                                                 MediaLog.d(TAG, "Skip handle video attachment.")

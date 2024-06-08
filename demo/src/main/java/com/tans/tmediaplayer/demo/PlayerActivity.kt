@@ -21,6 +21,9 @@ import com.tans.tuiutils.view.clicks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @FullScreenStyle
@@ -75,8 +78,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
             when (loadResult) {
                 OptResult.Success -> {
-                    delay(100)
-                    mediaPlayer.play()
                     Log.d(TAG, "Load media file success.")
                 }
 
@@ -91,7 +92,12 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         tMediaFrameLoader
         val viewBinding = PlayerActivityBinding.bind(contentView)
 
-        mediaPlayer.attachPlayerView(viewBinding.playerView)
+        launch {
+            stateFlow.map { it.playerState }.filterIsInstance<tMediaPlayerState.Prepared>().first()
+            mediaPlayer.attachPlayerView(viewBinding.playerView)
+            mediaPlayer.play()
+        }
+
 
         renderStateNewCoroutine({ it.progress.duration }) { duration ->
             viewBinding.durationTv.text = duration.formatDuration()
