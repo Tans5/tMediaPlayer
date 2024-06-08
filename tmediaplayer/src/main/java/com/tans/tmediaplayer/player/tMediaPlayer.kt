@@ -290,7 +290,7 @@ class tMediaPlayer(
         }
         val mediaInfo = getMediaInfo()
         return if (mediaInfo != null && seekingState != null) {
-            if (position !in 0 until mediaInfo.duration) {
+            if (position !in 0 .. mediaInfo.duration) {
                 MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
@@ -612,7 +612,7 @@ class tMediaPlayer(
         val state = getState()
         if (state is tMediaPlayerState.Playing) {
             val mediaInfo = state.mediaInfo
-            if ((mediaInfo.videoStreamInfo == null || videoRenderer.getState() == RendererState.Eof) &&
+            if ((mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
                 (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
             ) {
                 MediaLog.d(TAG, "Render end.")

@@ -74,6 +74,7 @@ internal class PacketReader(
                                             } else {
                                                 MediaLog.d(TAG, "Skip handle video attachment.")
                                             }
+                                            requestReadPkt()
                                         }
                                         ReadPacketResult.ReadVideoSuccess -> {
                                             val pkt = videoPacketQueue.dequeueWriteableForce()
