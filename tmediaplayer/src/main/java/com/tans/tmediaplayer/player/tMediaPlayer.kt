@@ -176,6 +176,7 @@ class tMediaPlayer(
 
                         // Start reader and decoders
                         packetReader.requestReadPkt()
+                        packetReader.requestAttachment()
                         audioDecoder.requestDecode()
                         videoDecoder.requestDecode()
 
@@ -289,7 +290,7 @@ class tMediaPlayer(
         }
         val mediaInfo = getMediaInfo()
         return if (mediaInfo != null && seekingState != null) {
-            if (position !in 0 .. mediaInfo.duration) {
+            if (position !in 0 until mediaInfo.duration) {
                 MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
                 OptResult.Fail
             } else {
@@ -331,6 +332,7 @@ class tMediaPlayer(
 
             // Pause renderers
             audioRenderer.pause()
+            audioRenderer.flush()
             videoRenderer.pause()
             dispatchProgress(stopState.mediaInfo.duration, false)
             OptResult.Success
@@ -624,6 +626,7 @@ class tMediaPlayer(
                 externalClock.pause()
                 // Renders
                 audioRenderer.pause()
+                audioRenderer.flush()
                 videoRenderer.pause()
             }
         }

@@ -100,10 +100,13 @@ internal class AudioRenderer(
                                         }
                                         requestRender()
                                     } else {
+                                        while (audioTrack.getBufferQueueCount() > 0) {
+                                            MediaLog.d(TAG, "Waiting audio track buffer finish.")
+                                            Thread.sleep(6)
+                                        }
                                         while (waitingRenderFrames.isNotEmpty()) {
                                             val b = waitingRenderFrames.pollFirst()
                                             if (b != null) {
-                                                Thread.sleep(b.duration.coerceAtLeast(0))
                                                 audioFrameQueue.enqueueWritable(b)
                                             }
                                         }
@@ -167,13 +170,17 @@ internal class AudioRenderer(
         val state = getState()
         if (state != RendererState.NotInit && state != RendererState.Released) {
             audioTrack.clearBuffers()
+            var isAddWritingBuffer = false
             while (waitingRenderFrames.isNotEmpty()) {
                 val b = waitingRenderFrames.pollFirst()
                 if (b != null) {
                     audioFrameQueue.enqueueWritable(b)
+                    isAddWritingBuffer = true
                 }
             }
-            player.writeableAudioFrameReady()
+            if (isAddWritingBuffer) {
+                player.writeableAudioFrameReady()
+            }
         } else {
             MediaLog.e(TAG, "Flush error, because of state: $state")
         }

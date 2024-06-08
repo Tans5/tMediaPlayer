@@ -36,6 +36,8 @@ internal class PacketReader(
 
     private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer)
 
+    private val requestAttachment: AtomicBoolean = AtomicBoolean(true)
+
     private val pktReaderHandler: Handler by lazy {
         object : Handler(pktReaderThread.looper) {
             override fun handleMessage(msg: Message) {
@@ -59,17 +61,24 @@ internal class PacketReader(
                                     MediaLog.d(TAG, "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration")
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
-                                    when (val result = player.readPacketInternal(nativePlayer)) {
-                                        ReadPacketResult.ReadVideoSuccess, ReadPacketResult.ReadVideoAttachmentSuccess -> {
-                                            val pkt = videoPacketQueue.dequeueWriteableForce()
-                                            player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
-                                            videoPacketQueue.enqueueReadable(pkt)
-                                            if (result == ReadPacketResult.ReadVideoAttachmentSuccess) {
+                                    when (player.readPacketInternal(nativePlayer)) {
+                                        ReadPacketResult.ReadVideoAttachmentSuccess -> {
+                                            if (requestAttachment.compareAndSet(true, false)) {
+                                                val pkt = videoPacketQueue.dequeueWriteableForce()
+                                                player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
+                                                videoPacketQueue.enqueueReadable(pkt)
                                                 val eofPkt = videoPacketQueue.dequeueWriteableForce()
                                                 eofPkt.isEof = true
                                                 videoPacketQueue.enqueueReadable(eofPkt)
                                                 MediaLog.d(TAG, "Read video attachment.")
+                                            } else {
+                                                MediaLog.d(TAG, "Skip handle video attachment.")
                                             }
+                                        }
+                                        ReadPacketResult.ReadVideoSuccess -> {
+                                            val pkt = videoPacketQueue.dequeueWriteableForce()
+                                            player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
+                                            videoPacketQueue.enqueueReadable(pkt)
                                             MediaLog.d(TAG, "Read video pkt: $pkt")
                                             player.readableVideoPacketReady()
                                             requestReadPkt()
@@ -166,6 +175,10 @@ internal class PacketReader(
         } else {
             MediaLog.e(TAG, "Request seek fail, wrong state: $state")
         }
+    }
+
+    fun requestAttachment() {
+        requestAttachment.set(true)
     }
 
     fun writeablePacketBufferReady() {
