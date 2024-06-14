@@ -99,9 +99,13 @@ internal class VideoRenderer(
                                     if (frame != null) {
                                         if (frame.serial != videoPacketQueue.getSerial()) {
                                             lastRenderFrame = LastRenderFrame(frame)
-                                            videoFrameQueue.dequeueReadable()
-                                            videoFrameQueue.enqueueWritable(frame)
-                                            player.writeableVideoFrameReady()
+                                            val frameToCheck = videoFrameQueue.dequeueReadable()
+                                            if (frameToCheck === frame) {
+                                                videoFrameQueue.enqueueWritable(frame)
+                                                player.writeableVideoFrameReady()
+                                            } else {
+                                                MediaLog.e(TAG, "Wrong render frame: $frame")
+                                            }
                                             MediaLog.d(TAG, "Serial changed, skip render.")
                                             requestRender()
                                             return@synchronized
@@ -124,8 +128,13 @@ internal class VideoRenderer(
                                                 requestRender(remainingTime)
                                                 return@synchronized
                                             }
+                                            val frameToCheck = videoFrameQueue.dequeueReadable()
+                                            if (frame !== frameToCheck) {
+                                                MediaLog.e(TAG, "Wrong render frame: $frame")
+                                                requestRender()
+                                                return@synchronized
+                                            }
                                             lastRenderFrame = LastRenderFrame(frame)
-                                            videoFrameQueue.dequeueReadable()
                                             frameTimer += delay
                                             if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
                                                 MediaLog.e(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
@@ -139,9 +148,13 @@ internal class VideoRenderer(
                                                 val duration = frameDuration(lastRenderFrame, nextFrame)
                                                 if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
                                                     MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
-                                                    videoFrameQueue.dequeueReadable()
-                                                    videoFrameQueue.enqueueWritable(nextFrame)
-                                                    player.writeableVideoFrameReady()
+                                                    val nextFrameToCheck = videoFrameQueue.dequeueReadable()
+                                                    if (nextFrameToCheck === nextFrame) {
+                                                        videoFrameQueue.enqueueWritable(nextFrame)
+                                                        player.writeableVideoFrameReady()
+                                                    } else {
+                                                        MediaLog.e(TAG, "Wrong render frame: $nextFrame")
+                                                    }
                                                 }
                                             }
 

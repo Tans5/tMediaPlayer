@@ -9,4 +9,12 @@ internal class AudioFrame(val nativeFrame: Long) {
     override fun toString(): String {
         return "[pts=$pts,duration=${duration},serial=${serial},isEof=${isEof}]"
     }
+
+    override fun hashCode(): Int {
+        return nativeFrame.hashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is AudioFrame && other.nativeFrame == nativeFrame
+    }
 }
