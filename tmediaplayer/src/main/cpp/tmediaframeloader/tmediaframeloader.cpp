@@ -65,21 +65,6 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
         LOGE("Open video decoder ctx fail: %d", result);
         return OptFail;
     }
-    this->sws_ctx = sws_getContext(
-            video_width,
-            video_height,
-            video_decoder_ctx->pix_fmt,
-            video_width,
-            video_height,
-            AV_PIX_FMT_RGBA,
-            SWS_BICUBIC,
-            nullptr,
-            nullptr,
-            nullptr);
-    if (sws_ctx == nullptr) {
-        LOGE("Open video decoder get sws ctx fail.");
-        return OptFail;
-    }
 
     // decode need buffers.
     this->pkt = av_packet_alloc();
