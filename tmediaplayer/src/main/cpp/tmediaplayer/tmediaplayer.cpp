@@ -166,15 +166,15 @@ tMediaOptResult tMediaPlayerContext::prepare(
                 case AV_CODEC_ID_HEVC:
                     hwCodecName = "hevc_mediacodec";
                     break;
-                case AV_CODEC_ID_AV1:
-                    hwCodecName = "av1_mediacodec";
-                    break;
-                case AV_CODEC_ID_VP8:
-                    hwCodecName = "vp8_mediacodec";
-                    break;
-                case AV_CODEC_ID_VP9:
-                    hwCodecName = "vp9_mediacodec";
-                    break;
+//                case AV_CODEC_ID_AV1:
+//                    hwCodecName = "av1_mediacodec";
+//                    break;
+//                case AV_CODEC_ID_VP8:
+//                    hwCodecName = "vp8_mediacodec";
+//                    break;
+//                case AV_CODEC_ID_VP9:
+//                    hwCodecName = "vp9_mediacodec";
+//                    break;
                 default:
                     useHwDecoder = false;
                     break;
@@ -391,6 +391,7 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
     }
     bool skipNextReadPkt = ret == AVERROR(EAGAIN);
     if (ret < 0 && ret != AVERROR(EAGAIN)) {
+        LOGE("%s send packet fail: %d", codec_ctx->codec->name ,ret);
         return DecodeFail;
     }
     av_frame_unref(frame);
@@ -406,6 +407,7 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
         if (ret == AVERROR_EOF) {
             return DecodeEnd;
         }
+        LOGE("%s receive frame fail: %d", codec_ctx->codec->name, ret);
         return DecodeFail;
     } else {
         if (skipNextReadPkt) {
