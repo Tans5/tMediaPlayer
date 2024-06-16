@@ -189,6 +189,8 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
         video_height = h;
     }
 
+    videoBuffer->width = w;
+    videoBuffer->height = h;
     // Alloc new RGBA frame and buffer if need.
     int rgbaContentSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, videoBuffer->width, videoBuffer->height, 1);
     if (rgbaContentSize > videoBuffer->rgbaBufferSize ||
@@ -201,12 +203,10 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
 
     }
     videoBuffer->rgbaContentSize = rgbaContentSize;
-    videoBuffer->width = w;
-    videoBuffer->height = h;
     // Convert to rgba.
     uint8_t* data[AV_NUM_DATA_POINTERS] = {videoBuffer->rgbaBuffer};
     int lineSize[AV_NUM_DATA_POINTERS];
-    av_image_fill_linesizes(lineSize, AV_PIX_FMT_RGBA, videoBuffer->height);
+    av_image_fill_linesizes(lineSize, AV_PIX_FMT_RGBA, videoBuffer->width);
     int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, data, lineSize);
     if (result < 0) {
         // Convert fail.
