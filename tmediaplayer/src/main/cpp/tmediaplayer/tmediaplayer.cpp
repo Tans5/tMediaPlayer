@@ -439,8 +439,9 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
     if (format == AV_PIX_FMT_YUV420P) {
         videoBuffer->width = w;
         videoBuffer->height = h;
-        int ySize = w * h;
-        int uSize = ySize / 4;
+        int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, w, h, 1);
+        int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, w, h, 1);
+        int uSize = (yuvSize - ySize) / 2 + 1;
         int vSize = uSize;
 
         // alloc Y buffer if need.
@@ -472,10 +473,12 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         uint8_t *yBuffer = videoBuffer->yBuffer;
         uint8_t *uBuffer = videoBuffer->uBuffer;
         uint8_t *vBuffer = videoBuffer->vBuffer;
+        int lineSize[AV_NUM_DATA_POINTERS];
+        av_image_fill_linesizes(lineSize, AV_PIX_FMT_YUV420P, w);
         // Copy yuv data to video frame.
-        av_image_copy_plane(yBuffer, w, video_frame->data[0], video_frame->linesize[0], w, h);
-        av_image_copy_plane(uBuffer, w / 2, video_frame->data[1], video_frame->linesize[1], w / 2, h / 2);
-        av_image_copy_plane(vBuffer, w / 2, video_frame->data[2], video_frame->linesize[2], w / 2, h / 2);
+        av_image_copy_plane(yBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
+        av_image_copy_plane(uBuffer, lineSize[1], video_frame->data[1], video_frame->linesize[1], lineSize[1], h / 2);
+        av_image_copy_plane(vBuffer, lineSize[2], video_frame->data[2], video_frame->linesize[2], lineSize[2], h / 2);
         videoBuffer->yContentSize = ySize;
         videoBuffer->uContentSize = uSize;
         videoBuffer->vContentSize = vSize;
@@ -483,8 +486,9 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
     } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21)) {
         videoBuffer->width = w;
         videoBuffer->height = h;
-        int ySize = w * h;
-        int uvSize = ySize / 2;
+        int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_NV12, w, h, 1);
+        int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, w, h, 1);
+        int uvSize = yuvSize - ySize;
         // alloc Y buffer if need.
         if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
             if (videoBuffer->yBuffer != nullptr) {
@@ -504,12 +508,12 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         }
         uint8_t *yBuffer = videoBuffer->yBuffer;
         uint8_t *uvBuffer = videoBuffer->uvBuffer;
+        int lineSize[AV_NUM_DATA_POINTERS];
+        av_image_fill_linesizes(lineSize, AV_PIX_FMT_NV12, w);
         // Copy Y buffer.
-        av_image_copy_plane(yBuffer, w, video_frame->data[0], video_frame->linesize[0], w, h);
-        // copyFrameData(yBuffer, frame->data[0], w, h, frame->linesize[0], 1);
+        av_image_copy_plane(yBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
         // Copy UV buffer.
-        av_image_copy_plane(uvBuffer, w, video_frame->data[1], video_frame->linesize[1], w, h / 2);
-        // copyFrameData(uvBuffer, frame->data[1], w / 2, h / 2, frame->linesize[1], 2);
+        av_image_copy_plane(uvBuffer, lineSize[1], video_frame->data[1], video_frame->linesize[1], lineSize[1], h / 2);
         videoBuffer->yContentSize = ySize;
         videoBuffer->uvContentSize = uvSize;
         if (video_frame->format == AV_PIX_FMT_NV12) {
@@ -520,7 +524,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
     } else if (format == AV_PIX_FMT_RGBA) {
         videoBuffer->width = w;
         videoBuffer->height = h;
-        int rgbaSize = w * h * 4;
+        int rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
         // alloc rgba data if need.
         if (videoBuffer->rgbaBufferSize < rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
             if (videoBuffer->rgbaBuffer != nullptr) {
@@ -530,7 +534,9 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
             videoBuffer->rgbaBufferSize = rgbaSize;
         }
         uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
-        av_image_copy_plane(rgbaBuffer, w * 4, video_frame->data[0], video_frame->linesize[0], w * 4, h);
+        int lineSize[AV_NUM_DATA_POINTERS];
+        av_image_fill_linesizes(lineSize, AV_PIX_FMT_RGBA, w);
+        av_image_copy_plane(rgbaBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
         // Copy RGBA data.
         // copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
         videoBuffer->rgbaContentSize = rgbaSize;
@@ -564,8 +570,9 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
 
         videoBuffer->width = w;
         videoBuffer->height = h;
-        int ySize = w * h;
-        int uSize = ySize / 4;
+        int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, w, h, 1);
+        int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, w, h, 1);
+        int uSize = (yuvSize - ySize) / 2 + 1;
         int vSize = uSize;
 
         // alloc Y buffer if need.
@@ -595,8 +602,9 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
             videoBuffer->vBufferSize = vSize;
         }
 
-        uint8_t *data[3] = {videoBuffer->yBuffer, videoBuffer->uBuffer, videoBuffer->vBuffer};
-        int lineSize[3] = {w, w / 2, w / 2};
+        uint8_t *data[AV_NUM_DATA_POINTERS] = {videoBuffer->yBuffer, videoBuffer->uBuffer, videoBuffer->vBuffer};
+        int lineSize[AV_NUM_DATA_POINTERS];
+        av_image_fill_linesizes(lineSize, AV_PIX_FMT_YUV420P, w);
         // Convert to yuv420p.
         int result = sws_scale(video_sws_ctx, video_frame->data, video_frame->linesize, 0, video_frame->height, data, lineSize);
         if (result < 0) {
