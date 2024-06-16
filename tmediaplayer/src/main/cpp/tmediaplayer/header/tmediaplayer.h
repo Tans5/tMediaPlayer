@@ -34,7 +34,6 @@ typedef struct tMediaVideoBuffer {
     ImageRawType type = UnknownImgType;
     int rgbaBufferSize = 0;
     int rgbaContentSize = 0;
-    AVFrame *rgbaFrame = nullptr;
     uint8_t *rgbaBuffer = nullptr;
     int yBufferSize = 0;
     int yContentSize = 0;

@@ -629,10 +629,6 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseVideoBufferNative(
         jobject j_player,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaVideoBuffer *>(native_buffer);
-    if (buffer->rgbaFrame != nullptr) {
-        av_frame_unref(buffer->rgbaFrame);
-        av_frame_free(&buffer->rgbaFrame);
-    }
     if (buffer->rgbaBuffer != nullptr) {
         free(buffer->rgbaBuffer);
     }

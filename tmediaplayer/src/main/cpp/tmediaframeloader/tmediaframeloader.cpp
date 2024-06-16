@@ -192,27 +192,21 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
     // Alloc new RGBA frame and buffer if need.
     int rgbaContentSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
     if (rgbaContentSize > videoBuffer->rgbaBufferSize ||
-        videoBuffer->rgbaFrame == nullptr) {
+        videoBuffer->rgbaBuffer == nullptr) {
         videoBuffer->rgbaBufferSize = rgbaContentSize;
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
         }
-        if (videoBuffer->rgbaFrame != nullptr) {
-            av_frame_free(&(videoBuffer->rgbaFrame));
-            videoBuffer->rgbaFrame = nullptr;
-        }
-        videoBuffer->rgbaFrame = av_frame_alloc();
         videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaContentSize * sizeof(uint8_t)));
-        // Fill rgbaBuffer to rgbaFrame
-        av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
-                             AV_PIX_FMT_RGBA, w, h, 1);
 
     }
     videoBuffer->rgbaContentSize = rgbaContentSize;
     videoBuffer->width = w;
     videoBuffer->height = h;
     // Convert to rgba.
-    int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+    uint8_t* data[1] = {videoBuffer->rgbaBuffer};
+    int lineSize[] = {w * 4};
+    int result = sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height, data, lineSize);
     if (result < 0) {
         // Convert fail.
         LOGE("Decode video sws scale fail: %d", result);
@@ -237,7 +231,6 @@ void tMediaFrameLoaderContext::release() {
 
     // Video Release.
     if (video_decoder_ctx != nullptr) {
-        avcodec_close(video_decoder_ctx);
         avcodec_free_context(&video_decoder_ctx);
     }
     if (sws_ctx != nullptr) {
@@ -246,11 +239,6 @@ void tMediaFrameLoaderContext::release() {
 
     // VideoBuffer
     if (videoBuffer != nullptr) {
-        // Free rgba.
-        if (videoBuffer->rgbaFrame != nullptr) {
-            av_frame_unref(videoBuffer->rgbaFrame);
-            av_frame_free(&videoBuffer->rgbaFrame);
-        }
         if (videoBuffer->rgbaBuffer != nullptr) {
             free(videoBuffer->rgbaBuffer);
         }

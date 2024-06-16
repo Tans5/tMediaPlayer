@@ -536,7 +536,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         videoBuffer->rgbaContentSize = rgbaSize;
         videoBuffer->type = Rgba;
     } else {
-        // Others format need to convert to RGBA.
+        // Others format need to convert to Yuv420p.
         if (w != video_width ||
             h != video_height ||
             video_sws_ctx == nullptr) {
@@ -551,7 +551,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
                     (AVPixelFormat) video_frame->format,
                     w,
                     h,
-                    AV_PIX_FMT_RGBA,
+                    AV_PIX_FMT_YUV420P,
                     SWS_BICUBIC,
                     nullptr,
                     nullptr,
@@ -562,37 +562,53 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
             }
         }
 
-        int rgbaSize = w * h * 4;
-        // Alloc new RGBA frame and buffer if need.
-        if (videoBuffer->rgbaBufferSize < rgbaSize ||
-            videoBuffer->rgbaBuffer == nullptr ||
-            videoBuffer->rgbaFrame == nullptr) {
-            LOGD("Decode video create new buffer.");
-            if (videoBuffer->rgbaBuffer != nullptr) {
-                free(videoBuffer->rgbaBuffer);
+        videoBuffer->width = w;
+        videoBuffer->height = h;
+        int ySize = w * h;
+        int uSize = ySize / 4;
+        int vSize = uSize;
+
+        // alloc Y buffer if need.
+        if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
+            if (videoBuffer->yBuffer != nullptr) {
+                free(videoBuffer->yBuffer);
             }
-            if (videoBuffer->rgbaFrame != nullptr) {
-                av_frame_free(&(videoBuffer->rgbaFrame));
-                videoBuffer->rgbaFrame = nullptr;
-            }
-            videoBuffer->rgbaFrame = av_frame_alloc();
-            videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaSize * sizeof(uint8_t)));
-            videoBuffer->rgbaBufferSize = rgbaSize;
-            videoBuffer->rgbaContentSize = rgbaSize;
-            // Fill rgbaBuffer to rgbaFrame
-            av_image_fill_arrays(videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize, videoBuffer->rgbaBuffer,
-                                 AV_PIX_FMT_RGBA, w, h, 1);
-            videoBuffer->width = w;
-            videoBuffer->height = h;
+            videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+            videoBuffer->yBufferSize = ySize;
         }
-        // Convert to rgba.
-        int result = sws_scale(video_sws_ctx, video_frame->data, video_frame->linesize, 0, video_frame->height, videoBuffer->rgbaFrame->data, videoBuffer->rgbaFrame->linesize);
+
+        // alloc U buffer if need.
+        if (videoBuffer->uBufferSize < uSize || videoBuffer->uBuffer == nullptr) {
+            if (videoBuffer->uBuffer != nullptr) {
+                free(videoBuffer->uBuffer);
+            }
+            videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
+            videoBuffer->uBufferSize = uSize;
+        }
+
+        // // alloc V buffer if need.
+        if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
+            if (videoBuffer->vBuffer != nullptr) {
+                free(videoBuffer->vBuffer);
+            }
+            videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
+            videoBuffer->vBufferSize = vSize;
+        }
+
+        uint8_t *data[3] = {videoBuffer->yBuffer, videoBuffer->uBuffer, videoBuffer->vBuffer};
+        int lineSize[3] = {w, w / 2, w / 2};
+        // Convert to yuv420p.
+        int result = sws_scale(video_sws_ctx, video_frame->data, video_frame->linesize, 0, video_frame->height, data, lineSize);
         if (result < 0) {
+            videoBuffer->type = UnknownImgType;
             // Convert fail.
             LOGE("Decode video sws scale fail: %d", result);
             return OptFail;
         }
-        videoBuffer->type = Rgba;
+        videoBuffer->yContentSize = ySize;
+        videoBuffer->uContentSize = uSize;
+        videoBuffer->vContentSize = vSize;
+        videoBuffer->type = Yuv420p;
     }
     auto time_base = video_stream->time_base;
     if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
@@ -700,7 +716,6 @@ void tMediaPlayerContext::release() {
 
     // Video Release.
     if (video_decoder_ctx != nullptr) {
-        avcodec_close(video_decoder_ctx);
         avcodec_free_context(&video_decoder_ctx);
         video_decoder_ctx = nullptr;
     }
@@ -725,7 +740,6 @@ void tMediaPlayerContext::release() {
 
     // Audio free.
     if (audio_decoder_ctx != nullptr) {
-        avcodec_close(audio_decoder_ctx);
         avcodec_free_context(&audio_decoder_ctx);
         audio_decoder_ctx = nullptr;
     }
