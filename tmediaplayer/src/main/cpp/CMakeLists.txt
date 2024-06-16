@@ -57,6 +57,13 @@ add_library( libswscale
 set_target_properties( libswscale
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswscale.so )
+
+add_library( libaom
+        SHARED
+        IMPORTED )
+set_target_properties( libamo
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libaom.so )
 # endregion
 
 # region android
@@ -97,7 +104,8 @@ target_link_libraries(
         libavformat
         libavutil
         libswresample
-        libswscale)
+        libswscale
+        libaom)
 # endregion
 
 # region tmediaframeloader
