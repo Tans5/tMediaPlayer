@@ -61,7 +61,7 @@ set_target_properties( libswscale
 add_library( libaom
         SHARED
         IMPORTED )
-set_target_properties( libamo
+set_target_properties( libaom
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libaom.so )
 # endregion
