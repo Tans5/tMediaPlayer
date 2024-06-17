@@ -508,7 +508,8 @@ class tMediaPlayer(
                 audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN,
                 audioBitrate = audioBitrateNative(nativePlayer),
                 audioSampleBitDepth = audioSampleBitDepthNative(nativePlayer),
-                audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.UNKNOWN
+                audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.UNKNOWN,
+                audioDecoderName = audioDecoderNameNative(nativePlayer)
             ).apply {
                 MediaLog.d(TAG, "Find audio stream: $this")
             }
@@ -528,7 +529,8 @@ class tMediaPlayer(
                 videoBitrate = videoBitrateNative(nativePlayer),
                 videoPixelBitDepth = videoPixelBitDepthNative(nativePlayer),
                 videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN,
-                isAttachment = videoStreamIsAttachmentNative(nativePlayer)
+                isAttachment = videoStreamIsAttachmentNative(nativePlayer),
+                videoDecoderName = videoDecoderNameNative(nativePlayer)
             ).apply {
                 MediaLog.d(TAG, "Find video stream: $this")
             }
@@ -540,6 +542,7 @@ class tMediaPlayer(
             nativePlayer = nativePlayer,
             duration = durationNative(nativePlayer),
             metadata = metadata,
+            containerName = getContainerNameNative(nativePlayer),
             audioStreamInfo = audioStreamInfo,
             videoStreamInfo = videoStreamInfo
         )
@@ -703,6 +706,8 @@ class tMediaPlayer(
     private external fun containAudioStreamNative(nativePlayer: Long): Boolean
 
     private external fun getMetadataNative(nativePlayer: Long): Array<String>
+
+    private external fun getContainerNameNative(nativePlayer: Long): String
     // endregion
 
     // region Native video stream info
@@ -725,6 +730,8 @@ class tMediaPlayer(
     private external fun videoDurationNative(nativePlayer: Long): Long
 
     private external fun videoCodecIdNative(nativePlayer: Long): Int
+
+    private external fun videoDecoderNameNative(nativePlayer: Long): String
     // endregion
 
     // region Native audio stream info
@@ -743,6 +750,8 @@ class tMediaPlayer(
     private external fun audioDurationNative(nativePlayer: Long): Long
 
     private external fun audioCodecIdNative(nativePlayer: Long): Int
+
+    private external fun audioDecoderNameNative(nativePlayer: Long): String
     // endregion
 
     // region Native packet buffer

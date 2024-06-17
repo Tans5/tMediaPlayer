@@ -49,7 +49,7 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
         viewBinding.metadataRv.adapter = SimpleAdapterBuilderImpl<String>(
             itemViewCreator = SingleItemViewCreatorImpl(R.layout.media_info_item_layout),
-            dataSource = FlowDataSourceImpl(flow { emit(mediaInfo.metadata.map { "${it.key}: ${it.value}" }) }),
+            dataSource = FlowDataSourceImpl(flow { emit(listOf("ContainerName: ${mediaInfo.containerName}") + mediaInfo.metadata.map { "${it.key}: ${it.value}" }) }),
             dataBinder = DataBinderImpl { data, itemView, _ ->
                 val itemViewBinding = MediaInfoItemLayoutBinding.bind(itemView)
                 itemViewBinding.keyValueTv.text = data
@@ -61,6 +61,7 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
             dataSource = FlowDataSourceImpl(flow {
                 val result = mutableListOf<String>()
                 mediaInfo.videoStreamInfo?.let {
+                    result.add("Decoder: ${it.videoDecoderName}")
                     result.add("Codec: ${it.videoCodec.name}")
                     result.add("Resolution: ${it.videoWidth}x${it.videoHeight}")
                     result.add("Fps: ${String.format(Locale.US, "%.1f", it.videoFps)}")
@@ -81,6 +82,7 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
             dataSource = FlowDataSourceImpl(flow {
                 val result = mutableListOf<String>()
                 mediaInfo.audioStreamInfo?.let {
+                    result.add("Decoder: ${it.audioDecoderName}")
                     result.add("Codec: ${it.audioCodec.name}")
                     result.add("Channels: ${it.audioChannels}")
                     result.add("SimpleRate: ${it.audioSimpleRate} Hz")

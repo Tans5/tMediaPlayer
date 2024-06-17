@@ -16,7 +16,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_createPlayerNative(
     auto player = new tMediaPlayerContext;
     player->jvm = jvm;
     player->jplayer = env->NewGlobalRef(j_player);
-    player->jplayerClazz = static_cast<jclass>(env->NewGlobalRef(
+    player->jplayerClazz = reinterpret_cast<jclass>(env->NewGlobalRef(
             env->FindClass("com/tans/tmediaplayer/player/tMediaPlayer")));
     return reinterpret_cast<jlong>(player);
 }
@@ -36,7 +36,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_prepareNative(
         return OptFail;
     }
     av_jni_set_java_vm(player->jvm, nullptr);
-    const char * file_path_chars = env->GetStringUTFChars(file_path, 0);
+    const char * file_path_chars = env->GetStringUTFChars(file_path, JNI_FALSE);
     return player->prepare(file_path_chars, requestHw, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
 }
 
@@ -208,15 +208,25 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getMetadataNative(
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     char ** metadata = player->metadata;
-    jclass stringClazz = static_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
-    jobjectArray  jarray = static_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(player->metadataCount * 2, stringClazz, nullptr)));
+    auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
+    auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(player->metadataCount * 2, stringClazz, nullptr)));
     for (int i = 0; i < player->metadataCount; i ++) {
-        jstring key = static_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2])));
-        jstring value = static_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2 + 1])));
+        auto key = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2])));
+        auto value = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2 + 1])));
         env->SetObjectArrayElement(jarray, i * 2, key);
         env->SetObjectArrayElement(jarray, i * 2 + 1, value);
     }
     return jarray;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getContainerNameNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto containerName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->containerName)));
+    return containerName;
 }
 // endregion
 
@@ -302,6 +312,16 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoCodecIdNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->video_codec_id;
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDecoderNameNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto decoderName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->videoDecoderName)));
+    return decoderName;
+}
 // endregion
 
 // region Audio stream info
@@ -376,6 +396,16 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioCodecIdNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->audio_codec_id;
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDecoderNameNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto decoderName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->audioDecoderName)));
+    return decoderName;
+}
 // endregion
 
 // region Packet buffer
@@ -395,7 +425,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getPacketPtsNative(
         JNIEnv * env,
         jobject j_player,
         jlong nativeBuffer) {
-    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    auto *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
     if (pkt->pts == AV_NOPTS_VALUE) {
         return 0L;
     } else {
@@ -408,7 +438,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getPacketDurationNative(
         JNIEnv * env,
         jobject j_player,
         jlong nativeBuffer) {
-    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    auto *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
     if (pkt->duration == AV_NOPTS_VALUE) {
         return 0L;
     } else {
@@ -421,7 +451,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getPacketBytesSizeNative(
         JNIEnv * env,
         jobject j_player,
         jlong nativeBuffer) {
-    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    auto *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
     return pkt->size;
 }
 
@@ -430,7 +460,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releasePacketNative(
         JNIEnv * env,
         jobject j_player,
         jlong nativeBuffer) {
-    AVPacket *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    auto *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
     av_packet_unref(pkt);
     av_packet_free(&pkt);
 }
