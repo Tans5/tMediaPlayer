@@ -18,5 +18,5 @@ enum class AudioSampleFormat(val formatId: Int) {
     DBLP(9),
     S64(10),
     S64P(11),
-    NB(12)
+    NB(12),
 }
