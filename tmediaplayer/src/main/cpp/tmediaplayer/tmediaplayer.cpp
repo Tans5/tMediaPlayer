@@ -96,6 +96,27 @@ tMediaOptResult tMediaPlayerContext::prepare(
         }
     }
 
+    // Container name
+    const char *containerNameLocal = nullptr;
+    if (format_ctx->iformat->long_name) {
+        containerNameLocal = format_ctx->iformat->long_name;
+    } else {
+        containerNameLocal = format_ctx->iformat->name;
+    }
+    int containerNameLen = 0;
+    if (containerNameLocal) {
+        containerNameLen = strlen(containerNameLocal);
+    }
+    if (containerName != nullptr) {
+        free(containerName);
+    }
+    containerName = static_cast<char *>(malloc((containerNameLen + 1) * sizeof(char)));
+    if (containerNameLocal) {
+        memcpy(containerName, containerNameLocal, containerNameLen);
+    }
+    containerName[containerNameLen] = '\0';
+    LOGD("Container name: %s", containerName);
+
     // Find out first audio stream and video stream.
     result = avformat_find_stream_info(format_ctx, nullptr);
     if (result < 0) {
@@ -272,7 +293,26 @@ tMediaOptResult tMediaPlayerContext::prepare(
         // video_decoder_ctx->thread_count = 1;
         decoder_open_success:
         this->video_pixel_format = video_decoder_ctx->pix_fmt;
-        LOGD("Prepare video decoder success.");
+        const char *codecName = nullptr;
+        if (video_decoder->long_name) {
+            codecName = video_decoder->long_name;
+        } else {
+            codecName = video_decoder->name;
+        }
+        int codecNameLen = 0;
+        if (codecName) {
+            codecNameLen = strlen(codecName);
+        }
+        if (videoDecoderName != nullptr) {
+            free(videoDecoderName);
+        }
+        videoDecoderName = static_cast<char *>(malloc((codecNameLen + 1) * sizeof(char)));
+        if (codecName) {
+            memcpy(videoDecoderName, codecName, codecNameLen);
+        }
+        videoDecoderName[codecNameLen] = '\0';
+
+        LOGD("Prepare video decoder success: %s", videoDecoderName);
         this->video_frame = av_frame_alloc();
         this->video_pkt = av_packet_alloc();
     }
@@ -282,7 +322,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         auto params = audio_stream->codecpar;
         this->audio_codec_id = params->codec_id;
         this->audio_bits_per_raw_sample = params->bits_per_raw_sample;
-        this->audio_bitrate = params->bit_rate;
+        this->audio_bitrate = (int) params->bit_rate;
         this->audio_decoder = avcodec_find_decoder(params->codec_id);
         if (!audio_decoder) {
             LOGE("Didn't find audio decoder.");
@@ -317,7 +357,25 @@ tMediaOptResult tMediaPlayerContext::prepare(
             LOGE("Init swr ctx fail: %d", result);
             return OptFail;
         }
-        LOGD("Prepare audio decoder success.");
+        const char *codecName = nullptr;
+        if (audio_decoder->long_name) {
+            codecName = audio_decoder->long_name;
+        } else {
+            codecName = audio_decoder->name;
+        }
+        int codecNameLen = 0;
+        if (codecName) {
+            codecNameLen = strlen(codecName);
+        }
+        if (audioDecoderName != nullptr) {
+            free(audioDecoderName);
+        }
+        audioDecoderName = static_cast<char *>(malloc((codecNameLen + 1) * sizeof(char)));
+        if (codecName) {
+            memcpy(audioDecoderName, codecName, codecNameLen);
+        }
+        audioDecoderName[codecNameLen] = '\0';
+        LOGD("Prepare audio decoder success: %s", codecName);
         this->audio_frame = av_frame_alloc();
         this->audio_pkt = av_packet_alloc();
     }
@@ -749,6 +807,10 @@ void tMediaPlayerContext::release() {
         }
         free(metadata);
     }
+    if (containerName != nullptr) {
+        free(containerName);
+        containerName = nullptr;
+    }
 
     // Video Release.
     if (video_decoder_ctx != nullptr) {
@@ -773,6 +835,10 @@ void tMediaPlayerContext::release() {
         av_packet_free(&video_pkt);
         video_pkt = nullptr;
     }
+    if (videoDecoderName != nullptr) {
+        free(videoDecoderName);
+        videoDecoderName = nullptr;
+    }
 
     // Audio free.
     if (audio_decoder_ctx != nullptr) {
@@ -792,6 +858,10 @@ void tMediaPlayerContext::release() {
         av_packet_unref(audio_pkt);
         av_packet_free(&audio_pkt);
         audio_pkt = nullptr;
+    }
+    if (audioDecoderName != nullptr) {
+        free(audioDecoderName);
+        audioDecoderName = nullptr;
     }
     free(this);
     LOGD("Release media player");

@@ -92,6 +92,7 @@ typedef struct tMediaPlayerContext {
 
     int metadataCount = 0;
     char ** metadata = nullptr;
+    char *containerName = nullptr;
 
     /**
      * Java
@@ -106,6 +107,7 @@ typedef struct tMediaPlayerContext {
     AVStream *video_stream = nullptr;
     AVBufferRef *hardware_ctx = nullptr;
     const AVCodec *video_decoder = nullptr;
+    char *videoDecoderName = nullptr;
     SwsContext * video_sws_ctx = nullptr;
     int video_width = 0;
     int video_height = 0;
@@ -125,6 +127,7 @@ typedef struct tMediaPlayerContext {
      */
     AVStream *audio_stream = nullptr;
     const AVCodec *audio_decoder = nullptr;
+    char *audioDecoderName = nullptr;
     AVCodecContext *audio_decoder_ctx = nullptr;
     SwrContext *audio_swr_ctx = nullptr;
     int audio_channels = 0;
