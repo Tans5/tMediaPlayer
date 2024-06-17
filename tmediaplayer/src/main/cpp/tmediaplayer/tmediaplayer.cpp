@@ -114,7 +114,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
                     videoIsAttachPic = s->disposition & AV_DISPOSITION_ATTACHED_PIC; // Is music files' picture, only have one frame.
                     this->video_duration = 0L;
                     if (s->time_base.den > 0 && s->duration > 0 && !videoIsAttachPic && s->duration != AV_NOPTS_VALUE) {
-                        this->video_duration = ((double)s->duration) * av_q2d(s->time_base) * 1000.0;
+                        this->video_duration = (long) (((double)s->duration) * av_q2d(s->time_base) * 1000.0);
                     }
                     LOGD("Find video stream: duration=%ld, isAttachPic=%d", video_duration, videoIsAttachPic);
                 }
@@ -126,7 +126,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
                     this->audio_stream = s;
                     this->audio_duration = 0L;
                     if (s->duration != AV_NOPTS_VALUE && s->time_base.den > 0 && s->duration > 0) {
-                        this->audio_duration = ((double)s->duration) * av_q2d(s->time_base) * 1000.0;
+                        this->audio_duration = (long) (((double)s->duration) * av_q2d(s->time_base) * 1000.0);
                     }
                     LOGD("Find audio stream: duration=%ld", audio_duration);
                 }
@@ -148,16 +148,18 @@ tMediaOptResult tMediaPlayerContext::prepare(
         this->video_width = params->width;
         this->video_height = params->height;
         this->video_bits_per_raw_sample = params->bits_per_raw_sample;
-        this->video_bitrate = params->bit_rate;
+        this->video_bitrate = (int) params->bit_rate;
         auto frameRate = av_guess_frame_rate(format_ctx, video_stream, nullptr);
         this->video_fps = 0.0;
         if (frameRate.den > 0 && frameRate.num > 0 && !videoIsAttachPic) {
             this->video_fps = av_q2d(frameRate);
         }
         this->video_codec_id = params->codec_id;
+
+        //region Hardware Decoder
         if (is_request_hw) {
             // Find android hardware codec.
-            bool useHwDecoder = true;
+            bool isFindHwDecoder = true;
             const char * hwCodecName;
             switch (params->codec_id) {
                 case AV_CODEC_ID_H264:
@@ -166,27 +168,27 @@ tMediaOptResult tMediaPlayerContext::prepare(
                 case AV_CODEC_ID_HEVC:
                     hwCodecName = "hevc_mediacodec";
                     break;
-//                case AV_CODEC_ID_AV1:
-//                    hwCodecName = "av1_mediacodec";
-//                    break;
-//                case AV_CODEC_ID_VP8:
-//                    hwCodecName = "vp8_mediacodec";
-//                    break;
-//                case AV_CODEC_ID_VP9:
-//                    hwCodecName = "vp9_mediacodec";
-//                    break;
+                case AV_CODEC_ID_AV1:
+                    hwCodecName = "av1_mediacodec";
+                    break;
+                case AV_CODEC_ID_VP8:
+                    hwCodecName = "vp8_mediacodec";
+                    break;
+                case AV_CODEC_ID_VP9:
+                    hwCodecName = "vp9_mediacodec";
+                    break;
                 default:
-                    useHwDecoder = false;
+                    isFindHwDecoder = false;
                     break;
             }
-            if (useHwDecoder) {
+            if (isFindHwDecoder) {
                 AVHWDeviceType hwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
                 if (hwDeviceType == AV_HWDEVICE_TYPE_NONE) {
-                    while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {
-                    }
+                    while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {}
                 }
                 const AVCodec *hwDecoder = avcodec_find_decoder_by_name(hwCodecName);
                 if (hwDecoder) {
+                    // find pixel format.
                     for (int i = 0; ; ++i) {
                         const AVCodecHWConfig *config = avcodec_get_hw_config(hwDecoder, i);
                         if (!config) {
@@ -201,70 +203,75 @@ tMediaOptResult tMediaPlayerContext::prepare(
                         this->video_decoder = hwDecoder;
                         result = av_hwdevice_ctx_create(&hardware_ctx, hwDeviceType, nullptr,
                                                         nullptr, 0);
-                        this->video_codec_id = hwDecoder->id;
-                        if (result < 0) {
-                            LOGE("Create hw device ctx fail: %d", result);
-                            return OptFail;
+                        if (result >= 0) {
+                            LOGD("Set up %s hw device ctx.", hwCodecName);
+                            this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
+                            if (video_decoder_ctx) {
+                                result = avcodec_parameters_to_context(video_decoder_ctx, params);
+                                if (result >= 0) {
+                                    video_decoder_ctx->get_format = get_hw_format;
+                                    video_decoder_ctx->hw_device_ctx = av_buffer_ref(hardware_ctx);
+                                    result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
+                                    if (result >= 0) {
+                                        LOGD("Open %s video hw decoder ctx success.", hwCodecName);
+                                        goto decoder_open_success;
+                                    } else {
+                                        avcodec_free_context(&video_decoder_ctx);
+                                        video_decoder_ctx = nullptr;
+                                        LOGE("Open %s video hw decoder ctx fail.", hwCodecName);
+                                    }
+                                } else {
+                                    avcodec_free_context(&video_decoder_ctx);
+                                    video_decoder_ctx = nullptr;
+                                    LOGE("Attach video params to %s hw ctx fail: %d", hwCodecName, result);
+                                }
+                            } else {
+                                LOGE("Create %s hw video decoder ctx fail.", hwCodecName);
+                            }
+                        } else {
+                            LOGE("Create %s hw device ctx fail: %d", hwCodecName, result);
                         }
                     } else {
-                        LOGE("Don't find hw decoder config");
-                        this->video_decoder = avcodec_find_decoder(params->codec_id);
+                        LOGE("Don't find %s hw decoder pix format", hwCodecName);
                     }
                 } else {
                     LOGE("Don't find hw decoder: %s", hwCodecName);
-                    this->video_decoder = avcodec_find_decoder(params->codec_id);
                 }
-            } else {
-                this->video_decoder = avcodec_find_decoder(params->codec_id);
             }
-        } else {
-            this->video_decoder = avcodec_find_decoder(params->codec_id);
         }
+        //endregion
 
+        //region Software Decoder
+        this->video_decoder = avcodec_find_decoder(params->codec_id);
         if (video_decoder == nullptr) {
-            LOGE("Didn't find video decoder.");
+            LOGE("Didn't find sw video decoder.");
             return OptFail;
         }
         this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
         if (!video_decoder_ctx) {
-            LOGE("Create video decoder ctx fail.");
+            LOGE("Create sw video decoder ctx fail.");
             return OptFail;
         }
         result = avcodec_parameters_to_context(video_decoder_ctx, params);
         if (result < 0) {
-            LOGE("Attach video params to ctx fail: %d", result);
+            LOGE("Attach video params to sw decoder ctx fail: %d", result);
             return OptFail;
-        }
-        if (hardware_ctx) {
-            video_decoder_ctx->get_format = get_hw_format;
-            video_decoder_ctx->hw_device_ctx = av_buffer_ref(hardware_ctx);
-            LOGD("Set up hw device ctx.");
         }
         result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
         if (result < 0) {
-            LOGE("Open video decoder ctx fail: %d", result);
+            LOGE("Open video sw decoder ctx fail: %d", result);
             return OptFail;
+        } else {
+            LOGD("Open video sw decoder ctx success.");
         }
+        // endregion
+
         // // set decode pixel size half
         // video_decoder_ctx->lowres = 1;
         // // set decode thread count
         // video_decoder_ctx->thread_count = 1;
+        decoder_open_success:
         this->video_pixel_format = video_decoder_ctx->pix_fmt;
-//        this->video_sws_ctx = sws_getContext(
-//                video_width,
-//                video_height,
-//                video_decoder_ctx->pix_fmt,
-//                video_width,
-//                video_height,
-//                AV_PIX_FMT_RGBA,
-//                SWS_BICUBIC,
-//                nullptr,
-//                nullptr,
-//                nullptr);
-//        if (video_sws_ctx == nullptr) {
-//            LOGE("Open video decoder get sws ctx fail.");
-//            return OptFail;
-//        }
         LOGD("Prepare video decoder success.");
         this->video_frame = av_frame_alloc();
         this->video_pkt = av_packet_alloc();
@@ -320,7 +327,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
 
     this->duration = 0L;
     if (format_ctx->duration != AV_NOPTS_VALUE) {
-        this->duration = ((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0;
+        this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     }
 
     return OptSuccess;
