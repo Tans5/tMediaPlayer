@@ -1,15 +1,18 @@
 
 ## Summary
 
-Android media player library base on FFmpeg 6.0 and support ascii art image filter.
+Android media player library base on FFmpeg 7.0.1 and support ascii art image filter.
 
 
 ## Screenshots
 
 ![](./screenshots/screenshot.gif)
 
-[Demo Apk](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-release.apk)
-
+Demo Apks:
+[arm64-v8a](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-arm64-v8a-release.apk)  
+[armeabi-v7a](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-armeabi-v7a-release.apk)  
+[x86_64](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-x86_64-release.apk)  
+[x86](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-x86-release.apk)
 
 ## Usage
 
@@ -20,7 +23,7 @@ Android media player library base on FFmpeg 6.0 and support ascii art image filt
 
 dependencies {
 	 // ...
-    implementation 'io.github.tans5:tmediaplayer:1.0.0-alpha01'
+    implementation 'io.github.tans5:tmediaplayer:1.2.0'
     // ...
 }
 
