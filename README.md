@@ -8,7 +8,7 @@ Android media player library base on FFmpeg 7.0.1 and support ascii art image fi
 
 ![](./screenshots/screenshot.gif)
 
-Demo Apks:
+Demo Apks:  
 [arm64-v8a](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-arm64-v8a-release.apk)  
 [armeabi-v7a](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-armeabi-v7a-release.apk)  
 [x86_64](https://github.com/Tans5/tMediaPlayer/raw/master/apk/demo-x86_64-release.apk)  
