@@ -70,19 +70,20 @@ class tMediaPlayerView : GLSurfaceView {
 
     fun getScaleType(): ScaleType = this.scaleType.get()
 
-    fun requestRenderRgbaFrame(width: Int, height: Int, imageBytes: ByteArray, callback: Runnable? = null) {
-        val imageData = ImageData(
-            imageWidth = width,
-            imageHeight = height,
-            imageRawData = ImageRawData.RgbaRawData(rgbaBytes = imageBytes),
-            callback
+    fun requestRenderRgbaFrame(
+        width: Int,
+        height: Int,
+        imageBytes: ByteArray,
+        callback: Runnable? = null
+    ) {
+        requestRender(
+            ImageData(
+                imageWidth = width,
+                imageHeight = height,
+                imageRawData = ImageRawData.RgbaRawData(rgbaBytes = imageBytes),
+                callback
+            )
         )
-        nextRenderFrame.getAndSet(imageData)?.let {
-            if (it.hasInvokedCallback.compareAndSet(false, true)) {
-                it.callback?.run()
-            }
-        }
-        requestRender()
     }
 
     fun requestRenderYuv420pFrame(
@@ -91,23 +92,20 @@ class tMediaPlayerView : GLSurfaceView {
         yBytes: ByteArray,
         uBytes: ByteArray,
         vBytes: ByteArray,
-        callback: Runnable? = null) {
-        val imageData = ImageData(
-            imageWidth = width,
-            imageHeight = height,
-            imageRawData = ImageRawData.Yuv420pRawData(
-                yBytes = yBytes,
-                uBytes = uBytes,
-                vBytes = vBytes
-            ),
-            callback = callback
+        callback: Runnable? = null
+    ) {
+        requestRender(
+            ImageData(
+                imageWidth = width,
+                imageHeight = height,
+                imageRawData = ImageRawData.Yuv420pRawData(
+                    yBytes = yBytes,
+                    uBytes = uBytes,
+                    vBytes = vBytes
+                ),
+                callback = callback
+            )
         )
-        nextRenderFrame.getAndSet(imageData)?.let {
-            if (it.hasInvokedCallback.compareAndSet(false, true)) {
-                it.callback?.run()
-            }
-        }
-        requestRender()
     }
 
     fun requestRenderNv12Frame(
@@ -117,22 +115,18 @@ class tMediaPlayerView : GLSurfaceView {
         uvBytes: ByteArray,
         callback: Runnable? = null
     ) {
-        val imageData = ImageData(
-            imageWidth = width,
-            imageHeight = height,
-            imageRawData = ImageRawData.Yuv420spRawData(
-                yBytes = yBytes,
-                uvBytes = uvBytes,
-                yuv420spType = Yuv420spType.Nv12
-            ),
-            callback = callback
+        requestRender(
+            ImageData(
+                imageWidth = width,
+                imageHeight = height,
+                imageRawData = ImageRawData.Yuv420spRawData(
+                    yBytes = yBytes,
+                    uvBytes = uvBytes,
+                    yuv420spType = Yuv420spType.Nv12
+                ),
+                callback = callback
+            )
         )
-        nextRenderFrame.getAndSet(imageData)?.let {
-            if (it.hasInvokedCallback.compareAndSet(false, true)) {
-                it.callback?.run()
-            }
-        }
-        requestRender()
     }
 
     fun requestRenderNv21Frame(
@@ -142,22 +136,28 @@ class tMediaPlayerView : GLSurfaceView {
         vuBytes: ByteArray,
         callback: Runnable? = null
     ) {
-        val imageData = ImageData(
-            imageWidth = width,
-            imageHeight = height,
-            imageRawData = ImageRawData.Yuv420spRawData(
-                yBytes = yBytes,
-                uvBytes = vuBytes,
-                yuv420spType = Yuv420spType.Nv21
-            ),
-            callback = callback
+        requestRender(
+            ImageData(
+                imageWidth = width,
+                imageHeight = height,
+                imageRawData = ImageRawData.Yuv420spRawData(
+                    yBytes = yBytes,
+                    uvBytes = vuBytes,
+                    yuv420spType = Yuv420spType.Nv21
+                ),
+                callback = callback
+            )
         )
-        nextRenderFrame.getAndSet(imageData)?.let {
-            if (it.hasInvokedCallback.compareAndSet(false, true)) {
-                it.callback?.run()
-            }
+    }
+
+    private fun requestRender(imageData: ImageData) {
+        val next = nextRenderFrame.get()
+        if (next == null || next.hasInvokedCallback.get()) {
+            nextRenderFrame.set(imageData)
+            requestRender()
+        } else {
+            imageData.callback?.run()
         }
-        requestRender()
     }
 
     override fun onDetachedFromWindow() {

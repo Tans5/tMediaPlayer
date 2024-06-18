@@ -159,7 +159,7 @@ internal class VideoRenderer(
                                             }
 
                                             renderVideoFrame(frame)
-                                            requestRender(VIDEO_REFRESH_RATE)
+                                            requestRender()
                                         } else {
                                             lastRenderFrame = LastRenderFrame(frame)
                                             videoFrameQueue.dequeueReadable()
