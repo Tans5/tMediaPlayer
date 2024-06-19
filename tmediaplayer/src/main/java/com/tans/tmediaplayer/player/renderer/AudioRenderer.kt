@@ -111,8 +111,11 @@ internal class AudioRenderer(
                                                 }
                                             }
                                             if (!retryEnqueueSuccess) {
+                                                MediaLog.e(TAG, "After retry enqueue audio frame fail.")
                                                 audioFrameQueue.enqueueWritable(frame)
                                                 player.writeableAudioFrameReady()
+                                            } else {
+                                                MediaLog.d(TAG, "After retry enqueue audio frame success.")
                                             }
                                         }
                                         if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
