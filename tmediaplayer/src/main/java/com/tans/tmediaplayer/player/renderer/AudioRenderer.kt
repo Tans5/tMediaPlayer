@@ -13,7 +13,6 @@ import com.tans.tmediaplayer.player.rwqueue.AudioFrame
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
-import com.tans.tmediaplayer.player.tMediaPlayerState
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -91,18 +90,46 @@ internal class AudioRenderer(
                                         if (audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
                                             waitingRenderFrames.addLast(frame)
                                         } else {
-                                            MediaLog.e(TAG, "Audio render fail.")
-                                            audioFrameQueue.enqueueWritable(frame)
-                                            player.writeableAudioFrameReady()
+                                            MediaLog.e(TAG, "Audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}")
+                                            var retryTimes = 5
+                                            var retryEnqueueSuccess = false
+                                            while (retryTimes > 0) {
+                                                try {
+                                                    Thread.sleep(6)
+                                                } catch (e: Throwable) {
+                                                    MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                    break
+                                                }
+                                                retryTimes --
+                                                if (audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
+                                                    retryEnqueueSuccess = true
+                                                    waitingRenderFrames.addLast(frame)
+                                                    MediaLog.d(TAG, "Retry audio frame enqueue success, audio track queue count: ${audioTrack.getBufferQueueCount()}")
+                                                    break
+                                                } else {
+                                                    MediaLog.e(TAG, "Retry audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}")
+                                                }
+                                            }
+                                            if (!retryEnqueueSuccess) {
+                                                audioFrameQueue.enqueueWritable(frame)
+                                                player.writeableAudioFrameReady()
+                                            }
                                         }
                                         if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                             this@AudioRenderer.state.set(RendererState.Playing)
                                         }
                                         requestRender()
                                     } else {
-                                        while (audioTrack.getBufferQueueCount() > 0) {
-                                            MediaLog.d(TAG, "Waiting audio track buffer finish.")
-                                            Thread.sleep(6)
+                                        var bufferCount = audioTrack.getBufferQueueCount()
+                                        while (bufferCount > 0) {
+                                            MediaLog.d(TAG, "Waiting audio track buffer finish, audio track queue count: $bufferCount")
+                                            try {
+                                                Thread.sleep(6)
+                                            } catch (e: Throwable) {
+                                                MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                break
+                                            }
+                                            bufferCount = audioTrack.getBufferQueueCount()
                                         }
                                         while (waitingRenderFrames.isNotEmpty()) {
                                             val b = waitingRenderFrames.pollFirst()

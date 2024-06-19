@@ -16,7 +16,6 @@ import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
-import com.tans.tmediaplayer.player.tMediaPlayerState
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
