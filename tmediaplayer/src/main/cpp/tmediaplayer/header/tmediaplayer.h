@@ -73,6 +73,7 @@ enum tMediaReadPktResult {
     ReadVideoSuccess,
     ReadVideoAttachmentSuccess,
     ReadAudioSuccess,
+    ReadSubtitleSuccess,
     ReadFail,
     ReadEof,
     UnknownPkt

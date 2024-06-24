@@ -440,6 +440,14 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
             // audio
             return ReadAudioSuccess;
         }
+        if (subtitleStreams != nullptr && subtitleStreamCount > 0) {
+            for (int i = 0; i < subtitleStreamCount; i ++) {
+                auto s = subtitleStreams[i];
+                if (s->stream->index == pkt->stream_index) {
+                    return ReadSubtitleSuccess;
+                }
+            }
+        }
         av_packet_unref(pkt);
         return UnknownPkt;
     }

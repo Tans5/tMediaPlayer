@@ -4,6 +4,7 @@ internal enum class ReadPacketResult {
     ReadVideoSuccess,
     ReadVideoAttachmentSuccess,
     ReadAudioSuccess,
+    ReadSubtitleSuccess,
     ReadFail,
     ReadEof,
     UnknownPkt

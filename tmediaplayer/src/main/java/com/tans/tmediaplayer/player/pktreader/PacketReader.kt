@@ -94,6 +94,10 @@ internal class PacketReader(
                                             player.readableAudioPacketReady()
                                             requestReadPkt()
                                         }
+                                        ReadPacketResult.ReadSubtitleSuccess -> {
+                                            MediaLog.d(TAG, "Read subtitle pkt.")
+                                            // TODO: Handle subtitle pkt.
+                                        }
                                         ReadPacketResult.ReadEof -> {
                                             if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
                                                 val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
