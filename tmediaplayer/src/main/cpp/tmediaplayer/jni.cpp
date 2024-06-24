@@ -411,6 +411,38 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDecoderNameNative(
 }
 // endregion
 
+// region Subtitle streams info
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_subtitleStreamCountNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->subtitleStreamCount;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_subtitleStreamIdNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jint index) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->subtitleStreams[index]->stream->index;
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_subtitleStreamMetadataNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jint index) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return readMetadata(env, &player->subtitleStreams[index]->streamMetadata);
+}
+
+// endregion
+
 // region Packet buffer
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "MemoryLeak"

@@ -6,5 +6,6 @@ data class MediaInfo(
     val metadata: Map<String, String>,
     val containerName: String,
     val audioStreamInfo: AudioStreamInfo?,
-    val videoStreamInfo: VideoStreamInfo?
+    val videoStreamInfo: VideoStreamInfo?,
+    val subtitleStreams: List<SubtitleStreamInfo>
 )

@@ -16,6 +16,7 @@ import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.ReadPacketResult
+import com.tans.tmediaplayer.player.model.SubtitleStreamInfo
 import com.tans.tmediaplayer.player.model.SyncType
 import com.tans.tmediaplayer.player.model.VideoPixelFormat
 import com.tans.tmediaplayer.player.model.VideoStreamInfo
@@ -538,13 +539,34 @@ class tMediaPlayer(
             MediaLog.d(TAG, "Don't find video stream")
             null
         }
+        val subTitleStreams = mutableListOf<SubtitleStreamInfo>()
+        val subtitleStreamCount = subtitleStreamCountNative(nativePlayer)
+        if (subtitleStreamCount > 0) {
+            repeat(subtitleStreamCount) { index ->
+                val subtitleMetadata = mutableMapOf<String, String>()
+                val subtitleMetadataArray = subtitleStreamMetadataNative(nativePlayer, index)
+                repeat(subtitleMetadataArray.size / 2) {
+                    val key = subtitleMetadataArray[it * 2]
+                    val value = subtitleMetadataArray[it * 2 + 1]
+                    subtitleMetadata[key] = value
+                }
+                subTitleStreams.add(
+                    SubtitleStreamInfo(
+                        streamId = subtitleStreamIdNative(nativePlayer, index),
+                        metadata = subtitleMetadata
+                    )
+                )
+            }
+            MediaLog.d(TAG, "Find subtitle streams: $subTitleStreams")
+        }
         return MediaInfo(
             nativePlayer = nativePlayer,
             duration = durationNative(nativePlayer),
             metadata = metadata,
             containerName = getContainerNameNative(nativePlayer),
             audioStreamInfo = audioStreamInfo,
-            videoStreamInfo = videoStreamInfo
+            videoStreamInfo = videoStreamInfo,
+            subtitleStreams = subTitleStreams
         )
     }
 
@@ -752,6 +774,14 @@ class tMediaPlayer(
     private external fun audioCodecIdNative(nativePlayer: Long): Int
 
     private external fun audioDecoderNameNative(nativePlayer: Long): String
+    // endregion
+
+    // region Native subtitle stream info
+    private external fun subtitleStreamCountNative(nativePlayer: Long): Int
+
+    private external fun subtitleStreamIdNative(nativePlayer: Long, index: Int): Int
+
+    private external fun subtitleStreamMetadataNative(nativePlayer: Long, index: Int): Array<String>
     // endregion
 
     // region Native packet buffer
