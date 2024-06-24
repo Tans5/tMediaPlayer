@@ -42,6 +42,7 @@ internal class PacketQueue(
     }
 
     override fun enqueueReadable(b: Packet) {
+        b.streamIndex = player.getPacketStreamIndexInternal(b.nativePacket)
         b.sizeInBytes = player.getPacketBytesSizeInternal(b.nativePacket)
         b.duration = player.getPacketDurationInternal(b.nativePacket)
         b.pts = player.getPacketPtsInternal(b.nativePacket)

@@ -83,6 +83,16 @@ enum tMediaOptResult {
     OptFail
 };
 
+typedef struct Metadata {
+    int metadataCount = 0;
+    char ** metadata = nullptr;
+} Metadata;
+
+typedef struct SubtitleStream {
+    AVStream *stream = nullptr;
+    Metadata streamMetadata;
+} SubtitleStream;
+
 typedef struct tMediaPlayerContext {
     const char *media_file = nullptr;
 
@@ -90,8 +100,8 @@ typedef struct tMediaPlayerContext {
     AVPacket *pkt = nullptr;
     long duration = 0;
 
-    int metadataCount = 0;
-    char ** metadata = nullptr;
+    Metadata fileMetadata;
+
     char *containerName = nullptr;
 
     /**
@@ -145,6 +155,11 @@ typedef struct tMediaPlayerContext {
     AVFrame *audio_frame = nullptr;
     AVPacket *audio_pkt = nullptr;
 
+    /**
+     * Subtitle
+     */
+    int subtitleStreamCount = 0;
+    SubtitleStream **subtitleStreams = nullptr;
 
     tMediaOptResult prepare(
             const char * media_file,

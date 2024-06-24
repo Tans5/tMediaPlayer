@@ -758,6 +758,8 @@ class tMediaPlayer(
     internal fun allocPacketInternal(): Long = allocPacketNative()
 
     private external fun allocPacketNative(): Long
+    internal fun getPacketStreamIndexInternal(nativeBuffer: Long): Long = getPacketStreamIndexNative(nativeBuffer)
+    private external fun getPacketStreamIndexNative(nativeBuffer: Long): Long
     internal fun getPacketPtsInternal(nativeBuffer: Long): Long = getPacketPtsNative(nativeBuffer)
     private external fun getPacketPtsNative(nativeBuffer: Long): Long
     internal fun getPacketDurationInternal(nativeBuffer: Long): Long = getPacketDurationNative(nativeBuffer)

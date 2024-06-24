@@ -201,22 +201,25 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_containAudioStreamNative(
     return player->audio_decoder_ctx != nullptr;
 }
 
+jobjectArray readMetadata(JNIEnv *env, Metadata *src) {
+    auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
+    auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(src->metadataCount * 2, stringClazz, nullptr)));
+    for (int i = 0; i < src->metadataCount; i ++) {
+        auto key = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(src->metadata[i * 2])));
+        auto value = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(src->metadata[i * 2 + 1])));
+        env->SetObjectArrayElement(jarray, i * 2, key);
+        env->SetObjectArrayElement(jarray, i * 2 + 1, value);
+    }
+    return jarray;
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_getMetadataNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    char ** metadata = player->metadata;
-    auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
-    auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(player->metadataCount * 2, stringClazz, nullptr)));
-    for (int i = 0; i < player->metadataCount; i ++) {
-        auto key = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2])));
-        auto value = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(metadata[i * 2 + 1])));
-        env->SetObjectArrayElement(jarray, i * 2, key);
-        env->SetObjectArrayElement(jarray, i * 2 + 1, value);
-    }
-    return jarray;
+    return readMetadata(env, &player->fileMetadata);
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -419,6 +422,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_allocPacketNative(
     return reinterpret_cast<jlong>(pkt);
 }
 #pragma clang diagnostic pop
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getPacketStreamIndexNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong nativeBuffer) {
+    auto *pkt = reinterpret_cast<AVPacket*>(nativeBuffer);
+    return pkt->stream_index;
+}
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_getPacketPtsNative(

@@ -19,6 +19,33 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
     return AV_PIX_FMT_NONE;
 }
 
+void readMetadata(AVDictionary *src, Metadata *dst) {
+    AVDictionaryEntry *metadataLocal = nullptr;
+    int metadataCountLocal = 0;
+    while ((metadataLocal = av_dict_get(src, "", metadataLocal, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
+        LOGD("Metadata %s=%s", metadataLocal->key, metadataLocal->value);
+        metadataCountLocal ++;
+    }
+    dst->metadataCount = metadataCountLocal;
+    if (metadataCountLocal > 0) {
+        dst->metadata = static_cast<char **>(malloc(metadataCountLocal * 2 * sizeof(char *)));
+        metadataLocal = nullptr;
+        for (int i = 0; i < metadataCountLocal; i ++) {
+            metadataLocal = av_dict_get(src, "", metadataLocal, AV_DICT_IGNORE_SUFFIX);
+            int keyLen = strlen(metadataLocal->key);
+            int valueLen = strlen(metadataLocal->value);
+            char *key = static_cast<char *>(malloc((keyLen + 1) * sizeof(char)));
+            char *value = static_cast<char *>(malloc((valueLen + 1) * sizeof(char)));
+            memcpy(key, metadataLocal->key, keyLen);
+            key[keyLen] = '\0';
+            memcpy(value, metadataLocal->value, valueLen);
+            value[valueLen] = '\0';
+            dst->metadata[i * 2] = key;
+            dst->metadata[i * 2 + 1] = value;
+        }
+    }
+}
+
 tMediaOptResult tMediaPlayerContext::prepare(
         const char *media_file_p,
         bool is_request_hw,
@@ -70,31 +97,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     }
 
     // Read metadata
-    AVDictionaryEntry *metadataLocal = nullptr;
-    int metadataCountLocal = 0;
-    while ((metadataLocal = av_dict_get(format_ctx->metadata, "", metadataLocal, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
-        LOGD("Metadata %s=%s", metadataLocal->key, metadataLocal->value);
-        metadataCountLocal ++;
-    }
-    LOGD("Metadata count: %d", metadataCountLocal);
-    this->metadataCount = metadataCountLocal;
-    if (metadataCount > 0) {
-        this->metadata = static_cast<char **>(malloc(metadataCount * 2 * sizeof(char *)));
-        metadataLocal = nullptr;
-        for (int i = 0; i < metadataCount; i ++) {
-            metadataLocal = av_dict_get(format_ctx->metadata, "", metadataLocal, AV_DICT_IGNORE_SUFFIX);
-            int keyLen = strlen(metadataLocal->key);
-            int valueLen = strlen(metadataLocal->value);
-            char *key = static_cast<char *>(malloc((keyLen + 1) * sizeof(char)));
-            char *value = static_cast<char *>(malloc((valueLen + 1) * sizeof(char)));
-            memcpy(key, metadataLocal->key, keyLen);
-            key[keyLen] = '\0';
-            memcpy(value, metadataLocal->value, valueLen);
-            value[valueLen] = '\0';
-            metadata[i * 2] = key;
-            metadata[i * 2 + 1] = value;
-        }
-    }
+    readMetadata(format_ctx->metadata, &fileMetadata);
 
     // Container name
     const char *containerNameLocal = nullptr;
@@ -123,12 +126,13 @@ tMediaOptResult tMediaPlayerContext::prepare(
         LOGE("Avformat find stream info fail: %d", result);
         return OptFail;
     }
+    int subtitleStreamCountLocal = 0;
     for (int i = 0; i < format_ctx->nb_streams; i ++) {
         auto s = format_ctx->streams[i];
         auto codec_type = s->codecpar->codec_type;
         switch (codec_type) {
             case AVMEDIA_TYPE_VIDEO:
-                if (this->video_stream != nullptr) {
+                if (this->video_stream != nullptr && !videoIsAttachPic) {
                     LOGE("Find multiple video stream, skip it.");
                 } else {
                     this->video_stream = s;
@@ -152,8 +156,32 @@ tMediaOptResult tMediaPlayerContext::prepare(
                     LOGD("Find audio stream: duration=%ld", audio_duration);
                 }
                 break;
+
+            case AVMEDIA_TYPE_SUBTITLE:
+                subtitleStreamCountLocal ++;
+                break;
             default:
                 break;
+        }
+    }
+
+    // Read subtitle streams
+    this->subtitleStreamCount = subtitleStreamCountLocal;
+    LOGD("Find %d subtitle streams", subtitleStreamCountLocal);
+    if (subtitleStreamCountLocal > 0) {
+        int subtitleIndex = 0;
+        this->subtitleStreams = static_cast<SubtitleStream **>(malloc(sizeof(SubtitleStream *) * subtitleStreamCountLocal));
+        for (int i = 0; i < format_ctx->nb_streams; i ++) {
+            auto s = format_ctx->streams[i];
+            auto codec_type = s->codecpar->codec_type;
+            if (codec_type == AVMEDIA_TYPE_SUBTITLE) {
+                LOGD("SubtitleStream: %d", s ->index);
+                auto* ts = new SubtitleStream;
+                subtitleStreams[subtitleIndex] = ts;
+                ts->stream = s;
+                readMetadata(s->metadata, &ts->streamMetadata);
+                subtitleIndex ++;
+            }
         }
     }
 
@@ -783,6 +811,20 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     return OptSuccess;
 }
 
+void releaseMetadata(Metadata *src) {
+    for (int i = 0; i < src->metadataCount; i ++) {
+        char *key = src->metadata[i * 2];
+        char *value = src->metadata[i * 2 + 1];
+        free(key);
+        free(value);
+        src->metadata[i * 2] = nullptr;
+        src->metadata[i * 2 + 1] = nullptr;
+    }
+    src->metadataCount = 0;
+    free(src->metadata);
+    src->metadata = nullptr;
+}
+
 void tMediaPlayerContext::release() {
     if (pkt != nullptr) {
         av_packet_unref(pkt);
@@ -795,18 +837,10 @@ void tMediaPlayerContext::release() {
         format_ctx = nullptr;
     }
 
-    // metadata
-    if (metadata != nullptr) {
-        for (int i = 0; i < metadataCount; i ++) {
-            char *key = metadata[i * 2];
-            char *value = metadata[i * 2 + 1];
-            free(key);
-            free(value);
-            metadata[i * 2] = nullptr;
-            metadata[i * 2 + 1] = nullptr;
-        }
-        free(metadata);
-    }
+    // File Metadata
+    releaseMetadata(&fileMetadata);
+
+    // Container name
     if (containerName != nullptr) {
         free(containerName);
         containerName = nullptr;
@@ -863,6 +897,19 @@ void tMediaPlayerContext::release() {
         free(audioDecoderName);
         audioDecoderName = nullptr;
     }
+
+    // Subtitle free
+    if (subtitleStreams != nullptr) {
+        for (int i = 0; i < subtitleStreamCount; i ++) {
+            auto s = subtitleStreams[i];
+            releaseMetadata(&s->streamMetadata);
+            free(s);
+        }
+        free(subtitleStreams);
+        subtitleStreamCount = 0;
+        subtitleStreams = nullptr;
+    }
+
     free(this);
     LOGD("Release media player");
 }
