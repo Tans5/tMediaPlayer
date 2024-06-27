@@ -147,3 +147,23 @@ target_link_libraries(
         ${OpenSLES-lib}
 )
 # endregion
+
+#region tmediasubtitle
+add_library(
+        tmediasubtitle SHARED
+        tmediasubtitle/jni.cpp
+        tmediasubtitle/tmediasubtitle.cpp
+)
+
+target_include_directories(
+        tmediasubtitle PUBLIC
+        tmediasubtitle/header
+        tmediaplayer/header
+        ffmpeg/header
+)
+
+target_link_libraries(
+        tmediasubtitle
+        tmediaplayer
+)
+#endregion
