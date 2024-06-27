@@ -72,6 +72,12 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
     }
 }
 
+void tMediaSubtitleContext::flushDecoder() {
+    if (subtitle_decoder_ctx != nullptr) {
+        avcodec_flush_buffers(subtitle_decoder_ctx);
+    }
+}
+
 void tMediaSubtitleContext::releaseLastSubtitleStream() {
     if (subtitle_decoder_ctx != nullptr) {
         avcodec_free_context(&subtitle_decoder_ctx);

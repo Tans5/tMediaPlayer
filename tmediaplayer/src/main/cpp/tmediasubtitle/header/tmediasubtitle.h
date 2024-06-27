@@ -21,6 +21,8 @@ typedef struct tMediaSubtitleContext {
 
     tMediaDecodeResult decodeSubtitle(AVPacket* pkt);
 
+    void flushDecoder();
+
     void releaseLastSubtitleStream();
 
     void release();
