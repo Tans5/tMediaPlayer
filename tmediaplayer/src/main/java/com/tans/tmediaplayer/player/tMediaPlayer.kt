@@ -536,7 +536,7 @@ class tMediaPlayer(
                 videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN,
                 isAttachment = videoStreamIsAttachmentNative(nativePlayer),
                 videoDecoderName = videoDecoderNameNative(nativePlayer),
-                videoStreamMetadata = convertMetadataToMap(audioStreamMetadataNative(nativePlayer))
+                videoStreamMetadata = convertMetadataToMap(videoStreamMetadataNative(nativePlayer))
             ).apply {
                 MediaLog.d(TAG, "Find video stream: $this")
             }
