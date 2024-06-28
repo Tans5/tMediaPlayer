@@ -35,12 +35,17 @@ internal class tMediaSubtitle(
         }.apply { start() }
     }
 
+    private val decoder: SubtitleFrameDecoder
+
     init {
         subtitleNative.set(createSubtitleNative())
         subtitleThread
         while (!isLooperPrepared.get()) {}
-        // TODO: init decoder and renderer.
+        decoder = SubtitleFrameDecoder(this, subtitleThread.looper)
+        // TODO: init renderer.
     }
+
+    fun getNativeSubtitle(): Long? = subtitleNative.get()
 
     @Synchronized
     fun setupSubtitleStreamFromPlayer(streamIndex: Int): OptResult {
@@ -72,13 +77,15 @@ internal class tMediaSubtitle(
 
     @Synchronized
     fun release() {
-        val native = subtitleNative.get()
-        if (native != null) {
-            subtitleNative.set(null)
-            releaseNative(native)
-
-            subtitleThread.quit()
-            subtitleThread.quitSafely()
+        synchronized(decoder) {
+            val native = subtitleNative.get()
+            if (native != null) {
+                decoder.release()
+                subtitleNative.set(null)
+                releaseNative(native)
+                subtitleThread.quit()
+                subtitleThread.quitSafely()
+            }
         }
     }
 
