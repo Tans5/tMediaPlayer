@@ -14,11 +14,13 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
-internal class tMediaSubtitle(
-    val player: tMediaPlayer,
-    val packetQueue: PacketQueue) {
+internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private val subtitleNative: AtomicReference<Long?> = AtomicReference(null)
+
+    val packetQueue: PacketQueue by lazy {
+        PacketQueue(player)
+    }
 
     val frameQueue: SubtitleFrameQueue by lazy {
         SubtitleFrameQueue(this)
@@ -80,8 +82,10 @@ internal class tMediaSubtitle(
         synchronized(decoder) {
             val native = subtitleNative.get()
             if (native != null) {
-                decoder.release()
                 subtitleNative.set(null)
+                decoder.release()
+                packetQueue.release()
+                frameQueue.release()
                 releaseNative(native)
                 subtitleThread.quit()
                 subtitleThread.quitSafely()
