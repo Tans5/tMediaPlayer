@@ -5,16 +5,11 @@ import com.tans.tmediaplayer.player.tMediaPlayer
 
 @Suppress("ClassName")
 @Keep
-internal class tMediaSubtitle(private val player: tMediaPlayer) {
-
+internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private external fun createSubtitleNative(): Long
 
-    private external fun setupSubtitleStreamFromPlayerNative(
-        subtitleNative: Long,
-        playerNative: Long,
-        streamIndex: Int
-    ): Int
+    private external fun setupSubtitleStreamFromPlayerNative(subtitleNative: Long, playerNative: Long, streamIndex: Int): Int
 
     private external fun decodeSubtitleNative(subtitleNative: Long, pktNative: Long): Int
 
@@ -23,6 +18,12 @@ internal class tMediaSubtitle(private val player: tMediaPlayer) {
     private external fun allocSubtitleBufferNative(): Long
 
     private external fun moveDecodedSubtitleFrameToBufferNative(subtitleNative: Long, bufferNative: Long)
+
+    private external fun getSubtitleStartPtsNative(bufferNative: Long): Long
+
+    private external fun getSubtitleEndPtsNative(bufferNative: Long): Long
+
+    private external fun getSubtitleStringsNative(bufferNative: Long): Array<String>
 
     private external fun releaseSubtitleBufferNative(bufferNative: Long)
 

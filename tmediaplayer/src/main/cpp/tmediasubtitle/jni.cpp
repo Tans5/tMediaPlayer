@@ -89,6 +89,56 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_moveDecodedSubtitleFrameToBuf
     target->pts = src->pts;
 }
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStartPtsNative(
+        JNIEnv * env,
+        jobject j_subtitle,
+        jlong native_buffer) {
+    auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
+    return buffer->subtitle_frame->start_display_time;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleEndPtsNative(
+        JNIEnv * env,
+        jobject j_subtitle,
+        jlong native_buffer) {
+    auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
+    return buffer->subtitle_frame->end_display_time;
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
+        JNIEnv * env,
+        jobject j_subtitle,
+        jlong native_buffer) {
+    auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
+    auto subtitleFrame = buffer->subtitle_frame;
+    auto lineSize = subtitleFrame->num_rects;
+    auto subtitleRects = subtitleFrame->rects;
+
+    auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
+    auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(lineSize, stringClazz, nullptr)));
+    for (int i = 0; i < lineSize; i ++) {
+        auto rect = subtitleRects[i];
+        const char * line = "";
+        switch (rect->type) {
+            case SUBTITLE_TEXT:
+                line = rect->text;
+                break;
+            case SUBTITLE_ASS:
+                line = rect->ass;
+                break;
+            default:
+                LOGE("Don't support subtitle format: %d", rect->type);
+                break;
+        }
+        auto j_string = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(line)));
+        env->SetObjectArrayElement(jarray, i, j_string);
+    }
+    return jarray;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
         JNIEnv * env,

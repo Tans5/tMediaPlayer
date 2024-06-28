@@ -62,7 +62,7 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
             return DecodeSuccess;
         }
     } else {
-        if (pkt->data) {
+        if (subtitle_pkt->data) {
             LOGE("Decode subtitle fail: %d", ret);
             return DecodeFail;
         } else {
@@ -91,6 +91,7 @@ void tMediaSubtitleContext::release() {
     if (subtitle_pkt != nullptr) {
         av_packet_unref(subtitle_pkt);
         av_packet_free(&subtitle_pkt);
+        subtitle_pkt = nullptr;
     }
     if (subtitle_frame != nullptr) {
         avsubtitle_free(subtitle_frame);
