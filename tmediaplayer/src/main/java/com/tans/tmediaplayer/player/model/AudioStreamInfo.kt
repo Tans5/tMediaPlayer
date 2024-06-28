@@ -9,5 +9,6 @@ data class AudioStreamInfo(
     val audioBitrate: Int,
     val audioSampleBitDepth: Int,
     val audioSampleFormat: AudioSampleFormat,
-    val audioDecoderName: String
+    val audioDecoderName: String,
+    val audioStreamMetadata: Map<String, String>
 )

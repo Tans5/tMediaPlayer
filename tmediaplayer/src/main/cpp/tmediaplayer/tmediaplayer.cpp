@@ -339,7 +339,8 @@ tMediaOptResult tMediaPlayerContext::prepare(
             memcpy(videoDecoderName, codecName, codecNameLen);
         }
         videoDecoderName[codecNameLen] = '\0';
-
+        videoMetaData = new Metadata;
+        readMetadata(video_stream->metadata, videoMetaData);
         LOGD("Prepare video decoder success: %s", videoDecoderName);
         this->video_frame = av_frame_alloc();
         this->video_pkt = av_packet_alloc();
@@ -403,6 +404,8 @@ tMediaOptResult tMediaPlayerContext::prepare(
             memcpy(audioDecoderName, codecName, codecNameLen);
         }
         audioDecoderName[codecNameLen] = '\0';
+        audioMetadata = new Metadata;
+        readMetadata(audio_stream->metadata, audioMetadata);
         LOGD("Prepare audio decoder success: %s", codecName);
         this->audio_frame = av_frame_alloc();
         this->audio_pkt = av_packet_alloc();
@@ -881,6 +884,11 @@ void tMediaPlayerContext::release() {
         free(videoDecoderName);
         videoDecoderName = nullptr;
     }
+    if (videoMetaData != nullptr) {
+        releaseMetadata(videoMetaData);
+        free(videoMetaData);
+        videoMetaData = nullptr;
+    }
 
     // Audio free.
     if (audio_decoder_ctx != nullptr) {
@@ -904,6 +912,11 @@ void tMediaPlayerContext::release() {
     if (audioDecoderName != nullptr) {
         free(audioDecoderName);
         audioDecoderName = nullptr;
+    }
+    if (audioMetadata != nullptr) {
+        releaseMetadata(audioMetadata);
+        free(audioMetadata);
+        audioMetadata = nullptr;
     }
 
     // Subtitle free

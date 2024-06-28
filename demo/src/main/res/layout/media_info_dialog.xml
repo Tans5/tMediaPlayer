@@ -90,6 +90,31 @@
                 tools:listitem="@layout/media_info_item_layout"
                 tools:itemCount="3"/>
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/white"
+                android:layout_marginTop="8dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Subtitles"
+                android:textSize="14sp"
+                android:textColor="@color/white"
+                android:layout_marginTop="5dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/subtitles_rv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginTop="5dp"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:listitem="@layout/media_info_item_layout"
+                tools:itemCount="3"/>
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>

@@ -132,6 +132,7 @@ typedef struct tMediaPlayerContext {
     AVCodecContext *video_decoder_ctx = nullptr;
     AVFrame *video_frame = nullptr;
     AVPacket *video_pkt = nullptr;
+    Metadata *videoMetaData = nullptr;
 
     /**
      * Audio
@@ -155,6 +156,7 @@ typedef struct tMediaPlayerContext {
     AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
     AVFrame *audio_frame = nullptr;
     AVPacket *audio_pkt = nullptr;
+    Metadata *audioMetadata = nullptr;
 
     /**
      * Subtitle

@@ -325,6 +325,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDecoderNameNative(
     auto decoderName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->videoDecoderName)));
     return decoderName;
 }
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoStreamMetadataNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return readMetadata(env, player->videoMetaData);
+}
 // endregion
 
 // region Audio stream info
@@ -408,6 +417,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDecoderNameNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     auto decoderName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->audioDecoderName)));
     return decoderName;
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_audioStreamMetadataNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return readMetadata(env, player->audioMetadata);
 }
 // endregion
 

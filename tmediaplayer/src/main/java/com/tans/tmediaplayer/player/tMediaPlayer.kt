@@ -491,13 +491,16 @@ class tMediaPlayer(
     }
 
     private fun getMediaInfo(nativePlayer: Long): MediaInfo {
-        val metadata = mutableMapOf<String, String>()
-        val metaDataArray = getMetadataNative(nativePlayer)
-        repeat(metaDataArray.size / 2) {
-            val key = metaDataArray[it * 2]
-            val value = metaDataArray[it * 2 + 1]
-            metadata[key] = value
+        fun convertMetadataToMap(metadataArray: Array<String>): Map<String, String> {
+            val metadata = mutableMapOf<String, String>()
+            repeat(metadataArray.size / 2) {
+                val key = metadataArray[it * 2]
+                val value = metadataArray[it * 2 + 1]
+                metadata[key] = value
+            }
+            return metadata
         }
+
         val audioStreamInfo: AudioStreamInfo? = if (containAudioStreamNative(nativePlayer)) {
             val codecId = audioCodecIdNative(nativePlayer)
             val sampleFormatId = audioSampleFmtNative(nativePlayer)
@@ -510,7 +513,8 @@ class tMediaPlayer(
                 audioBitrate = audioBitrateNative(nativePlayer),
                 audioSampleBitDepth = audioSampleBitDepthNative(nativePlayer),
                 audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.UNKNOWN,
-                audioDecoderName = audioDecoderNameNative(nativePlayer)
+                audioDecoderName = audioDecoderNameNative(nativePlayer),
+                audioStreamMetadata = convertMetadataToMap(audioStreamMetadataNative(nativePlayer))
             ).apply {
                 MediaLog.d(TAG, "Find audio stream: $this")
             }
@@ -531,7 +535,8 @@ class tMediaPlayer(
                 videoPixelBitDepth = videoPixelBitDepthNative(nativePlayer),
                 videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN,
                 isAttachment = videoStreamIsAttachmentNative(nativePlayer),
-                videoDecoderName = videoDecoderNameNative(nativePlayer)
+                videoDecoderName = videoDecoderNameNative(nativePlayer),
+                videoStreamMetadata = convertMetadataToMap(audioStreamMetadataNative(nativePlayer))
             ).apply {
                 MediaLog.d(TAG, "Find video stream: $this")
             }
@@ -543,17 +548,10 @@ class tMediaPlayer(
         val subtitleStreamCount = subtitleStreamCountNative(nativePlayer)
         if (subtitleStreamCount > 0) {
             repeat(subtitleStreamCount) { index ->
-                val subtitleMetadata = mutableMapOf<String, String>()
-                val subtitleMetadataArray = subtitleStreamMetadataNative(nativePlayer, index)
-                repeat(subtitleMetadataArray.size / 2) {
-                    val key = subtitleMetadataArray[it * 2]
-                    val value = subtitleMetadataArray[it * 2 + 1]
-                    subtitleMetadata[key] = value
-                }
                 subTitleStreams.add(
                     SubtitleStreamInfo(
                         streamId = subtitleStreamIdNative(nativePlayer, index),
-                        metadata = subtitleMetadata
+                        metadata = convertMetadataToMap(subtitleStreamMetadataNative(nativePlayer, index))
                     )
                 )
             }
@@ -562,7 +560,7 @@ class tMediaPlayer(
         return MediaInfo(
             nativePlayer = nativePlayer,
             duration = durationNative(nativePlayer),
-            metadata = metadata,
+            metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),
             audioStreamInfo = audioStreamInfo,
             videoStreamInfo = videoStreamInfo,
@@ -754,6 +752,8 @@ class tMediaPlayer(
     private external fun videoCodecIdNative(nativePlayer: Long): Int
 
     private external fun videoDecoderNameNative(nativePlayer: Long): String
+
+    private external fun videoStreamMetadataNative(nativePlayer: Long): Array<String>
     // endregion
 
     // region Native audio stream info
@@ -774,6 +774,8 @@ class tMediaPlayer(
     private external fun audioCodecIdNative(nativePlayer: Long): Int
 
     private external fun audioDecoderNameNative(nativePlayer: Long): String
+
+    private external fun audioStreamMetadataNative(nativePlayer: Long): Array<String>
     // endregion
 
     // region Native subtitle stream info

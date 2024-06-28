@@ -68,6 +68,9 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.videoBitrate / 1024} kbps")
                     result.add("PixelDepth: ${it.videoPixelBitDepth} bits")
                     result.add("PixelFormat: ${it.videoPixelFormat.name}")
+                    for ((key, value) in it.videoStreamMetadata) {
+                        result.add("$key: $value")
+                    }
                 }
                 emit(result)
             }),
@@ -89,6 +92,27 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.audioBitrate / 1024} kbps")
                     result.add("SimpleDepth: ${it.audioSampleBitDepth} bits")
                     result.add("SimpleFormat: ${it.audioSampleFormat.name}")
+                    for ((key, value) in it.audioStreamMetadata) {
+                        result.add("$key: $value")
+                    }
+                }
+                emit(result)
+            }),
+            dataBinder = DataBinderImpl { data, itemView, _ ->
+                val itemViewBinding = MediaInfoItemLayoutBinding.bind(itemView)
+                itemViewBinding.keyValueTv.text = data
+            }
+        ).build()
+
+        viewBinding.subtitlesRv.adapter = SimpleAdapterBuilderImpl<String>(
+            itemViewCreator = SingleItemViewCreatorImpl(R.layout.media_info_item_layout),
+            dataSource = FlowDataSourceImpl(flow {
+                val result = mutableListOf<String>()
+                for (subtitle in mediaInfo.subtitleStreams) {
+                    for ((key, value) in subtitle.metadata) {
+                        result.add("$key: $value")
+                    }
+                    result.add("")
                 }
                 emit(result)
             }),

@@ -10,5 +10,6 @@ data class VideoStreamInfo(
     val videoPixelBitDepth: Int,
     val videoPixelFormat: VideoPixelFormat,
     val isAttachment: Boolean = false,
-    val videoDecoderName: String
+    val videoDecoderName: String,
+    val videoStreamMetadata: Map<String, String>
 )
