@@ -15,18 +15,23 @@ import com.tans.tuiutils.adapter.impl.viewcreatators.SingleItemViewCreatorImpl
 import com.tans.tuiutils.dialog.BaseCoroutineStateDialogFragment
 import com.tans.tuiutils.dialog.createDefaultDialog
 import kotlinx.coroutines.flow.flow
+import java.io.File
 import java.util.Locale
 
 class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
     private val mediaInfo: MediaInfo?
 
+    private val file: String?
+
     constructor() : super(Unit) {
         this.mediaInfo = null
+        this.file = null
     }
 
-    constructor(mediaInfo: MediaInfo) : super(Unit) {
+    constructor(mediaInfo: MediaInfo, file: String) : super(Unit) {
         this.mediaInfo = mediaInfo
+        this.file = file
     }
 
     override val contentViewWidthInScreenRatio: Float = 0.5f
@@ -45,11 +50,26 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
     override fun bindContentView(view: View) {
         val mediaInfo = this.mediaInfo ?: return
+        val file = this.file ?: return
         val viewBinding = MediaInfoDialogBinding.bind(view)
 
-        viewBinding.metadataRv.adapter = SimpleAdapterBuilderImpl<String>(
+        viewBinding.fileRv.adapter = SimpleAdapterBuilderImpl<String>(
             itemViewCreator = SingleItemViewCreatorImpl(R.layout.media_info_item_layout),
-            dataSource = FlowDataSourceImpl(flow { emit(listOf("ContainerName: ${mediaInfo.containerName}") + mediaInfo.metadata.map { "${it.key}: ${it.value}" }) }),
+            dataSource = FlowDataSourceImpl(flow {
+                val result = mutableListOf<String>()
+                result.add("FilePath: $file")
+                val fileSizeStr = File(file).length().toSizeString()
+                result.add("FileSize: $fileSizeStr")
+                result.add("FileFormat: ${mediaInfo.containerName}")
+                if (mediaInfo.metadata.isNotEmpty()) {
+                    result.add("")
+                    result.add("Metadata: ")
+                    for ((key, value) in mediaInfo.metadata) {
+                        result.add(" $key: $value")
+                    }
+                }
+                emit(result)
+            }),
             dataBinder = DataBinderImpl { data, itemView, _ ->
                 val itemViewBinding = MediaInfoItemLayoutBinding.bind(itemView)
                 itemViewBinding.keyValueTv.text = data
@@ -68,8 +88,12 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.videoBitrate / 1024} kbps")
                     result.add("PixelDepth: ${it.videoPixelBitDepth} bits")
                     result.add("PixelFormat: ${it.videoPixelFormat.name}")
-                    for ((key, value) in it.videoStreamMetadata) {
-                        result.add("$key: $value")
+                    if (mediaInfo.metadata.isNotEmpty()) {
+                        result.add("")
+                        result.add("Metadata: ")
+                        for ((key, value) in it.videoStreamMetadata) {
+                            result.add(" $key: $value")
+                        }
                     }
                 }
                 emit(result)
@@ -92,8 +116,12 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.audioBitrate / 1024} kbps")
                     result.add("SimpleDepth: ${it.audioSampleBitDepth} bits")
                     result.add("SimpleFormat: ${it.audioSampleFormat.name}")
-                    for ((key, value) in it.audioStreamMetadata) {
-                        result.add("$key: $value")
+                    if (mediaInfo.metadata.isNotEmpty()) {
+                        result.add("")
+                        result.add("Metadata: ")
+                        for ((key, value) in it.audioStreamMetadata) {
+                            result.add(" $key: $value")
+                        }
                     }
                 }
                 emit(result)

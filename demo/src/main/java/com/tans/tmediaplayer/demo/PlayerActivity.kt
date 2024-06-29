@@ -187,7 +187,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             val info = mediaPlayer.getMediaInfo()
             if (info != null) {
                 viewBinding.actionLayout.hide()
-                val d = MediaInfoDialog(info)
+                val d = MediaInfoDialog(info, intent.getMediaFileExtra())
                 d.show(supportFragmentManager, "MediaInfoDialog#${System.currentTimeMillis()}")
             }
 
