@@ -88,7 +88,7 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.videoBitrate / 1024} kbps")
                     result.add("PixelDepth: ${it.videoPixelBitDepth} bits")
                     result.add("PixelFormat: ${it.videoPixelFormat.name}")
-                    if (mediaInfo.metadata.isNotEmpty()) {
+                    if (it.videoStreamMetadata.isNotEmpty()) {
                         result.add("")
                         result.add("Metadata: ")
                         for ((key, value) in it.videoStreamMetadata) {
@@ -116,7 +116,7 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.audioBitrate / 1024} kbps")
                     result.add("SimpleDepth: ${it.audioSampleBitDepth} bits")
                     result.add("SimpleFormat: ${it.audioSampleFormat.name}")
-                    if (mediaInfo.metadata.isNotEmpty()) {
+                    if (it.audioStreamMetadata.isNotEmpty()) {
                         result.add("")
                         result.add("Metadata: ")
                         for ((key, value) in it.audioStreamMetadata) {
