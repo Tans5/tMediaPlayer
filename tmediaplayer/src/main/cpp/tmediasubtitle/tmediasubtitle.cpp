@@ -59,7 +59,7 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
         return DecodeFail;
     }
     if (got_frame) {
-        if (subtitle_pkt->data) {
+        if (!subtitle_pkt->data) {
             LOGD("Decode subtitle success and skip next pkt.");
             return DecodeSuccessAndSkipNextPkt;
         } else {

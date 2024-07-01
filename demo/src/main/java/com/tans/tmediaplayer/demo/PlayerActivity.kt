@@ -78,6 +78,10 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
             when (loadResult) {
                 OptResult.Success -> {
+                    val subtitles = mediaPlayer.getMediaInfo()?.subtitleStreams
+                    if (subtitles?.isNotEmpty() == true) {
+                        mediaPlayer.selectSubtitleStream(subtitles[0])
+                    }
                     Log.d(TAG, "Load media file success.")
                 }
 

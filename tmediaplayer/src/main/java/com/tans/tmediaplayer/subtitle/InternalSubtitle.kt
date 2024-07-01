@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal class InternalSubtitle(val player: tMediaPlayer) {
 
-    private val subtitle: tMediaSubtitle = tMediaSubtitle(player)
+    val subtitle: tMediaSubtitle = tMediaSubtitle(player)
 
     private val selectedStreamId: AtomicReference<Int?> = AtomicReference(null)
 
