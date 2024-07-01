@@ -68,6 +68,12 @@ internal class SubtitleFrameDecoder(
                                     } else {
                                         requestDecode()
                                     }
+                                    if (pkt != null) {
+                                        packetQueue.enqueueWritable(pkt)
+                                    }
+                                    if (state != DecoderState.Ready) {
+                                        this@SubtitleFrameDecoder.state.set(DecoderState.Ready)
+                                    }
                                 } else {
                                     MediaLog.d(TAG, "Waiting frame queue writeable buffer.")
                                     this@SubtitleFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
@@ -83,7 +89,7 @@ internal class SubtitleFrameDecoder(
                             subtitle.frameQueue.flushReadableBuffer()
                             subtitle.packetQueue.flushReadableBuffer()
                             MediaLog.d(TAG, "Flush decoder.")
-                            // requestDecode()
+                            requestDecode()
                         }
                         DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal -> {
                             val subtitleStreamId = msg.obj
