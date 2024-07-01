@@ -473,7 +473,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_allocPacketNative(
 }
 #pragma clang diagnostic pop
 
-extern "C" JNIEXPORT jlong JNICALL
+extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_getPacketStreamIndexNative(
         JNIEnv * env,
         jobject j_player,

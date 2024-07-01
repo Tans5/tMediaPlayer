@@ -1,5 +1,6 @@
 package com.tans.tmediaplayer.player
 
+import android.widget.TextView
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.decoder.AudioFrameDecoder
@@ -35,6 +36,7 @@ import com.tans.tmediaplayer.player.rwqueue.Packet
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
+import com.tans.tmediaplayer.subtitle.InternalSubtitle
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
@@ -128,6 +130,9 @@ class tMediaPlayer(
         )
     }
 
+    private val subtitleView: AtomicReference<TextView?> = AtomicReference(null)
+
+    private val internalSubtitle: AtomicReference<InternalSubtitle?> = AtomicReference(null)
 
     // region public methods
     @Synchronized
@@ -185,6 +190,9 @@ class tMediaPlayer(
                         audioRenderer.flush()
                         audioRenderer.pause()
                         videoRenderer.pause()
+
+                        // Subtitle
+                        internalSubtitle.get()?.resetSubtitle()
                     } else {
                         // Load media file fail.
                         releaseNative(nativePlayer)
@@ -374,6 +382,10 @@ class tMediaPlayer(
                     // Frame queues
                     audioFrameQueue.release()
                     videoFrameQueue.release()
+
+                    // Subtitle
+                    internalSubtitle.get()?.resetSubtitle()
+                    internalSubtitle.set(null)
                     MediaLog.d(TAG, "Release player")
                 }
             }
@@ -402,6 +414,27 @@ class tMediaPlayer(
 
     override fun attachPlayerView(view: tMediaPlayerView?) {
         videoRenderer.attachPlayerView(view)
+    }
+
+    override fun attachSubtitleView(view: TextView?) {
+        subtitleView.set(view)
+    }
+
+    @Synchronized
+    override fun selectSubtitleStream(subtitle: SubtitleStreamInfo?) {
+        val info = getMediaInfo()
+        if (info != null && (info.subtitleStreams.contains(subtitle) || subtitle == null)) {
+            val internalSubtitle = this.internalSubtitle.get()
+            if (internalSubtitle == null && subtitle != null) {
+                val newSubtitle = InternalSubtitle(this)
+                newSubtitle.selectSubtitleStream(subtitle.streamId)
+                this.internalSubtitle.set(newSubtitle)
+            } else {
+                internalSubtitle?.selectSubtitleStream(subtitle?.streamId)
+            }
+        } else {
+            MediaLog.e(TAG, "Wrong subtitle stream info: $subtitle")
+        }
     }
     // endregion
 
@@ -654,6 +687,10 @@ class tMediaPlayer(
             }
         }
     }
+
+    internal fun getSubtitleView(): TextView? = subtitleView.get()
+
+    internal fun getInternalSubtitle(): InternalSubtitle? = internalSubtitle.get()
     // endregion
 
     // region Native player control methods.
@@ -790,8 +827,8 @@ class tMediaPlayer(
     internal fun allocPacketInternal(): Long = allocPacketNative()
 
     private external fun allocPacketNative(): Long
-    internal fun getPacketStreamIndexInternal(nativeBuffer: Long): Long = getPacketStreamIndexNative(nativeBuffer)
-    private external fun getPacketStreamIndexNative(nativeBuffer: Long): Long
+    internal fun getPacketStreamIndexInternal(nativeBuffer: Long): Int = getPacketStreamIndexNative(nativeBuffer)
+    private external fun getPacketStreamIndexNative(nativeBuffer: Long): Int
     internal fun getPacketPtsInternal(nativeBuffer: Long): Long = getPacketPtsNative(nativeBuffer)
     private external fun getPacketPtsNative(nativeBuffer: Long): Long
     internal fun getPacketDurationInternal(nativeBuffer: Long): Long = getPacketDurationNative(nativeBuffer)

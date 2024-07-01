@@ -38,6 +38,10 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream) 
 }
 
 tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
+    if (subtitle_stream == nullptr || subtitle_decoder_ctx == nullptr) {
+        LOGE("Subtitle stream is null.");
+        return DecodeFail;
+    }
     if (pkt != nullptr) {
         if (pkt->stream_index != subtitle_stream->index) {
             LOGE("Wrong subtitle stream index");

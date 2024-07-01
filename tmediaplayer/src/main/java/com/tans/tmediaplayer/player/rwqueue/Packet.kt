@@ -1,7 +1,7 @@
 package com.tans.tmediaplayer.player.rwqueue
 
 internal class Packet(val nativePacket: Long) {
-    var streamIndex = -1L
+    var streamIndex: Int = -1
     var pts: Long = 0L
     var duration: Long = 0L
     var sizeInBytes: Int = 0

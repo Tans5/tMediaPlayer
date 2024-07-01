@@ -1,7 +1,9 @@
 package com.tans.tmediaplayer.player
 
+import android.widget.TextView
 import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.OptResult
+import com.tans.tmediaplayer.player.model.SubtitleStreamInfo
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 
 
@@ -28,4 +30,8 @@ internal interface IPlayer {
     fun setListener(l: tMediaPlayerListener?)
 
     fun attachPlayerView(view: tMediaPlayerView?)
+
+    fun attachSubtitleView(view: TextView?)
+
+    fun selectSubtitleStream(subtitle: SubtitleStreamInfo?)
 }

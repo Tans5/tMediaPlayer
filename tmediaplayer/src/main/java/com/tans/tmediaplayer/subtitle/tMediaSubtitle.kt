@@ -37,7 +37,7 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
         }.apply { start() }
     }
 
-    private val decoder: SubtitleFrameDecoder
+    val decoder: SubtitleFrameDecoder
 
     init {
         subtitleNative.set(createSubtitleNative())
@@ -91,6 +91,10 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
                 subtitleThread.quitSafely()
             }
         }
+    }
+
+    fun readableFrameReady() {
+        // TODO: Notify renderer.
     }
 
     private external fun createSubtitleNative(): Long

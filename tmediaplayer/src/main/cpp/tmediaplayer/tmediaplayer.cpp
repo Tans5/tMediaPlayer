@@ -57,8 +57,10 @@ bool isSupportSubtitleStream(AVStream * s) {
     return (type == AVMEDIA_TYPE_SUBTITLE &&
            codecId != AV_CODEC_ID_DVD_SUBTITLE &&
            codecId != AV_CODEC_ID_XSUB &&
-           codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE &&
-           codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE);
+           codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE
+           // && codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE
+
+           );
 }
 
 tMediaOptResult tMediaPlayerContext::prepare(
