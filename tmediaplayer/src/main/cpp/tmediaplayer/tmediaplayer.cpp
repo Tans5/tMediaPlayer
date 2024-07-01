@@ -457,6 +457,7 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
         }
     } else {
         if (video_stream && pkt->stream_index == video_stream->index) {
+            pkt->time_base = video_stream->time_base;
             // video
             if (videoIsAttachPic) {
                 return ReadVideoAttachmentSuccess;
@@ -465,6 +466,7 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
             }
         }
         if (audio_stream && pkt->stream_index == audio_stream->index) {
+            pkt->time_base = audio_stream->time_base;
             // audio
             return ReadAudioSuccess;
         }
@@ -472,6 +474,7 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
             for (int i = 0; i < subtitleStreamCount; i ++) {
                 auto s = subtitleStreams[i];
                 if (s->stream->index == pkt->stream_index) {
+                    pkt->time_base = s->stream->time_base;
                     return ReadSubtitleSuccess;
                 }
             }
@@ -483,12 +486,12 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
 
 void tMediaPlayerContext::movePacketRef(AVPacket *target) {
     av_packet_move_ref(target, pkt);
-    if (video_stream && video_stream->index == pkt->stream_index) {
-        target->time_base = video_stream->time_base;
-    }
-    if (audio_stream && audio_stream->index == pkt->stream_index) {
-        target->time_base = audio_stream->time_base;
-    }
+//    if (video_stream && video_stream->index == pkt->stream_index) {
+//        target->time_base = video_stream->time_base;
+//    }
+//    if (audio_stream && audio_stream->index == pkt->stream_index) {
+//        target->time_base = audio_stream->time_base;
+//    }
 }
 
 tMediaOptResult tMediaPlayerContext::pauseReadPacket() {
