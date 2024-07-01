@@ -54,6 +54,10 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
     }
     int got_frame = 0;
     int ret = avcodec_decode_subtitle2(subtitle_decoder_ctx, subtitle_frame, &got_frame, subtitle_pkt);
+    double ptsStart = (double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0;
+    double ptsEnd = (double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0 + ptsStart;
+    subtitle_frame->start_display_time = (int) ptsStart;
+    subtitle_frame->end_display_time = (int) ptsEnd;
     if (ret < 0) {
         LOGE("Decode subtitle fail: %d", ret);
         return DecodeFail;
