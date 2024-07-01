@@ -46,6 +46,21 @@ void readMetadata(AVDictionary *src, Metadata *dst) {
     }
 }
 
+/**
+ * Do not support bitmap subtitle.
+ * @param s
+ * @return
+ */
+bool isSupportSubtitleStream(AVStream * s) {
+    auto codecId = s->codecpar->codec_id;
+    auto type = s->codecpar->codec_type;
+    return (type == AVMEDIA_TYPE_SUBTITLE &&
+           codecId != AV_CODEC_ID_DVD_SUBTITLE &&
+           codecId != AV_CODEC_ID_XSUB &&
+           codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE &&
+           codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE);
+}
+
 tMediaOptResult tMediaPlayerContext::prepare(
         const char *media_file_p,
         bool is_request_hw,
@@ -158,7 +173,9 @@ tMediaOptResult tMediaPlayerContext::prepare(
                 break;
 
             case AVMEDIA_TYPE_SUBTITLE:
-                subtitleStreamCountLocal ++;
+                if (isSupportSubtitleStream(s)) {
+                    subtitleStreamCountLocal ++;
+                }
                 break;
             default:
                 break;
@@ -175,12 +192,18 @@ tMediaOptResult tMediaPlayerContext::prepare(
             auto s = format_ctx->streams[i];
             auto codec_type = s->codecpar->codec_type;
             if (codec_type == AVMEDIA_TYPE_SUBTITLE) {
-                LOGD("SubtitleStream: %d", s ->index);
-                auto* ts = new SubtitleStream;
-                subtitleStreams[subtitleIndex] = ts;
-                ts->stream = s;
-                readMetadata(s->metadata, &ts->streamMetadata);
-                subtitleIndex ++;
+                // Do not support bitmap subtitle.
+                if (isSupportSubtitleStream(s)) {
+                    LOGD("SubtitleStream: %d", s->index);
+                    auto* ts = new SubtitleStream;
+                    subtitleStreams[subtitleIndex] = ts;
+                    ts->stream = s;
+                    readMetadata(s->metadata, &ts->streamMetadata);
+                    subtitleIndex ++;
+                } else {
+                    auto codecId = s->codecpar->codec_id;
+                    LOGE("Do not support subtitle stream: streamIndex=%d, codecId=%d", s->index, codecId);
+                }
             }
         }
     }

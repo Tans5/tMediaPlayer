@@ -5,6 +5,7 @@ import android.os.Looper
 import android.os.Message
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.decoder.DecoderState
+import com.tans.tmediaplayer.player.model.OptResult
 import java.util.concurrent.atomic.AtomicReference
 
 internal class SubtitleFrameDecoder(
@@ -37,10 +38,26 @@ internal class SubtitleFrameDecoder(
                             // TODO: Do decode.
                         }
                         DecoderHandlerMsg.RequestFlushDecoder.ordinal -> {
-                            // TODO: Do flush decoder
+                            skipNextPktRead = false
+                            subtitle.flushSubtitleDecoder()
+                            subtitle.frameQueue.flushReadableBuffer()
+                            subtitle.packetQueue.flushReadableBuffer()
+                            MediaLog.d(TAG, "Flush decoder.")
+                            // requestDecode()
                         }
                         DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal -> {
-                            // TODO: setup subtitle stream.
+                            val subtitleStreamId = msg.obj
+                            if (subtitleStreamId is Int) {
+                                skipNextPktRead = false
+                                subtitle.frameQueue.flushReadableBuffer()
+                                subtitle.packetQueue.flushReadableBuffer()
+                                val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
+                                if (result == OptResult.Success) {
+                                    MediaLog.d(TAG, "Setup subtitle stream success: $subtitleStreamId")
+                                } else {
+                                    MediaLog.e(TAG, "Setup subtitle stream fail: $subtitleStreamId")
+                                }
+                            }
                         }
                     }
                 }
@@ -55,6 +72,27 @@ internal class SubtitleFrameDecoder(
             decoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
         } else {
             MediaLog.e(TAG, "Request decode fail, wrong state: $state")
+        }
+    }
+
+    fun requestFlushDecoder() {
+        val state = getState()
+        if (state in activeStates) {
+            decoderHandler.removeMessages(DecoderHandlerMsg.RequestFlushDecoder.ordinal)
+            decoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
+        } else {
+            MediaLog.e(TAG, "Request flush decoder fail, wrong state: $state")
+        }
+    }
+
+    fun requestSetupSubtitleStream(streamIndex: Int) {
+        val state = getState()
+        if (state in activeStates) {
+            decoderHandler.removeMessages(DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal)
+            val msg = decoderHandler.obtainMessage(DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal, streamIndex)
+            decoderHandler.sendMessage(msg)
+        } else {
+            MediaLog.d(TAG, "Request setup subtitle stream, wrong state: $state")
         }
     }
 
