@@ -22,7 +22,9 @@ internal class SubtitleFrameQueue(
     }
 
     override fun enqueueReadable(b: SubtitleFrame) {
-        b.subtitles = subtitle.getSubtitleStringsInternal(b.nativeFrame)
+        b.subtitles = subtitle.getSubtitleStringsInternal(b.nativeFrame).let { array ->
+            array.map { it.fixAssSubtitle() }
+        }
         b.startPts = subtitle.getSubtitleStartPtsInternal(b.nativeFrame)
         b.endPts = subtitle.getSubtitleEndPtsInternal(b.nativeFrame)
         super.enqueueReadable(b)
@@ -38,5 +40,20 @@ internal class SubtitleFrameQueue(
     companion object {
         private const val TAG = "SubtitleFrameQueue"
         private val frameSize = AtomicInteger()
+
+        private val aasSubtitlePrefixRegex = "^(([^,]*,){8})".toRegex()
+
+        private val assSubtitleCommandRegex = "\\{.*\\}".toRegex()
+
+        private fun String.fixAssSubtitle(): String {
+            return if (this.contains(aasSubtitlePrefixRegex)) {
+                this.replace(aasSubtitlePrefixRegex, "")
+                    .replace(assSubtitleCommandRegex, "")
+                    .replace("\\N", "\n")
+                    .replace("\\h", "\t")
+            } else {
+                this
+            }
+        }
     }
 }
