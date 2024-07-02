@@ -241,6 +241,9 @@ class tMediaPlayer(
             audioRenderer.play()
             videoRenderer.play()
 
+            // Subtitle
+            internalSubtitle.get()?.play()
+
             OptResult.Success
         } else {
             MediaLog.e(TAG, "Wrong state: $state for play() method.")
@@ -275,6 +278,9 @@ class tMediaPlayer(
             // Pause renders
             audioRenderer.pause()
             videoRenderer.pause()
+
+            // Pause subtitle
+            internalSubtitle.get()?.pause()
 
             OptResult.Success
         } else {
@@ -343,6 +349,9 @@ class tMediaPlayer(
             audioRenderer.pause()
             audioRenderer.flush()
             videoRenderer.pause()
+
+            // Pause subtitle
+            internalSubtitle.get()?.pause()
             dispatchProgress(stopState.mediaInfo.duration, false)
             OptResult.Success
         } else {
@@ -428,6 +437,16 @@ class tMediaPlayer(
             if (internalSubtitle == null && subtitle != null) {
                 val newSubtitle = InternalSubtitle(this)
                 newSubtitle.selectSubtitleStream(subtitle.streamId)
+                val state = getState().let {
+                    if (it is tMediaPlayerState.Seeking) {
+                        it.lastState
+                    } else {
+                        it
+                    }
+                }
+                if (state is tMediaPlayerState.Playing) {
+                    newSubtitle.play()
+                }
                 this.internalSubtitle.set(newSubtitle)
             } else {
                 internalSubtitle?.selectSubtitleStream(subtitle?.streamId)
@@ -619,6 +638,7 @@ class tMediaPlayer(
                 callbackExecutor.execute {
                     listener.get()?.onProgressUpdate(progress, info.duration)
                 }
+                internalSubtitle.get()?.playerProgressUpdated()
             }
         } else {
             MediaLog.e(TAG, "Ignore progress update, because of state: $state")
@@ -684,6 +704,8 @@ class tMediaPlayer(
                 audioRenderer.pause()
                 audioRenderer.flush()
                 videoRenderer.pause()
+                // Subtitle
+                internalSubtitle.get()?.pause()
             }
         }
     }

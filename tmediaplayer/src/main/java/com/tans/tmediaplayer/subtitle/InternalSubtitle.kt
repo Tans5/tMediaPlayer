@@ -46,6 +46,18 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
         }
     }
 
+    fun play() {
+        subtitle.play()
+    }
+
+    fun pause() {
+        subtitle.pause()
+    }
+
+    fun playerProgressUpdated() {
+        subtitle.playerProgressUpdated()
+    }
+
     fun release() {
         subtitle.release()
         selectedStreamId.set(null)
