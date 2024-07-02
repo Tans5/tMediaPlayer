@@ -153,7 +153,12 @@ internal class SubtitleRenderer(
             val pts = player.getProgress()
             if (pts !in showingRange && textView.isVisible()) {
                 uiThreadHandler.post {
-                    textView.hide()
+                    // Check twice
+                    val p = player.getProgress()
+                    val r = latestSubtitleShowingRange.get()
+                    if (r != null && p !in r && textView.isVisible()) {
+                        textView.hide()
+                    }
                 }
             }
         }
