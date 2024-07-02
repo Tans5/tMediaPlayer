@@ -78,10 +78,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
             when (loadResult) {
                 OptResult.Success -> {
-                    val subtitles = mediaPlayer.getMediaInfo()?.subtitleStreams
-                    if (subtitles?.isNotEmpty() == true) {
-                        mediaPlayer.selectSubtitleStream(subtitles[0])
-                    }
                     Log.d(TAG, "Load media file success.")
                 }
 
@@ -101,6 +97,17 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             mediaPlayer.attachPlayerView(viewBinding.playerView)
             mediaPlayer.attachSubtitleView(viewBinding.subtitleTv)
             mediaPlayer.play()
+
+            if (mediaPlayer.getMediaInfo()?.subtitleStreams?.isEmpty() == false) {
+                viewBinding.subtitlesIv.show()
+                viewBinding.subtitlesIv.clicks(this) {
+                    viewBinding.actionLayout.hide()
+                    val d = SubtitleSelectDialog(mediaPlayer)
+                    d.show(supportFragmentManager, "SubtitleSelectDialog#${System.currentTimeMillis()}")
+                }
+            } else {
+                viewBinding.subtitlesIv.hide()
+            }
         }
 
 

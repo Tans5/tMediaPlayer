@@ -63,6 +63,7 @@ class SubtitleSelectDialog : BaseCoroutineStateDialogFragment<SubtitleSelectDial
         updateState { it.copy(subtitles = subtitles) }
 
         fun selectSubtitle(subtitle: Subtitle) {
+            player.selectSubtitleStream(subtitle.streamInfo)
             updateState { state ->
                 state.copy(subtitles = state.subtitles.map {
                     if (it.streamInfo == subtitle.streamInfo) {
