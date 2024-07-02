@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal class InternalSubtitle(val player: tMediaPlayer) {
 
-    val subtitle: tMediaSubtitle = tMediaSubtitle(player)
+    private val subtitle: tMediaSubtitle = tMediaSubtitle(player)
 
     private val selectedStreamId: AtomicReference<Int?> = AtomicReference(null)
 
@@ -23,6 +23,10 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
 
     fun resetSubtitle() {
         selectedStreamId.set(null)
+        subtitle.decoder.requestFlushDecoder()
+    }
+
+    fun flushDecoder() {
         subtitle.decoder.requestFlushDecoder()
     }
 

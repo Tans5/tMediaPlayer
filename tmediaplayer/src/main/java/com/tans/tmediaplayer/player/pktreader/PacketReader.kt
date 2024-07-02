@@ -143,7 +143,7 @@ internal class PacketReader(
                                         MediaLog.e(TAG, "Seek to $position fail, cost $cost ms")
                                     }
                                     player.seekResult(position, result)
-                                    player.getInternalSubtitle()?.subtitle?.decoder?.requestFlushDecoder()
+                                    player.getInternalSubtitle()?.flushDecoder()
                                     requestReadPkt()
                                 }
                             }
