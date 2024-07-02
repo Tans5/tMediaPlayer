@@ -436,7 +436,7 @@ class tMediaPlayer(
             val internalSubtitle = this.internalSubtitle.get()
             if (internalSubtitle == null && subtitle != null) {
                 val newSubtitle = InternalSubtitle(this)
-                newSubtitle.selectSubtitleStream(subtitle.streamId)
+                newSubtitle.selectSubtitleStream(subtitle)
                 val state = getState().let {
                     if (it is tMediaPlayerState.Seeking) {
                         it.lastState
@@ -449,10 +449,18 @@ class tMediaPlayer(
                 }
                 this.internalSubtitle.set(newSubtitle)
             } else {
-                internalSubtitle?.selectSubtitleStream(subtitle?.streamId)
+                internalSubtitle?.selectSubtitleStream(subtitle)
             }
         } else {
             MediaLog.e(TAG, "Wrong subtitle stream info: $subtitle")
+        }
+    }
+
+    override fun getSelectedSubtitleStream(): SubtitleStreamInfo? {
+        return if (getMediaInfo() != null) {
+            this.internalSubtitle.get()?.getSelectedSubtitleStream()
+        } else {
+            null
         }
     }
     // endregion

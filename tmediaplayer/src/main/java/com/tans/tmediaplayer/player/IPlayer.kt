@@ -34,4 +34,6 @@ internal interface IPlayer {
     fun attachSubtitleView(view: TextView?)
 
     fun selectSubtitleStream(subtitle: SubtitleStreamInfo?)
+
+    fun getSelectedSubtitleStream(): SubtitleStreamInfo?
 }

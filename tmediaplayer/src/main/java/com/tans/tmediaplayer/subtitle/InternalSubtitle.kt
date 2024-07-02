@@ -1,5 +1,6 @@
 package com.tans.tmediaplayer.subtitle
 
+import com.tans.tmediaplayer.player.model.SubtitleStreamInfo
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicReference
 
@@ -7,22 +8,25 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
 
     private val subtitle: tMediaSubtitle = tMediaSubtitle(player)
 
-    private val selectedStreamId: AtomicReference<Int?> = AtomicReference(null)
+    private val selectedSubtitleStream: AtomicReference<SubtitleStreamInfo?> = AtomicReference(null)
 
-    fun selectSubtitleStream(streamId: Int?) {
-        val lastStreamId = selectedStreamId.get()
-        if (lastStreamId != streamId) {
-            selectedStreamId.set(streamId)
+    fun selectSubtitleStream(subtitleStream: SubtitleStreamInfo?) {
+        val streamId = subtitleStream?.streamId
+        val lastStream = selectedSubtitleStream.get()
+        if (lastStream != subtitleStream) {
+            selectedSubtitleStream.set(subtitleStream)
             if (streamId == null) {
                 subtitle.decoder.requestFlushDecoder()
             } else {
-                subtitle.decoder.requestSetupSubtitleStream(streamId)
+                subtitle.decoder.requestSetupSubtitleStream(subtitleStream.streamId)
             }
         }
     }
 
+    fun getSelectedSubtitleStream(): SubtitleStreamInfo? = selectedSubtitleStream.get()
+
     fun resetSubtitle() {
-        selectedStreamId.set(null)
+        selectedSubtitleStream.set(null)
         subtitle.decoder.requestFlushDecoder()
     }
 
@@ -32,7 +36,7 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
 
     fun enqueueSubtitlePacket() {
         val playerNative = player.getMediaInfo()?.nativePlayer
-        val selectedStreamIndex = selectedStreamId.get()
+        val selectedStreamIndex = selectedSubtitleStream.get()?.streamId
         if (playerNative != null && selectedStreamIndex != null) {
             val pkt = subtitle.packetQueue.dequeueWriteableForce()
             player.movePacketRefInternal(nativePlayer = playerNative, nativePacket = pkt.nativePacket)
@@ -60,6 +64,6 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
 
     fun release() {
         subtitle.release()
-        selectedStreamId.set(null)
+        selectedSubtitleStream.set(null)
     }
 }

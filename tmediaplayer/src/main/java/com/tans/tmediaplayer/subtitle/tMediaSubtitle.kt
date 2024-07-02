@@ -51,7 +51,7 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     fun getNativeSubtitle(): Long? = subtitleNative.get()
 
-    @Synchronized
+
     fun setupSubtitleStreamFromPlayer(streamIndex: Int): OptResult {
         val nativePlayer = player.getMediaInfo()?.nativePlayer
         val nativeSubtitle = subtitleNative.get()

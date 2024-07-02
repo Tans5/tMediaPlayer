@@ -63,6 +63,12 @@ internal class SubtitleRenderer(
                                     playerPts < frameShowRange.first -> {
                                         val needDelay = frameShowRange.first - playerPts
                                         MediaLog.d(TAG, "Need delay ${needDelay}ms to show subtitle frame=$frame")
+                                        val lastShowingRange = latestSubtitleShowingRange.get()
+                                        if (lastShowingRange != null &&
+                                            frameShowRange.first >= lastShowingRange.last &&
+                                            frameShowRange.first - lastShowingRange.last <= 100L) {
+                                            latestSubtitleShowingRange.set(LongRange(lastShowingRange.first, frameShowRange.last))
+                                        }
                                         requestRender(needDelay)
                                     }
                                     else -> {
