@@ -99,6 +99,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         launch {
             stateFlow.map { it.playerState }.filterIsInstance<tMediaPlayerState.Prepared>().first()
             mediaPlayer.attachPlayerView(viewBinding.playerView)
+            mediaPlayer.attachSubtitleView(viewBinding.subtitleTv)
             mediaPlayer.play()
         }
 
