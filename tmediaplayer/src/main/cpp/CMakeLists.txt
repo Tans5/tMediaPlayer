@@ -148,6 +148,26 @@ target_link_libraries(
 )
 # endregion
 
+#region tmediasubtitlepktreader
+add_library(
+        tmediasubtitlepktreader SHARED
+        tmediasubtitlepktreader/jni.cpp
+        tmediasubtitlepktreader/tmediasubtitlepktreader.cpp
+)
+
+target_include_directories(
+        tmediasubtitlepktreader PUBLIC
+        tmediasubtitlepktreader/header
+        tmediaplayer/header
+        ffmpeg/header
+)
+
+target_link_libraries(
+        tmediasubtitlepktreader
+        tmediaplayer
+)
+#endregion
+
 #region tmediasubtitle
 add_library(
         tmediasubtitle SHARED
@@ -159,11 +179,13 @@ target_include_directories(
         tmediasubtitle PUBLIC
         tmediasubtitle/header
         tmediaplayer/header
+        tmediasubtitlepktreader/header
         ffmpeg/header
 )
 
 target_link_libraries(
         tmediasubtitle
         tmediaplayer
+        tmediasubtitlepktreader
 )
 #endregion

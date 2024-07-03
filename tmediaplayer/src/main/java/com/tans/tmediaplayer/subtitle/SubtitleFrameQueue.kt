@@ -8,7 +8,7 @@ internal class SubtitleFrameQueue(
     private val subtitle: tMediaSubtitle
 ) : BaseReadWriteQueue<SubtitleFrame>() {
 
-    override val maxQueueSize: Int = 16
+    override val maxQueueSize: Int = 8
 
     override fun allocBuffer(): SubtitleFrame {
         val nativeFrame = subtitle.allocSubtitleBufferInternal()

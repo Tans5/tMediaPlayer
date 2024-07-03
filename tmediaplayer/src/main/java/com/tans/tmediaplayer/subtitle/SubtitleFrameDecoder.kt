@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal class SubtitleFrameDecoder(
     private val subtitle: tMediaSubtitle,
-    looper: Looper
+    looper: Looper,
+    private val writeablePktReady: (() -> Unit)? = null
 ) {
     private val state: AtomicReference<DecoderState> = AtomicReference(DecoderState.Ready)
 
@@ -70,6 +71,7 @@ internal class SubtitleFrameDecoder(
                                     }
                                     if (pkt != null) {
                                         packetQueue.enqueueWritable(pkt)
+                                        writeablePktReady?.invoke()
                                     }
                                     if (state != DecoderState.Ready) {
                                         this@SubtitleFrameDecoder.state.set(DecoderState.Ready)
