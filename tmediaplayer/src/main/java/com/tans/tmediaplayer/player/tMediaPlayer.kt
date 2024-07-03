@@ -36,6 +36,7 @@ import com.tans.tmediaplayer.player.rwqueue.Packet
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
+import com.tans.tmediaplayer.subtitle.ExternalSubtitle
 import com.tans.tmediaplayer.subtitle.InternalSubtitle
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
@@ -134,6 +135,8 @@ class tMediaPlayer(
 
     private val internalSubtitle: AtomicReference<InternalSubtitle?> = AtomicReference(null)
 
+    private val externalSubtitle: AtomicReference<ExternalSubtitle?> = AtomicReference(null)
+
     // region public methods
     @Synchronized
     override fun prepare(file: String): OptResult {
@@ -193,6 +196,11 @@ class tMediaPlayer(
 
                         // Subtitle
                         internalSubtitle.get()?.resetSubtitle()
+                        val lastExternalSubtitle = externalSubtitle.get()
+                        if (lastExternalSubtitle != null) {
+                            lastExternalSubtitle.release()
+                            externalSubtitle.set(null)
+                        }
                     } else {
                         // Load media file fail.
                         releaseNative(nativePlayer)
@@ -243,6 +251,7 @@ class tMediaPlayer(
 
             // Subtitle
             internalSubtitle.get()?.play()
+            externalSubtitle.get()?.play()
 
             OptResult.Success
         } else {
@@ -281,6 +290,7 @@ class tMediaPlayer(
 
             // Pause subtitle
             internalSubtitle.get()?.pause()
+            externalSubtitle.get()?.pause()
 
             OptResult.Success
         } else {
@@ -352,6 +362,7 @@ class tMediaPlayer(
 
             // Pause subtitle
             internalSubtitle.get()?.pause()
+            externalSubtitle.get()?.pause()
             dispatchProgress(stopState.mediaInfo.duration, false)
             OptResult.Success
         } else {
@@ -393,8 +404,10 @@ class tMediaPlayer(
                     videoFrameQueue.release()
 
                     // Subtitle
-                    internalSubtitle.get()?.resetSubtitle()
+                    internalSubtitle.get()?.release()
                     internalSubtitle.set(null)
+                    externalSubtitle.get()?.release()
+                    externalSubtitle.set(null)
                     MediaLog.d(TAG, "Release player")
                 }
             }
@@ -433,6 +446,11 @@ class tMediaPlayer(
     override fun selectSubtitleStream(subtitle: SubtitleStreamInfo?) {
         val info = getMediaInfo()
         if (info != null && (info.subtitleStreams.contains(subtitle) || subtitle == null)) {
+            val extSubtitle = externalSubtitle.get()
+            if (extSubtitle != null) {
+                extSubtitle.release()
+                externalSubtitle.set(null)
+            }
             val internalSubtitle = this.internalSubtitle.get()
             if (internalSubtitle == null && subtitle != null) {
                 val newSubtitle = InternalSubtitle(this)
@@ -459,6 +477,33 @@ class tMediaPlayer(
     override fun getSelectedSubtitleStream(): SubtitleStreamInfo? {
         return if (getMediaInfo() != null) {
             this.internalSubtitle.get()?.getSelectedSubtitleStream()
+        } else {
+            null
+        }
+    }
+
+    @Synchronized
+    override fun loadExternalSubtitleFile(file: String) {
+        if (getMediaInfo() != null) {
+            val interSubtitle = internalSubtitle.get()
+            if (interSubtitle != null) {
+                interSubtitle.release()
+                internalSubtitle.set(null)
+            }
+            val lastExternalSubtitle = externalSubtitle.get()
+            if (lastExternalSubtitle != null) {
+                lastExternalSubtitle.requestLoadFile(file)
+            } else {
+                val newExternalSubtitle = ExternalSubtitle(this)
+                newExternalSubtitle.requestLoadFile(file)
+                externalSubtitle.set(newExternalSubtitle)
+            }
+        }
+    }
+
+    override fun getExternalSubtitleFile(): String? {
+        return if (getMediaInfo() != null) {
+            this.externalSubtitle.get()?.getLoadedFile()
         } else {
             null
         }
@@ -721,6 +766,8 @@ class tMediaPlayer(
     internal fun getSubtitleView(): TextView? = subtitleView.get()
 
     internal fun getInternalSubtitle(): InternalSubtitle? = internalSubtitle.get()
+
+    internal fun getExternalSubtitle(): ExternalSubtitle? = externalSubtitle.get()
     // endregion
 
     // region Native player control methods.

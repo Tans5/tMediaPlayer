@@ -138,6 +138,7 @@ internal class PacketReader(
                                     if (result == OptResult.Success) {
                                         audioPacketQueue.flushReadableBuffer()
                                         videoPacketQueue.flushReadableBuffer()
+                                        player.getExternalSubtitle()?.requestSeek(position)
                                         MediaLog.d(TAG, "Seek to $position success, cost $cost ms")
                                     } else {
                                         MediaLog.e(TAG, "Seek to $position fail, cost $cost ms")

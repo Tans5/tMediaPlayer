@@ -36,4 +36,8 @@ internal interface IPlayer {
     fun selectSubtitleStream(subtitle: SubtitleStreamInfo?)
 
     fun getSelectedSubtitleStream(): SubtitleStreamInfo?
+
+    fun loadExternalSubtitleFile(file: String)
+
+    fun getExternalSubtitleFile(): String?
 }

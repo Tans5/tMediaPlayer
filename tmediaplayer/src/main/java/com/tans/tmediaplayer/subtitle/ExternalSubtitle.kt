@@ -23,6 +23,8 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
 
     private val isLooperPrepared: AtomicBoolean by lazy { AtomicBoolean(false) }
 
+    private val loadedFile: AtomicReference<String?> = AtomicReference(null)
+
     private val pktReaderThread: HandlerThread by lazy {
         object : HandlerThread("tMP_ExtSubPktReader", Thread.MAX_PRIORITY) {
             override fun onLooperPrepared() {
@@ -134,15 +136,21 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
     fun getState(): ReaderState = state.get()
 
     fun requestLoadFile(file: String) {
-        val state = getState()
-        if (state in activeStates) {
-            readerHandler.removeMessages(HandlerMsg.RequestLoadFile.ordinal)
-            val msg = readerHandler.obtainMessage(HandlerMsg.RequestLoadFile.ordinal, file)
-            readerHandler.sendMessage(msg)
-        } else {
-            MediaLog.e(TAG, "Request load file: $file fail, wrong state: $state")
+        val lastLoadedFile = loadedFile.get()
+        if (lastLoadedFile != file) {
+            val state = getState()
+            if (state in activeStates) {
+                loadedFile.set(file)
+                readerHandler.removeMessages(HandlerMsg.RequestLoadFile.ordinal)
+                val msg = readerHandler.obtainMessage(HandlerMsg.RequestLoadFile.ordinal, file)
+                readerHandler.sendMessage(msg)
+            } else {
+                MediaLog.e(TAG, "Request load file: $file fail, wrong state: $state")
+            }
         }
     }
+
+    fun getLoadedFile(): String? = loadedFile.get()
 
     fun requestSeek(targetPosition: Long) {
         val state = getState()
@@ -153,6 +161,18 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         } else {
             MediaLog.e(TAG, "Request seek fail, wrong state: $state")
         }
+    }
+
+    fun play() {
+        subtitle.play()
+    }
+
+    fun pause() {
+        subtitle.pause()
+    }
+
+    fun playerProgressUpdated() {
+        subtitle.playerProgressUpdated()
     }
 
     fun release() {
@@ -168,6 +188,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                 if (readerNative != null) {
                     releaseNative(readerNative)
                 }
+                loadedFile.set(null)
             }
         }
     }
