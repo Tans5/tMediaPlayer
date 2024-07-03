@@ -65,10 +65,17 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_decodeSubtitleNative(
         jlong native_frame) {
     auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
     auto frame = reinterpret_cast<tMediaSubtitleBuffer *>(native_frame);
-    if (native_pkt == 0) {
-        return subtitle->decodeSubtitle(nullptr, &frame->subtitle_frame);
+    if (frame->subtitle_frame == nullptr) {
+        frame->subtitle_frame = new AVSubtitle;
     } else {
-        return subtitle->decodeSubtitle(reinterpret_cast<AVPacket *>(native_pkt), &frame->subtitle_frame);
+        avsubtitle_free(frame->subtitle_frame);
+        free(frame->subtitle_frame);
+        frame->subtitle_frame = new AVSubtitle;
+    }
+    if (native_pkt == 0) {
+        return subtitle->decodeSubtitle(nullptr, frame->subtitle_frame);
+    } else {
+        return subtitle->decodeSubtitle(reinterpret_cast<AVPacket *>(native_pkt), frame->subtitle_frame);
     }
 }
 
@@ -96,7 +103,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStartPtsNative(
         jobject j_subtitle,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    return buffer->subtitle_frame.start_display_time;
+    return buffer->subtitle_frame->start_display_time;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -105,7 +112,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleEndPtsNative(
         jobject j_subtitle,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    return buffer->subtitle_frame.end_display_time;
+    return buffer->subtitle_frame->end_display_time;
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
@@ -115,8 +122,8 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
     auto subtitleFrame = buffer->subtitle_frame;
-    auto lineSize = subtitleFrame.num_rects;
-    auto subtitleRects = subtitleFrame.rects;
+    auto lineSize = subtitleFrame->num_rects;
+    auto subtitleRects = subtitleFrame->rects;
 
     auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
     auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(lineSize, stringClazz, nullptr)));
@@ -146,7 +153,10 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
         jobject j_subtitle,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    avsubtitle_free(&buffer->subtitle_frame);
+    if (buffer->subtitle_frame != nullptr) {
+        avsubtitle_free(buffer->subtitle_frame);
+        free(buffer->subtitle_frame);
+    }
     free(buffer);
 }
 

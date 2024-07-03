@@ -8,7 +8,7 @@
 #include "tmediaplayer.h"
 
 typedef struct tMediaSubtitleBuffer {
-    AVSubtitle subtitle_frame;
+    AVSubtitle *subtitle_frame = nullptr;
 } tMediaSubtitleBuffer;
 
 typedef struct tMediaSubtitleContext {
