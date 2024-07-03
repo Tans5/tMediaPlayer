@@ -127,31 +127,22 @@ internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -
 
     private external fun setupSubtitleStreamFromPktReaderNative(subtitleNative: Long, readerNative: Long): Int
 
-    internal fun decodeSubtitleInternal(pktNative: Long): DecodeResult {
+    internal fun decodeSubtitleInternal(pktNative: Long, frameNative: Long): DecodeResult {
         val subtitleNative = subtitleNative.get()
         return if (subtitleNative != null) {
-            decodeSubtitleNative(subtitleNative = subtitleNative, pktNative = pktNative).toDecodeResult()
+            decodeSubtitleNative(subtitleNative = subtitleNative, pktNative = pktNative, frameNative = frameNative).toDecodeResult()
         } else {
             DecodeResult.Fail
         }
     }
 
-    private external fun decodeSubtitleNative(subtitleNative: Long, pktNative: Long): Int
+    private external fun decodeSubtitleNative(subtitleNative: Long, pktNative: Long, frameNative: Long): Int
 
     private external fun flushSubtitleDecoderNative(subtitleNative: Long)
 
     internal fun allocSubtitleBufferInternal(): Long = allocSubtitleBufferNative()
 
     private external fun allocSubtitleBufferNative(): Long
-
-    internal fun moveDecodedSubtitleFrameToBufferInternal(bufferNative: Long) {
-        val subtitleNative = subtitleNative.get()
-        if (subtitleNative != null) {
-            moveDecodedSubtitleFrameToBufferNative(subtitleNative = subtitleNative, bufferNative = bufferNative)
-        }
-    }
-
-    private external fun moveDecodedSubtitleFrameToBufferNative(subtitleNative: Long, bufferNative: Long)
 
     internal fun getSubtitleStartPtsInternal(bufferNative: Long): Long = getSubtitleStartPtsNative(bufferNative)
 

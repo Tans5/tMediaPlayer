@@ -8,18 +8,17 @@
 #include "tmediaplayer.h"
 
 typedef struct tMediaSubtitleBuffer {
-    AVSubtitle * subtitle_frame = nullptr;
+    AVSubtitle subtitle_frame;
 } tMediaSubtitleBuffer;
 
 typedef struct tMediaSubtitleContext {
     AVStream *subtitle_stream = nullptr;
     AVCodecContext *subtitle_decoder_ctx = nullptr;
     AVPacket *subtitle_pkt = nullptr;
-    AVSubtitle *subtitle_frame = nullptr;
 
     tMediaOptResult setupNewSubtitleStream(AVStream *stream);
 
-    tMediaDecodeResult decodeSubtitle(AVPacket* pkt);
+    tMediaDecodeResult decodeSubtitle(AVPacket* pkt, AVSubtitle *subtitleFrame);
 
     void flushDecoder();
 

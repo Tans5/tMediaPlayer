@@ -48,12 +48,11 @@ internal class SubtitleFrameDecoder(
                                         packetQueue.dequeueReadable()
                                     }
                                     if (skipNextPktRead || pkt != null) {
-                                        val decodeResult = subtitle.decodeSubtitleInternal(pkt?.nativePacket ?: 0L)
+                                        val frame = frameQueue.dequeueWriteableForce()
+                                        val decodeResult = subtitle.decodeSubtitleInternal(pkt?.nativePacket ?: 0L, frame.nativeFrame)
                                         skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                         when (decodeResult) {
                                             DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> {
-                                                val frame = frameQueue.dequeueWriteableForce()
-                                                subtitle.moveDecodedSubtitleFrameToBufferInternal(frame.nativeFrame)
                                                 frameQueue.enqueueReadable(frame)
                                                 subtitle.readableFrameReady()
                                                 requestDecode()
@@ -63,6 +62,7 @@ internal class SubtitleFrameDecoder(
                                                 if (decodeResult == DecodeResult.Fail) {
                                                     MediaLog.e(TAG, "Decode subtitle fail.")
                                                 }
+                                                frameQueue.enqueueWritable(frame)
                                                 requestDecode()
                                             }
                                         }

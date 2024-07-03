@@ -9,9 +9,6 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream) 
     if (subtitle_pkt == nullptr) {
         subtitle_pkt = av_packet_alloc();
     }
-    if (subtitle_frame == nullptr) {
-        subtitle_frame = new AVSubtitle;
-    }
     releaseLastSubtitleStream();
     if (stream->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
         LOGE("Wrong stream type: %d", stream->codecpar->codec_type);
@@ -37,7 +34,7 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream) 
     return OptSuccess;
 }
 
-tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
+tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtitle *subtitleFrame) {
     if (subtitle_stream == nullptr || subtitle_decoder_ctx == nullptr) {
         LOGE("Subtitle stream is null.");
         return DecodeFail;
@@ -53,11 +50,11 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) {
         av_packet_move_ref(subtitle_pkt, pkt);
     }
     int got_frame = 0;
-    int ret = avcodec_decode_subtitle2(subtitle_decoder_ctx, subtitle_frame, &got_frame, subtitle_pkt);
+    int ret = avcodec_decode_subtitle2(subtitle_decoder_ctx, subtitleFrame, &got_frame, subtitle_pkt);
     double ptsStart = (double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0;
     double ptsEnd = (double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0 + ptsStart;
-    subtitle_frame->start_display_time = (int) ptsStart;
-    subtitle_frame->end_display_time = (int) ptsEnd;
+    subtitleFrame->start_display_time = (int) ptsStart;
+    subtitleFrame->end_display_time = (int) ptsEnd;
     if (ret < 0) {
         LOGE("Decode subtitle fail: %d", ret);
         return DecodeFail;
@@ -100,10 +97,6 @@ void tMediaSubtitleContext::release() {
         av_packet_unref(subtitle_pkt);
         av_packet_free(&subtitle_pkt);
         subtitle_pkt = nullptr;
-    }
-    if (subtitle_frame != nullptr) {
-        avsubtitle_free(subtitle_frame);
-        subtitle_frame = nullptr;
     }
     free(this);
 }

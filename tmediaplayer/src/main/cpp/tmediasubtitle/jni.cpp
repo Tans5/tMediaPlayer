@@ -61,12 +61,14 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_decodeSubtitleNative(
         JNIEnv * env,
         jobject j_subtitle,
         jlong native_subtitle,
-        jlong native_pkt) {
+        jlong native_pkt,
+        jlong native_frame) {
     auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
+    auto frame = reinterpret_cast<tMediaSubtitleBuffer *>(native_frame);
     if (native_pkt == 0) {
-        return subtitle->decodeSubtitle(nullptr);
+        return subtitle->decodeSubtitle(nullptr, &frame->subtitle_frame);
     } else {
-        return subtitle->decodeSubtitle(reinterpret_cast<AVPacket *>(native_pkt));
+        return subtitle->decodeSubtitle(reinterpret_cast<AVPacket *>(native_pkt), &frame->subtitle_frame);
     }
 }
 
@@ -84,33 +86,9 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_allocSubtitleBufferNative(
         JNIEnv * env,
         jobject j_subtitle) {
     auto buffer = new tMediaSubtitleBuffer;
-    buffer->subtitle_frame = new AVSubtitle;
     return reinterpret_cast<jlong>(buffer);
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_moveDecodedSubtitleFrameToBufferNative(
-        JNIEnv * env,
-        jobject j_subtitle,
-        jlong native_subtitle,
-        jlong native_buffer) {
-    auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
-    auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    auto src = subtitle->subtitle_frame;
-    auto target = buffer->subtitle_frame;
-    target->format = src->format;
-    src->format = 0;
-    target->start_display_time = src->start_display_time;
-    src->start_display_time = 0;
-    target->end_display_time = src->end_display_time;
-    src->end_display_time = 0;
-    target->num_rects = src->num_rects;
-    src->num_rects = 0;
-    target->rects = src->rects;
-    src->rects = nullptr;
-    target->pts = src->pts;
-    src->pts = 0;
-}
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStartPtsNative(
@@ -118,7 +96,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStartPtsNative(
         jobject j_subtitle,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    return buffer->subtitle_frame->start_display_time;
+    return buffer->subtitle_frame.start_display_time;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -127,7 +105,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleEndPtsNative(
         jobject j_subtitle,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    return buffer->subtitle_frame->end_display_time;
+    return buffer->subtitle_frame.end_display_time;
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
@@ -137,8 +115,8 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
     auto subtitleFrame = buffer->subtitle_frame;
-    auto lineSize = subtitleFrame->num_rects;
-    auto subtitleRects = subtitleFrame->rects;
+    auto lineSize = subtitleFrame.num_rects;
+    auto subtitleRects = subtitleFrame.rects;
 
     auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
     auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(lineSize, stringClazz, nullptr)));
@@ -168,7 +146,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
         jobject j_subtitle,
         jlong native_buffer) {
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-    avsubtitle_free(buffer->subtitle_frame);
+    avsubtitle_free(&buffer->subtitle_frame);
     free(buffer);
 }
 
