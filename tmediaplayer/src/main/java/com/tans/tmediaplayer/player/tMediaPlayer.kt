@@ -496,6 +496,16 @@ class tMediaPlayer(
             } else {
                 val newExternalSubtitle = ExternalSubtitle(this)
                 newExternalSubtitle.requestLoadFile(file)
+                val state = getState().let {
+                    if (it is tMediaPlayerState.Seeking) {
+                        it.lastState
+                    } else {
+                        it
+                    }
+                }
+                if (state is tMediaPlayerState.Playing) {
+                    newExternalSubtitle.play()
+                }
                 externalSubtitle.set(newExternalSubtitle)
             }
         }

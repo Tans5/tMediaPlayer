@@ -139,6 +139,12 @@ internal class SubtitleRenderer(
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
                 this.latestSubtitleShowingRange.set(null)
+                uiThreadHandler.post {
+                    val view = player.getSubtitleView()
+                    if (view != null && view.isVisible()) {
+                        view.hide()
+                    }
+                }
                 MediaLog.d(TAG, "Subtitle renderer released.")
             } else {
                 MediaLog.e(TAG, "Release error, because of state: $state")
