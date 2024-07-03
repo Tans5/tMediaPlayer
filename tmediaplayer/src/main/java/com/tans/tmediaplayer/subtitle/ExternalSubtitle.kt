@@ -90,7 +90,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                     when (readPacketNative(readerNative).toReadPacketResult()) {
                                         ReadPacketResult.ReadSubtitleSuccess -> {
                                             val pkt = pktQueue.dequeueWriteableForce()
-                                            subtitle.moveDecodedSubtitleFrameToBufferInternal(pkt.nativePacket)
+                                            movePacketRefNative(readerNative = readerNative, packetNative = pkt.nativePacket)
                                             pktQueue.enqueueReadable(pkt)
                                             subtitle.decoder.readablePacketReady()
                                             requestReadPkt()
