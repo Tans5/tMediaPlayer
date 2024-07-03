@@ -99,11 +99,17 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_moveDecodedSubtitleFrameToBuf
     auto src = subtitle->subtitle_frame;
     auto target = buffer->subtitle_frame;
     target->format = src->format;
+    src->format = 0;
     target->start_display_time = src->start_display_time;
+    src->start_display_time = 0;
     target->end_display_time = src->end_display_time;
+    src->end_display_time = 0;
     target->num_rects = src->num_rects;
+    src->num_rects = 0;
     target->rects = src->rects;
+    src->rects = nullptr;
     target->pts = src->pts;
+    src->pts = 0;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
