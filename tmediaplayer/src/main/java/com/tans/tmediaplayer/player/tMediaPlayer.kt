@@ -692,6 +692,7 @@ class tMediaPlayer(
                     listener.get()?.onProgressUpdate(progress, info.duration)
                 }
                 internalSubtitle.get()?.playerProgressUpdated()
+                externalSubtitle.get()?.playerProgressUpdated()
             }
         } else {
             MediaLog.e(TAG, "Ignore progress update, because of state: $state")
@@ -759,6 +760,7 @@ class tMediaPlayer(
                 videoRenderer.pause()
                 // Subtitle
                 internalSubtitle.get()?.pause()
+                externalSubtitle.get()?.pause()
             }
         }
     }

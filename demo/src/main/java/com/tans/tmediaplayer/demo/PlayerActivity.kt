@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.File
 
 @FullScreenStyle
 class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State>(State()) {
@@ -96,6 +97,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             stateFlow.map { it.playerState }.filterIsInstance<tMediaPlayerState.Prepared>().first()
             mediaPlayer.attachPlayerView(viewBinding.playerView)
             mediaPlayer.attachSubtitleView(viewBinding.subtitleTv)
+            // mediaPlayer.loadExternalSubtitleFile(File(filesDir, "test.ass").canonicalPath)
             mediaPlayer.play()
 
             if (mediaPlayer.getMediaInfo()?.subtitleStreams?.isEmpty() == false) {

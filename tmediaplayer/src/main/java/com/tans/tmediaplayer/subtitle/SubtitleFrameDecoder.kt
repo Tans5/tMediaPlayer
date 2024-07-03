@@ -90,6 +90,7 @@ internal class SubtitleFrameDecoder(
                             subtitle.flushSubtitleDecoder()
                             subtitle.frameQueue.flushReadableBuffer()
                             subtitle.packetQueue.flushReadableBuffer()
+                            writeablePktReady?.invoke()
                             MediaLog.d(TAG, "Flush decoder.")
                             requestDecode()
                         }
@@ -99,6 +100,7 @@ internal class SubtitleFrameDecoder(
                                 skipNextPktRead = false
                                 subtitle.frameQueue.flushReadableBuffer()
                                 subtitle.packetQueue.flushReadableBuffer()
+                                writeablePktReady?.invoke()
                                 val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
                                 if (result == OptResult.Success) {
                                     MediaLog.d(TAG, "Setup internal subtitle stream success: $subtitleStreamId")
@@ -114,6 +116,7 @@ internal class SubtitleFrameDecoder(
                                 skipNextPktRead = false
                                 subtitle.frameQueue.flushReadableBuffer()
                                 subtitle.packetQueue.flushReadableBuffer()
+                                writeablePktReady?.invoke()
                                 val result = subtitle.setupSubtitleStreamFromPktReaderInternal(subtitleNative = nativeSubtitle, readerNative = readerNative)
                                 if (result == OptResult.Success) {
                                     MediaLog.d(TAG, "Setup external subtitle stream success.")

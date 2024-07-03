@@ -84,6 +84,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                 val pktQueue = subtitle.packetQueue
                                 val queueSize = pktQueue.readableQueueSize()
                                 if (queueSize >= MAX_PKT_SIZE) {
+                                    subtitle.decoder.readablePacketReady()
                                     MediaLog.d(TAG, "Packet queue full, queueSize=$queueSize.")
                                     this@ExternalSubtitle.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
