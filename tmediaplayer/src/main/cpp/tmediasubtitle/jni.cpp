@@ -62,20 +62,14 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_decodeSubtitleNative(
         jobject j_subtitle,
         jlong native_subtitle,
         jlong native_pkt,
-        jlong native_frame) {
+        jlong native_buffer) {
     auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
-    auto frame = reinterpret_cast<tMediaSubtitleBuffer *>(native_frame);
-    if (frame->subtitle_frame == nullptr) {
-        frame->subtitle_frame = new AVSubtitle;
-    } else {
-        avsubtitle_free(frame->subtitle_frame);
-        free(frame->subtitle_frame);
-        frame->subtitle_frame = new AVSubtitle;
-    }
+    auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
+    avsubtitle_free(buffer->subtitle_frame);
     if (native_pkt == 0) {
-        return subtitle->decodeSubtitle(nullptr, frame->subtitle_frame);
+        return subtitle->decodeSubtitle(nullptr, buffer->subtitle_frame);
     } else {
-        return subtitle->decodeSubtitle(reinterpret_cast<AVPacket *>(native_pkt), frame->subtitle_frame);
+        return subtitle->decodeSubtitle(reinterpret_cast<AVPacket *>(native_pkt), buffer->subtitle_frame);
     }
 }
 
@@ -93,6 +87,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_allocSubtitleBufferNative(
         JNIEnv * env,
         jobject j_subtitle) {
     auto buffer = new tMediaSubtitleBuffer;
+    buffer->subtitle_frame = reinterpret_cast<AVSubtitle *>(av_mallocz(sizeof(AVSubtitle)));
     return reinterpret_cast<jlong>(buffer);
 }
 
@@ -155,7 +150,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
     auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
     if (buffer->subtitle_frame != nullptr) {
         avsubtitle_free(buffer->subtitle_frame);
-        free(buffer->subtitle_frame);
+        av_freep(buffer->subtitle_frame);
     }
     free(buffer);
 }

@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.renderer.RendererHandlerMsg
 import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.min
 
 internal class SubtitleRenderer(
     private val player: tMediaPlayer,
@@ -43,25 +44,22 @@ internal class SubtitleRenderer(
                                 if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                     this@SubtitleRenderer.state.set(RendererState.Playing)
                                 }
-                                fun dequeueCurrentFrame() {
-                                    val f = frameQueue.dequeueReadable()
-                                    if (f === frame) {
-                                        frameQueue.enqueueWritable(f)
-                                        subtitle.writeableFrameReady()
-                                    } else if (f != null) {
-                                        frameQueue.enqueueWritable(f)
-                                    }
-                                }
                                 val playerPts = player.getProgress()
                                 val frameShowRange = LongRange(frame.startPts, frame.endPts)
                                 when  {
                                     playerPts > frameShowRange.last -> {
-                                        MediaLog.e(TAG, "Drop subtitle frame, playerPts=$playerPts, frame=${frame}")
-                                        dequeueCurrentFrame()
+                                        val f = frameQueue.dequeueReadable()
+                                        if (f === frame) {
+                                            frameQueue.enqueueWritable(f)
+                                            subtitle.writeableFrameReady()
+                                            MediaLog.e(TAG, "Drop subtitle frame, playerPts=$playerPts, frame=${frame}")
+                                        } else if (f != null) {
+                                            frameQueue.enqueueWritable(f)
+                                        }
                                         requestRender()
                                     }
                                     playerPts < frameShowRange.first -> {
-                                        val needDelay = frameShowRange.first - playerPts
+                                        val needDelay = min( frameShowRange.first - playerPts, MAX_RENDER_DELAY_INTERVAL)
                                         MediaLog.d(TAG, "Need delay ${needDelay}ms to show subtitle frame=$frame")
                                         val lastShowingRange = latestSubtitleShowingRange.get()
                                         if (lastShowingRange != null &&
@@ -72,25 +70,31 @@ internal class SubtitleRenderer(
                                         requestRender(needDelay)
                                     }
                                     else -> {
-                                        latestSubtitleShowingRange.set(frameShowRange)
-                                        val textView = player.getSubtitleView()
-                                        if (textView != null) {
-                                            val textBuilder = StringBuilder()
-                                            val subtitles = (frame.subtitles ?: emptyList()).withIndex().toList()
-                                            for ((i, s) in subtitles) {
-                                                textBuilder.append(s)
-                                                if (i != subtitles.lastIndex) {
-                                                    textBuilder.append('\n')
+                                        val f = frameQueue.dequeueReadable()
+                                        if (f === frame) {
+                                            latestSubtitleShowingRange.set(frameShowRange)
+                                            val textView = player.getSubtitleView()
+                                            if (textView != null) {
+                                                val textBuilder = StringBuilder()
+                                                val subtitles = (frame.subtitles ?: emptyList()).withIndex().toList()
+                                                for ((i, s) in subtitles) {
+                                                    textBuilder.append(s)
+                                                    if (i != subtitles.lastIndex) {
+                                                        textBuilder.append('\n')
+                                                    }
+                                                }
+                                                val text = textBuilder.toString()
+                                                uiThreadHandler.post {
+                                                    textView.text = text
+                                                    textView.show()
                                                 }
                                             }
-                                            val text = textBuilder.toString()
-                                            uiThreadHandler.post {
-                                                textView.text = text
-                                                textView.show()
-                                            }
+                                            MediaLog.d(TAG, "Show subtitle: $frame")
                                         }
-                                        MediaLog.d(TAG, "Show subtitle: $frame")
-                                        dequeueCurrentFrame()
+                                        if (f != null) {
+                                            frameQueue.enqueueWritable(f)
+                                            subtitle.writeableFrameReady()
+                                        }
                                         requestRender()
                                     }
                                 }
@@ -207,5 +211,7 @@ internal class SubtitleRenderer(
                 this.visibility = View.GONE
             }
         }
+
+        private const val MAX_RENDER_DELAY_INTERVAL = 5000L
     }
 }
