@@ -93,7 +93,7 @@ internal class SubtitleFrameDecoder(
                             MediaLog.d(TAG, "Flush decoder.")
                             requestDecode()
                         }
-                        DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal -> {
+                        DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal -> {
                             val subtitleStreamId = msg.obj
                             if (subtitleStreamId is Int) {
                                 skipNextPktRead = false
@@ -101,11 +101,26 @@ internal class SubtitleFrameDecoder(
                                 subtitle.packetQueue.flushReadableBuffer()
                                 val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
                                 if (result == OptResult.Success) {
-                                    MediaLog.d(TAG, "Setup subtitle stream success: $subtitleStreamId")
+                                    MediaLog.d(TAG, "Setup internal subtitle stream success: $subtitleStreamId")
+                                    requestDecode()
                                 } else {
-                                    MediaLog.e(TAG, "Setup subtitle stream fail: $subtitleStreamId")
+                                    MediaLog.e(TAG, "Setup internal subtitle stream fail: $subtitleStreamId")
                                 }
-                                requestDecode()
+                            }
+                        }
+                        DecoderHandlerMsg.RequestSetupExternalSubtitleStream.ordinal -> {
+                            val readerNative = msg.obj
+                            if (readerNative is Long) {
+                                skipNextPktRead = false
+                                subtitle.frameQueue.flushReadableBuffer()
+                                subtitle.packetQueue.flushReadableBuffer()
+                                val result = subtitle.setupSubtitleStreamFromPktReaderInternal(subtitleNative = nativeSubtitle, readerNative = readerNative)
+                                if (result == OptResult.Success) {
+                                    MediaLog.d(TAG, "Setup external subtitle stream success.")
+                                    requestDecode()
+                                } else {
+                                    MediaLog.e(TAG, "Setup external subtitle stream fail.")
+                                }
                             }
                         }
                     }
@@ -134,11 +149,22 @@ internal class SubtitleFrameDecoder(
         }
     }
 
-    fun requestSetupSubtitleStream(streamIndex: Int) {
+    fun requestSetupInternalSubtitleStream(streamIndex: Int) {
         val state = getState()
         if (state in activeStates) {
-            decoderHandler.removeMessages(DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal)
-            val msg = decoderHandler.obtainMessage(DecoderHandlerMsg.RequestSetupSubtitleStream.ordinal, streamIndex)
+            decoderHandler.removeMessages(DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal)
+            val msg = decoderHandler.obtainMessage(DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal, streamIndex)
+            decoderHandler.sendMessage(msg)
+        } else {
+            MediaLog.d(TAG, "Request setup subtitle stream, wrong state: $state")
+        }
+    }
+
+    fun requestSetupExternalSubtitleStream(readerNative: Long) {
+        val state = getState()
+        if (state in activeStates) {
+            decoderHandler.removeMessages(DecoderHandlerMsg.RequestSetupExternalSubtitleStream.ordinal)
+            val msg = decoderHandler.obtainMessage(DecoderHandlerMsg.RequestSetupExternalSubtitleStream.ordinal, readerNative)
             decoderHandler.sendMessage(msg)
         } else {
             MediaLog.d(TAG, "Request setup subtitle stream, wrong state: $state")
@@ -178,7 +204,8 @@ internal class SubtitleFrameDecoder(
         private enum class DecoderHandlerMsg {
             RequestDecode,
             RequestFlushDecoder,
-            RequestSetupSubtitleStream
+            RequestSetupInternalSubtitleStream,
+            RequestSetupExternalSubtitleStream
         }
         private const val TAG = "SubtitleFrameDecoder"
     }

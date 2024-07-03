@@ -4,6 +4,7 @@
 
 #include <jni.h>
 #include "tmediasubtitle.h"
+#include "tmediasubtitlepktreader.h"
 
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -35,6 +36,22 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_setupSubtitleStreamFromPlayer
         return subtitle->setupNewSubtitleStream(targetStream);
     } else {
         LOGE("Wrong stream index: %d", stream_index);
+        return OptFail;
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_setupSubtitleStreamFromPktReaderNative(
+        JNIEnv * env,
+        jobject j_subtitle,
+        jlong native_subtitle,
+        jlong native_pkt_reader) {
+    auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
+    auto pktReader = reinterpret_cast<tMediaSubtitlePktReaderContext *>(native_pkt_reader);
+    auto stream = pktReader->subtitle_stream;
+    if (stream != nullptr) {
+        return subtitle->setupNewSubtitleStream(stream);
+    } else {
         return OptFail;
     }
 }

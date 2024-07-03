@@ -213,16 +213,10 @@ internal class PacketReader(
     }
 
     companion object {
+
         private enum class HandlerMsg {
             RequestReadPkt,
             RequestSeek
-        }
-
-        enum class ReaderState {
-            NotInit,
-            Ready,
-            WaitingWritableBuffer,
-            Released
         }
 
         private const val TAG = "PacketReader"

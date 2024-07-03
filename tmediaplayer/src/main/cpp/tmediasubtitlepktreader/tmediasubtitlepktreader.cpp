@@ -44,10 +44,16 @@ tMediaOptResult tMediaSubtitlePktReaderContext::prepare(const char *subtitle_fil
         LOGE("Do not find support subtitle stream.");
         return OptFail;
     }
+    if (pkt == nullptr) {
+        pkt = av_packet_alloc();
+    }
     return OptSuccess;
 }
 
 tMediaReadPktResult tMediaSubtitlePktReaderContext::readPacket() {
+    if (format_ctx == nullptr || pkt == nullptr) {
+        return ReadFail;
+    }
     int ret = av_read_frame(format_ctx, pkt);
     if (ret < 0) {
         if (ret == AVERROR_EOF || avio_feof(format_ctx->pb)) {
@@ -66,6 +72,9 @@ tMediaReadPktResult tMediaSubtitlePktReaderContext::readPacket() {
 }
 
 tMediaOptResult tMediaSubtitlePktReaderContext::seekTo(int16_t targetPosInMillis) {
+    if (format_ctx == nullptr) {
+        return OptFail;
+    }
     int64_t seekTs = targetPosInMillis * AV_TIME_BASE / 1000L;
     int ret = avformat_seek_file(format_ctx, -1, INT64_MIN, seekTs, INT64_MAX, AVSEEK_FLAG_BACKWARD);
     if (ret < 0) {

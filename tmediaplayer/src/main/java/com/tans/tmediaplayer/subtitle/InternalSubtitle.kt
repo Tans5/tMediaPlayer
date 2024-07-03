@@ -18,7 +18,7 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
             if (streamId == null) {
                 subtitle.decoder.requestFlushDecoder()
             } else {
-                subtitle.decoder.requestSetupSubtitleStream(subtitleStream.streamId)
+                subtitle.decoder.requestSetupInternalSubtitleStream(subtitleStream.streamId)
             }
         }
     }

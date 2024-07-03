@@ -123,6 +123,10 @@ internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -
 
     private external fun setupSubtitleStreamFromPlayerNative(subtitleNative: Long, playerNative: Long, streamIndex: Int): Int
 
+    internal fun setupSubtitleStreamFromPktReaderInternal(subtitleNative: Long, readerNative: Long): OptResult = setupSubtitleStreamFromPktReaderNative(subtitleNative, readerNative).toOptResult()
+
+    private external fun setupSubtitleStreamFromPktReaderNative(subtitleNative: Long, readerNative: Long): Int
+
     internal fun decodeSubtitleInternal(pktNative: Long): DecodeResult {
         val subtitleNative = subtitleNative.get()
         return if (subtitleNative != null) {
