@@ -43,7 +43,7 @@ internal class SubtitleFrameQueue(
 
         private val aasSubtitlePrefixRegex = "^(([^,]*,){8})".toRegex()
 
-        private val assSubtitleCommandRegex = "\\{.*\\}".toRegex()
+        private val assSubtitleCommandRegex = "\\{[^{}]*\\}".toRegex()
 
         private fun String.fixAssSubtitle(): String {
             return if (this.contains(aasSubtitlePrefixRegex)) {

@@ -6,7 +6,7 @@ class AssSubtitleTest {
 
         private val aasSubtitlePrefixRegex = "^(([^,]*,){8})".toRegex()
 
-        private val assCommandRegex = "\\{.*\\}".toRegex()
+        private val assCommandRegex = "\\{[^{}]*\\}".toRegex()
 
         private fun String.fixAssSubtitle(): String {
             return if (this.contains(aasSubtitlePrefixRegex)) {
@@ -23,8 +23,10 @@ class AssSubtitleTest {
         fun main(args: Array<String>) {
             val input1 = "9,0,Default,,0,0,0,,快点走了"
             val input2 = "466,0,白中黄英,,0,0,0,,不幸的是 \"何时\"离我仍然\\N{\\r原文字幕}Unfortunately, the \"When\" Of it was still"
+            val input3 = "2,0,Default,,0,0,0,,{\\i1{12}}Ветерани називають це\\N«тунельним зором».{\\i0}"
             println(input1.fixAssSubtitle())
             println(input2.fixAssSubtitle())
+            println(input3.fixAssSubtitle())
         }
     }
 }
