@@ -172,8 +172,8 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         subtitle.pause()
     }
 
-    fun playerProgressUpdated() {
-        subtitle.playerProgressUpdated()
+    fun playerProgressUpdated(pts: Long) {
+        subtitle.playerProgressUpdated(pts)
     }
 
     fun release() {

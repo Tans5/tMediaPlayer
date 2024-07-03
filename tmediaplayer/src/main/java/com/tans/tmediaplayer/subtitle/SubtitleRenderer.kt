@@ -156,18 +156,20 @@ internal class SubtitleRenderer(
         }
     }
 
-    fun playerProgressUpdated() {
+    fun playerProgressUpdated(pts: Long) {
         val showingRange = latestSubtitleShowingRange.get()
         val textView = player.getSubtitleView()
-        if (showingRange != null && textView != null) {
-            val pts = player.getProgress()
-            if (pts !in showingRange && textView.isVisible()) {
+        if (textView != null) {
+            if ((showingRange == null || pts !in showingRange) && textView.isVisible()) {
                 uiThreadHandler.post {
                     // Check twice
                     val p = player.getProgress()
                     val r = latestSubtitleShowingRange.get()
-                    if (r != null && p !in r && textView.isVisible()) {
+                    if ((r == null || p !in r) && textView.isVisible()) {
                         textView.hide()
+                        MediaLog.d(TAG, "Hide text view, pts=$p, range=$r")
+                    } else {
+                        MediaLog.e(TAG, "Hide text view fail, pts=$p, range=$r")
                     }
                 }
             }

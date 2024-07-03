@@ -90,8 +90,8 @@ internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -
     }
 
     @Synchronized
-    fun playerProgressUpdated() {
-        renderer.playerProgressUpdated()
+    fun playerProgressUpdated(pts: Long) {
+        renderer.playerProgressUpdated(pts)
     }
 
     @Synchronized

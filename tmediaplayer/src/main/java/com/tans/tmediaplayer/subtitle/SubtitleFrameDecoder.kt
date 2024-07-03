@@ -15,7 +15,7 @@ internal class SubtitleFrameDecoder(
     looper: Looper,
     private val writeablePktReady: (() -> Unit)? = null
 ) {
-    private val state: AtomicReference<DecoderState> = AtomicReference(DecoderState.Ready)
+    private val state: AtomicReference<DecoderState> = AtomicReference(DecoderState.WaitingReadablePacketBuffer)
 
     private val activeStates = arrayOf(
         DecoderState.Ready,
@@ -176,8 +176,7 @@ internal class SubtitleFrameDecoder(
 
     fun readablePacketReady() {
         val state = getState()
-        if (state == DecoderState.WaitingReadablePacketBuffer ||
-            state == DecoderState.Ready) {
+        if (state == DecoderState.WaitingReadablePacketBuffer) {
             requestDecode()
         }
     }

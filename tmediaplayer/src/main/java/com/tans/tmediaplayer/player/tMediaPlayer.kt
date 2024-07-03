@@ -701,8 +701,8 @@ class tMediaPlayer(
                 callbackExecutor.execute {
                     listener.get()?.onProgressUpdate(progress, info.duration)
                 }
-                internalSubtitle.get()?.playerProgressUpdated()
-                externalSubtitle.get()?.playerProgressUpdated()
+                internalSubtitle.get()?.playerProgressUpdated(progress)
+                externalSubtitle.get()?.playerProgressUpdated(progress)
             }
         } else {
             MediaLog.e(TAG, "Ignore progress update, because of state: $state")
