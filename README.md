@@ -1,7 +1,7 @@
 
 ## Summary
 
-Android media player library base on FFmpeg 7.0.1 and support ascii art image filter.
+Android media player library base on FFmpeg 7.0.1. Support single image frame load, subtitle render, video hw decode and ascii art image filter.
 
 
 ## Screenshots
