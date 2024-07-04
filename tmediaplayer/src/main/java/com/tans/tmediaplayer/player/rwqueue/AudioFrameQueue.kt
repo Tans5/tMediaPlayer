@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 internal class AudioFrameQueue(private val player: tMediaPlayer) : BaseReadWriteQueue<AudioFrame>() {
 
-    override val maxQueueSize: Int = 16
+    override val maxQueueSize: Int = 10
 
     override fun allocBuffer(): AudioFrame {
         val nativeFrame = player.allocAudioBufferInternal()

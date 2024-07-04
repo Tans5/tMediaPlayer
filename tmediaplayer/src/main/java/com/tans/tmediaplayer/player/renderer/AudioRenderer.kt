@@ -21,7 +21,7 @@ internal class AudioRenderer(
     outputChannel: AudioChannel,
     outputSampleRate: AudioSampleRate,
     outputSampleBitDepth: AudioSampleBitDepth,
-    bufferQueueSize: Int = 18,
+    bufferQueueSize: Int = 12,
     private val audioFrameQueue: AudioFrameQueue,
     private val audioPacketQueue: PacketQueue,
     private val player: tMediaPlayer
