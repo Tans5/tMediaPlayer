@@ -750,8 +750,14 @@ class tMediaPlayer(
 
     private fun checkPlayEnd() {
         val state = getState()
-        if (state is tMediaPlayerState.Playing) {
-            val mediaInfo = state.mediaInfo
+        if ((state is tMediaPlayerState.Playing ||
+            state is tMediaPlayerState.Paused)) {
+            val mediaInfo = if (state is tMediaPlayerState.Playing) {
+                state.mediaInfo
+            } else {
+                state as tMediaPlayerState.Paused
+                state.mediaInfo
+            }
             if ((mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
                 (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
             ) {
