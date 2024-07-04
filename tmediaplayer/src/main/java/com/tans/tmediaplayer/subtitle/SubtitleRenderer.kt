@@ -151,7 +151,7 @@ internal class SubtitleRenderer(
     }
 
     fun playerProgressUpdated(pts: Long) {
-        val fixedShowingRange = latestSubtitleShowingRange.get()?.let { LongRange(it.first + SHOW_TEXT_BUFFER, it.last + SHOW_TEXT_BUFFER) }
+        val fixedShowingRange = latestSubtitleShowingRange.get()?.let { LongRange(it.first - SHOW_TEXT_BUFFER, it.last + SHOW_TEXT_BUFFER) }
         val textView = player.getSubtitleView()
         if (textView != null) {
             if ((fixedShowingRange == null || pts !in fixedShowingRange)) {
