@@ -149,10 +149,7 @@ class tMediaPlayer(
                         return OptResult.Fail
                     }
                     val lastMediaInfo = getMediaInfo()
-                    if (!dispatchNewState(new = tMediaPlayerState.NoInit, old = lastState)) {
-                        MediaLog.e(TAG, "Update not init state fail, currentState=${getState()}")
-                        return OptResult.Fail
-                    }
+                    dispatchNewState(new = tMediaPlayerState.NoInit, old = lastState)
                     if (lastMediaInfo != null) {
                         // Release last nativePlayer.
                         releaseNative(lastMediaInfo.nativePlayer)
