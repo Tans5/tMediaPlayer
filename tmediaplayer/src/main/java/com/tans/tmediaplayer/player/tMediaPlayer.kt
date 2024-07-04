@@ -522,6 +522,7 @@ class tMediaPlayer(
 
     // region Player internal methods.
 
+    @Synchronized
     internal fun seekResult(position: Long, result: OptResult) {
         val state = getState()
         if (result == OptResult.Success) {
@@ -544,14 +545,17 @@ class tMediaPlayer(
         if (state is tMediaPlayerState.Seeking && mediaInfo != null) {
             val lastState = state.lastState
             if (result == OptResult.Success) {
-                if (lastState !is tMediaPlayerState.Playing) {
+                if (lastState is tMediaPlayerState.Playing) {
+                    // Recheck renders play state, sometimes renders in eof state.
+                    videoRenderer.play()
+                    audioRenderer.play()
+                    dispatchNewState(lastState)
+                } else {
                     // If new state is pause, force render a video frame.
                     dispatchNewState(tMediaPlayerState.Paused(mediaInfo))
                     if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
                         videoRenderer.requestRenderForce()
                     }
-                } else {
-                    dispatchNewState(lastState)
                 }
             } else {
                 dispatchNewState(lastState)
@@ -761,22 +765,42 @@ class tMediaPlayer(
             if ((mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
                 (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
             ) {
-                MediaLog.d(TAG, "Render end.")
-                dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
-                // Clocks
-                videoClock.setClock(mediaInfo.duration, videoPacketQueue.getSerial())
-                videoClock.pause()
-                audioClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
-                audioClock.pause()
-                externalClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
-                externalClock.pause()
-                // Renders
-                audioRenderer.pause()
-                audioRenderer.flush()
-                videoRenderer.pause()
-                // Subtitle
-                internalSubtitle.get()?.pause()
-                externalSubtitle.get()?.pause()
+                // Recheck with thread safe
+                synchronized(this@tMediaPlayer) {
+                    val s = getState()
+                    if ((s is tMediaPlayerState.Playing || s is tMediaPlayerState.Paused)) {
+                        val i = if (s is tMediaPlayerState.Playing) {
+                            s.mediaInfo
+                        } else {
+                            s as tMediaPlayerState.Paused
+                            s.mediaInfo
+                        }
+                        if ((i.videoStreamInfo == null || i.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
+                            (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)) {
+                            MediaLog.d(TAG, "Render end.")
+                            dispatchNewState(tMediaPlayerState.PlayEnd(mediaInfo))
+                            // Clocks
+                            videoClock.setClock(mediaInfo.duration, videoPacketQueue.getSerial())
+                            videoClock.pause()
+                            audioClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
+                            audioClock.pause()
+                            externalClock.setClock(mediaInfo.duration, audioPacketQueue.getSerial())
+                            externalClock.pause()
+                            // Renders
+                            audioRenderer.pause()
+                            audioRenderer.flush()
+                            videoRenderer.pause()
+                            // Subtitle
+                            internalSubtitle.get()?.pause()
+                            externalSubtitle.get()?.pause()
+                        } else {
+                            MediaLog.e(TAG, "Recheck play end fail, mediaInfo=$i, videoRenderState=${videoRenderer.getState()}, audioRenderState=${audioRenderer.getState()}")
+                        }
+                    } else {
+                        MediaLog.e(TAG, "Recheck play end fail, wrong state: $s")
+                    }
+
+                }
             }
         }
     }
