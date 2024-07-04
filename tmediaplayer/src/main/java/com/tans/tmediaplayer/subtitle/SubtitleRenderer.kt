@@ -55,18 +55,13 @@ internal class SubtitleRenderer(
                                             MediaLog.e(TAG, "Drop subtitle frame, playerPts=$playerPts, frame=${frame}")
                                         } else if (f != null) {
                                             frameQueue.enqueueWritable(f)
+                                            subtitle.writeableFrameReady()
                                         }
                                         requestRender()
                                     }
                                     playerPts < frameShowRange.first -> {
                                         val needDelay = min( frameShowRange.first - playerPts, MAX_RENDER_DELAY_INTERVAL)
                                         MediaLog.d(TAG, "Need delay ${needDelay}ms to show subtitle frame=$frame")
-                                        val lastShowingRange = latestSubtitleShowingRange.get()
-                                        if (lastShowingRange != null &&
-                                            frameShowRange.first >= lastShowingRange.last &&
-                                            frameShowRange.first - lastShowingRange.last <= 100L) {
-                                            latestSubtitleShowingRange.set(LongRange(lastShowingRange.first, frameShowRange.last))
-                                        }
                                         requestRender(needDelay)
                                     }
                                     else -> {
@@ -86,7 +81,6 @@ internal class SubtitleRenderer(
                                                 val text = textBuilder.toString()
                                                 uiThreadHandler.post {
                                                     textView.text = text
-                                                    textView.show()
                                                 }
                                             }
                                             MediaLog.d(TAG, "Show subtitle: $frame")
@@ -157,19 +151,23 @@ internal class SubtitleRenderer(
     }
 
     fun playerProgressUpdated(pts: Long) {
-        val showingRange = latestSubtitleShowingRange.get()
+        val fixedShowingRange = latestSubtitleShowingRange.get()?.let { LongRange(it.first + SHOW_TEXT_BUFFER, it.last + SHOW_TEXT_BUFFER) }
         val textView = player.getSubtitleView()
         if (textView != null) {
-            if ((showingRange == null || pts !in showingRange) && textView.isVisible()) {
-                uiThreadHandler.post {
-                    // Check twice
-                    val p = player.getProgress()
-                    val r = latestSubtitleShowingRange.get()
-                    if ((r == null || p !in r) && textView.isVisible()) {
+            if ((fixedShowingRange == null || pts !in fixedShowingRange)) {
+                // Do hide.
+                if (textView.isVisible()) {
+                    uiThreadHandler.post {
                         textView.hide()
-                        MediaLog.d(TAG, "Hide text view, pts=$p, range=$r")
-                    } else {
-                        MediaLog.e(TAG, "Hide text view fail, pts=$p, range=$r")
+                        MediaLog.d(TAG, "Hide text view, pts=$pts, range=${latestSubtitleShowingRange.get()}")
+                    }
+                }
+            } else {
+                // Do show
+                if (!textView.isVisible()) {
+                    uiThreadHandler.post {
+                        textView.show()
+                        MediaLog.d(TAG, "Show text view, pts=$pts, range=${latestSubtitleShowingRange.get()}")
                     }
                 }
             }
@@ -215,5 +213,8 @@ internal class SubtitleRenderer(
         }
 
         private const val MAX_RENDER_DELAY_INTERVAL = 5000L
+
+        private const val SHOW_TEXT_BUFFER = 50L
+
     }
 }
