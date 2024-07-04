@@ -75,11 +75,9 @@ internal class VideoRenderer(
                                     }
                                     renderForce.set(false)
                                     if (!frame.isEof) {
-                                        // frameTimer = SystemClock.uptimeMillis()
                                         player.videoClock.setClock(frame.pts, frame.serial)
                                         player.externalClock.syncToClock(player.videoClock)
                                         renderVideoFrame(frame)
-                                        requestRender(VIDEO_REFRESH_RATE)
                                         MediaLog.d(TAG, "Force render video success.")
                                     } else {
                                         this@VideoRenderer.state.set(RendererState.Eof)
