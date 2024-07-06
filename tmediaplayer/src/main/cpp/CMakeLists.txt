@@ -58,12 +58,12 @@ set_target_properties( libswscale
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswscale.so )
 
-add_library( libaom
+add_library( libdav1d
         SHARED
         IMPORTED )
-set_target_properties( libaom
+set_target_properties( libdav1d
         PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libaom.so )
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libdav1d.so )
 # endregion
 
 # region android
@@ -105,7 +105,7 @@ target_link_libraries(
         libavutil
         libswresample
         libswscale
-        libaom)
+        libdav1d)
 # endregion
 
 # region tmediaframeloader
