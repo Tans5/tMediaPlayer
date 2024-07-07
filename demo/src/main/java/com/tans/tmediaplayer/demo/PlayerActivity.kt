@@ -98,7 +98,9 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             mediaPlayer.attachPlayerView(viewBinding.playerView)
             mediaPlayer.attachSubtitleView(viewBinding.subtitleTv)
             // mediaPlayer.loadExternalSubtitleFile(File(filesDir, "test.ass").canonicalPath)
-            mediaPlayer.play()
+            if (mediaPlayer.getState() is tMediaPlayerState.Prepared) {
+                mediaPlayer.play()
+            }
 
             if (mediaPlayer.getMediaInfo()?.subtitleStreams?.isEmpty() == false) {
                 viewBinding.subtitlesIv.show()
