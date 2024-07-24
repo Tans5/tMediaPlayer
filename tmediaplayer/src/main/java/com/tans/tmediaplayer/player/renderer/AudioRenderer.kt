@@ -74,6 +74,10 @@ internal class AudioRenderer(
                 synchronized(this@AudioRenderer) {
                     when (msg.what) {
                         RendererHandlerMsg.RequestRender.ordinal -> {
+                            fun enqueueWritableFrame(frame: AudioFrame) {
+                                audioFrameQueue.enqueueWritable(frame)
+                                player.writeableAudioFrameReady()
+                            }
                             val playerState = player.getState()
                             val state = getState()
                             val mediaInfo = player.getMediaInfo()
@@ -81,8 +85,7 @@ internal class AudioRenderer(
                                 val frame = audioFrameQueue.dequeueReadable()
                                 if (frame != null) {
                                     if (frame.serial != audioPacketQueue.getSerial()) {
-                                        audioFrameQueue.enqueueWritable(frame)
-                                        player.writeableAudioFrameReady()
+                                        enqueueWritableFrame(frame)
                                         MediaLog.d(TAG, "Serial changed, skip render.")
                                         requestRender()
                                         return@synchronized
@@ -114,8 +117,7 @@ internal class AudioRenderer(
                                             }
                                             if (!retryEnqueueSuccess) {
                                                 MediaLog.e(TAG, "After retry enqueue audio frame fail.")
-                                                audioFrameQueue.enqueueWritable(frame)
-                                                player.writeableAudioFrameReady()
+                                                enqueueWritableFrame(frame)
                                             } else {
                                                 MediaLog.d(TAG, "After retry enqueue audio frame success.")
                                             }
@@ -144,8 +146,7 @@ internal class AudioRenderer(
                                         }
                                         MediaLog.d(TAG, "Render audio eof.")
                                         this@AudioRenderer.state.set(RendererState.Eof)
-                                        audioFrameQueue.enqueueWritable(frame)
-                                        player.writeableAudioFrameReady()
+                                        enqueueWritableFrame(frame)
                                     }
                                 } else {
                                     if (state == RendererState.Playing) {

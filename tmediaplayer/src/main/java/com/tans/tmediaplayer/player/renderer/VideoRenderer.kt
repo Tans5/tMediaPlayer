@@ -62,13 +62,16 @@ internal class VideoRenderer(
                 synchronized(this@VideoRenderer) {
                     when (msg.what) {
                         RendererHandlerMsg.RequestRender.ordinal -> {
+                            fun enqueueWriteableFrame(f: VideoFrame) {
+                                videoFrameQueue.enqueueWritable(f)
+                                player.writeableVideoFrameReady()
+                            }
                             if (renderForce.get()) {
                                 val frame = videoFrameQueue.dequeueReadable()
                                 if (frame != null) {
                                     // lastRenderFrame = LastRenderFrame(frame)
                                     if (frame.serial != videoPacketQueue.getSerial()) {
-                                        videoFrameQueue.enqueueWritable(frame)
-                                        player.writeableVideoFrameReady()
+                                        enqueueWriteableFrame(frame)
                                         MediaLog.e(TAG, "Serial changed, skip force render.")
                                         requestRender()
                                         return@synchronized
@@ -81,8 +84,7 @@ internal class VideoRenderer(
                                         MediaLog.d(TAG, "Force render video success.")
                                     } else {
                                         this@VideoRenderer.state.set(RendererState.Eof)
-                                        videoFrameQueue.enqueueWritable(frame)
-                                        player.writeableVideoFrameReady()
+                                        enqueueWriteableFrame(frame)
                                         MediaLog.d(TAG, "Force render video frame eof.")
                                     }
                                 } else {
@@ -98,8 +100,7 @@ internal class VideoRenderer(
                                             lastRenderFrame = LastRenderFrame(frame)
                                             val frameToCheck = videoFrameQueue.dequeueReadable()
                                             if (frameToCheck === frame) {
-                                                videoFrameQueue.enqueueWritable(frame)
-                                                player.writeableVideoFrameReady()
+                                                enqueueWriteableFrame(frame)
                                             } else {
                                                 MediaLog.e(TAG, "Wrong render frame: $frame")
                                             }
@@ -147,8 +148,7 @@ internal class VideoRenderer(
                                                     MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
                                                     val nextFrameToCheck = videoFrameQueue.dequeueReadable()
                                                     if (nextFrameToCheck === nextFrame) {
-                                                        videoFrameQueue.enqueueWritable(nextFrame)
-                                                        player.writeableVideoFrameReady()
+                                                        enqueueWriteableFrame(nextFrame)
                                                     } else {
                                                         MediaLog.e(TAG, "Wrong render frame: $nextFrame")
                                                     }
@@ -161,9 +161,8 @@ internal class VideoRenderer(
                                             lastRenderFrame = LastRenderFrame(frame)
                                             videoFrameQueue.dequeueReadable()
                                             this@VideoRenderer.state.set(RendererState.Eof)
-                                            videoFrameQueue.enqueueWritable(frame)
                                             MediaLog.d(TAG, "Render video frame eof.")
-                                            player.writeableVideoFrameReady()
+                                            enqueueWriteableFrame(frame)
                                         }
                                     } else {
                                         if (state == RendererState.Playing) {
@@ -180,7 +179,7 @@ internal class VideoRenderer(
 
             fun renderVideoFrame(frame: VideoFrame) {
                 val playerView = this@VideoRenderer.playerView.get()
-                val frameRecycleRunnable = Runnable {
+                val enqueueWritableFrameRunnable = Runnable {
                     videoFrameQueue.enqueueWritable(frame)
                     player.writeableVideoFrameReady()
                 }
@@ -197,11 +196,11 @@ internal class VideoRenderer(
                                     yBytes = y,
                                     uBytes = u,
                                     vBytes = v,
-                                    callback = frameRecycleRunnable
+                                    callback = enqueueWritableFrameRunnable
                                 )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                frameRecycleRunnable.run()
+                                enqueueWritableFrameRunnable.run()
                             }
                         }
                         ImageRawType.Nv12 -> {
@@ -213,11 +212,11 @@ internal class VideoRenderer(
                                     height = frame.height,
                                     yBytes = y,
                                     uvBytes = uv,
-                                    callback = frameRecycleRunnable
+                                    callback = enqueueWritableFrameRunnable
                                 )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                frameRecycleRunnable.run()
+                                enqueueWritableFrameRunnable.run()
                             }
                         }
                         ImageRawType.Nv21 -> {
@@ -229,11 +228,11 @@ internal class VideoRenderer(
                                     height = frame.height,
                                     yBytes = y,
                                     vuBytes = vu,
-                                    frameRecycleRunnable
+                                    enqueueWritableFrameRunnable
                                 )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                frameRecycleRunnable.run()
+                                enqueueWritableFrameRunnable.run()
                             }
                         }
                         ImageRawType.Rgba -> {
@@ -243,19 +242,19 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     imageBytes = rgba,
-                                    callback = frameRecycleRunnable
+                                    callback = enqueueWritableFrameRunnable
                                 )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                frameRecycleRunnable.run()
+                                enqueueWritableFrameRunnable.run()
                             }
                         }
                         ImageRawType.Unknown -> {
-                            frameRecycleRunnable.run()
+                            enqueueWritableFrameRunnable.run()
                         }
                     }
                 } else {
-                    frameRecycleRunnable.run()
+                    enqueueWritableFrameRunnable.run()
                 }
             }
 
