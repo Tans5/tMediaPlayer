@@ -16,6 +16,7 @@ import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
+import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
@@ -51,23 +52,15 @@ internal class VideoRenderer(
 
     private val renderForce: AtomicBoolean = AtomicBoolean(false)
 
+    private val waitingRenderFrames: LinkedBlockingDeque<VideoFrame> by lazy {
+        LinkedBlockingDeque()
+    }
+
     private val videoRendererHandler: Handler by lazy {
         object : Handler(videoRendererThread.looper) {
 
             var lastRenderFrame: LastRenderFrame = LastRenderFrame(duration = 0L, pts = 0L, serial = -1)
             var frameTimer: Long = 0
-
-            fun enqueueWriteableFrame(f: VideoFrame, isAsync: Boolean = false) {
-                if (isAsync) {
-                    post {
-                        videoFrameQueue.enqueueWritable(f)
-                        player.writeableVideoFrameReady()
-                    }
-                } else {
-                    videoFrameQueue.enqueueWritable(f)
-                    player.writeableVideoFrameReady()
-                }
-            }
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -194,6 +187,7 @@ internal class VideoRenderer(
                             val u = frame.uBuffer
                             val v = frame.vBuffer
                             if (y != null && u != null && v != null) {
+                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderYuv420pFrame(
                                     width = frame.width,
                                     height = frame.height,
@@ -201,7 +195,7 @@ internal class VideoRenderer(
                                     uBytes = u,
                                     vBytes = v
                                 ) {
-                                    enqueueWriteableFrame(frame, true)
+                                    renderViewCallback()
                                 }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
@@ -212,13 +206,14 @@ internal class VideoRenderer(
                             val y = frame.yBuffer
                             val uv = frame.uvBuffer
                             if (y != null && uv != null) {
+                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderNv12Frame(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
                                     uvBytes = uv
                                 ) {
-                                    enqueueWriteableFrame(frame, true)
+                                    renderViewCallback()
                                 }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
@@ -229,12 +224,13 @@ internal class VideoRenderer(
                             val y = frame.yBuffer
                             val vu = frame.uvBuffer
                             if (y != null && vu != null) {
+                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderNv21Frame(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
                                     vuBytes = vu) {
-                                    enqueueWriteableFrame(frame, true)
+                                    renderViewCallback()
                                 }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
@@ -244,12 +240,13 @@ internal class VideoRenderer(
                         ImageRawType.Rgba -> {
                             val rgba = frame.rgbaBuffer
                             if (rgba != null) {
+                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderRgbaFrame(
                                     width = frame.width,
                                     height = frame.height,
                                     imageBytes = rgba
                                 ) {
-                                    enqueueWriteableFrame(frame, true)
+                                    renderViewCallback()
                                 }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
@@ -358,6 +355,12 @@ internal class VideoRenderer(
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
                 this.playerView.set(null)
+                while (waitingRenderFrames.isNotEmpty()) {
+                    val b = waitingRenderFrames.pollFirst()
+                    if (b != null) {
+                        videoFrameQueue.enqueueWritable(b)
+                    }
+                }
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
                 MediaLog.d(TAG, "Video renderer released.")
@@ -380,6 +383,20 @@ internal class VideoRenderer(
             videoRendererHandler.sendEmptyMessageDelayed(RendererHandlerMsg.RequestRender.ordinal, delay)
         } else {
             MediaLog.e(TAG, "Request render error, because of state: $state")
+        }
+    }
+
+    private fun enqueueWriteableFrame(f: VideoFrame) {
+        videoFrameQueue.enqueueWritable(f)
+        player.writeableVideoFrameReady()
+    }
+
+    private fun renderViewCallback() {
+        videoRendererHandler.post {
+            val f = waitingRenderFrames.pollFirst()
+            if (f != null) {
+                enqueueWriteableFrame(f)
+            }
         }
     }
 
