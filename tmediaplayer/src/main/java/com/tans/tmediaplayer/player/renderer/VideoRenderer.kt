@@ -180,6 +180,10 @@ internal class VideoRenderer(
 
             fun renderVideoFrame(frame: VideoFrame) {
                 val playerView = this@VideoRenderer.playerView.get()
+                val frameRecycleRunnable = Runnable {
+                    videoFrameQueue.enqueueWritable(frame)
+                    player.writeableVideoFrameReady()
+                }
                 if (playerView != null) {
                     when (frame.imageType) {
                         ImageRawType.Yuv420p -> {
@@ -192,15 +196,12 @@ internal class VideoRenderer(
                                     height = frame.height,
                                     yBytes = y,
                                     uBytes = u,
-                                    vBytes = v
-                                ) {
-                                    videoFrameQueue.enqueueWritable(frame)
-                                    player.writeableVideoFrameReady()
-                                }
+                                    vBytes = v,
+                                    callback = frameRecycleRunnable
+                                )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                videoFrameQueue.enqueueWritable(frame)
-                                player.writeableVideoFrameReady()
+                                frameRecycleRunnable.run()
                             }
                         }
                         ImageRawType.Nv12 -> {
@@ -211,15 +212,12 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
-                                    uvBytes = uv
-                                ) {
-                                    videoFrameQueue.enqueueWritable(frame)
-                                    player.writeableVideoFrameReady()
-                                }
+                                    uvBytes = uv,
+                                    callback = frameRecycleRunnable
+                                )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                videoFrameQueue.enqueueWritable(frame)
-                                player.writeableVideoFrameReady()
+                                frameRecycleRunnable.run()
                             }
                         }
                         ImageRawType.Nv21 -> {
@@ -230,15 +228,12 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
-                                    vuBytes = vu
-                                ) {
-                                    videoFrameQueue.enqueueWritable(frame)
-                                    player.writeableVideoFrameReady()
-                                }
+                                    vuBytes = vu,
+                                    frameRecycleRunnable
+                                )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                videoFrameQueue.enqueueWritable(frame)
-                                player.writeableVideoFrameReady()
+                                frameRecycleRunnable.run()
                             }
                         }
                         ImageRawType.Rgba -> {
@@ -247,25 +242,20 @@ internal class VideoRenderer(
                                 playerView.requestRenderRgbaFrame(
                                     width = frame.width,
                                     height = frame.height,
-                                    imageBytes = rgba
-                                ) {
-                                    videoFrameQueue.enqueueWritable(frame)
-                                    player.writeableVideoFrameReady()
-                                }
+                                    imageBytes = rgba,
+                                    callback = frameRecycleRunnable
+                                )
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                videoFrameQueue.enqueueWritable(frame)
-                                player.writeableVideoFrameReady()
+                                frameRecycleRunnable.run()
                             }
                         }
                         ImageRawType.Unknown -> {
-                            videoFrameQueue.enqueueWritable(frame)
-                            player.writeableVideoFrameReady()
+                            frameRecycleRunnable.run()
                         }
                     }
                 } else {
-                    videoFrameQueue.enqueueWritable(frame)
-                    player.writeableVideoFrameReady()
+                    frameRecycleRunnable.run()
                 }
             }
 
