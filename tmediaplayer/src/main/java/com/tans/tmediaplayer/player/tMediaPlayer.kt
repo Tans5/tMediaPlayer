@@ -404,8 +404,8 @@ class tMediaPlayer(
                     if (lastState == tMediaPlayerState.NoInit || lastState == tMediaPlayerState.Released) {
                         return OptResult.Fail
                     }
+                    val mediaInfo = getMediaInfo()
                     if (dispatchNewState(new = tMediaPlayerState.Released, old = lastState)) {
-                        val mediaInfo = getMediaInfo()
                         if (mediaInfo != null) {
                             releaseNative(mediaInfo.nativePlayer)
                         }
