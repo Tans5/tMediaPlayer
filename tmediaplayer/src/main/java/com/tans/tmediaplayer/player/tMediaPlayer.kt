@@ -432,6 +432,7 @@ class tMediaPlayer(
                         internalSubtitle.set(null)
                         externalSubtitle.get()?.release()
                         externalSubtitle.set(null)
+                        subtitleView.set(null)
                         MediaLog.d(TAG, "Release player")
                         return OptResult.Success
                     } else {
