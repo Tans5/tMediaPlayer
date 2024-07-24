@@ -33,7 +33,15 @@ internal class AudioRenderer(
             outputSampleBitDepth = outputSampleBitDepth,
             bufferQueueSize = bufferQueueSize
         ) {
-            audioRendererHandler.sendEmptyMessage(RendererHandlerMsg.RenderFinish.ordinal)
+            renderCallbackExecutor.execute {
+                val frame = waitingRenderFrames.pollFirst()
+                if (frame != null) {
+                    player.audioClock.setClock(frame.pts, frame.serial)
+                    player.externalClock.syncToClock(player.audioClock)
+                    audioFrameQueue.enqueueWritable(frame)
+                    player.writeableAudioFrameReady()
+                }
+            }
         }
     }
 
@@ -149,16 +157,6 @@ internal class AudioRenderer(
                                 }
                             } else {
                                 MediaLog.e(TAG, "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo")
-                            }
-                        }
-
-                        RendererHandlerMsg.RenderFinish.ordinal -> {
-                            val frame = waitingRenderFrames.pollFirst()
-                            if (frame != null) {
-                                player.audioClock.setClock(frame.pts, frame.serial)
-                                player.externalClock.syncToClock(player.audioClock)
-                                audioFrameQueue.enqueueWritable(frame)
-                                player.writeableAudioFrameReady()
                             }
                         }
                     }

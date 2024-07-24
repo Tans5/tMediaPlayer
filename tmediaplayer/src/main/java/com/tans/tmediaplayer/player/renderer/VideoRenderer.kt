@@ -174,13 +174,6 @@ internal class VideoRenderer(
                                 }
                             }
                         }
-
-                        RendererHandlerMsg.RenderFinish.ordinal -> {
-                            val f = waitingRenderFrames.pollFirst()
-                            if (f != null) {
-                                enqueueWriteableFrame(f)
-                            }
-                        }
                     }
                 }
             }
@@ -399,7 +392,12 @@ internal class VideoRenderer(
     }
 
     private fun renderViewCallback() {
-        videoRendererHandler.sendEmptyMessage(RendererHandlerMsg.RenderFinish.ordinal)
+        renderCallbackExecutor.execute {
+            val f = waitingRenderFrames.pollFirst()
+            if (f != null) {
+                enqueueWriteableFrame(f)
+            }
+        }
     }
 
     companion object {

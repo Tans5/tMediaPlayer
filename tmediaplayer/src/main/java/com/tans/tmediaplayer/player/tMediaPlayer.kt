@@ -1078,7 +1078,7 @@ class tMediaPlayer(
 
         private val callbackExecutor by lazy {
             Executors.newSingleThreadExecutor {
-                Thread(it, "tMediaPlayerCallbackThread")
+                Thread(it, "tMP_Callback")
             }
         }
     }
