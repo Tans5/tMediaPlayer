@@ -167,7 +167,8 @@ internal class VideoFrameDecoder(
 
     fun readablePacketReady() {
         val state = getState()
-        if (state == DecoderState.WaitingReadablePacketBuffer) {
+        if (state == DecoderState.WaitingReadablePacketBuffer ||
+            state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
         }
     }
