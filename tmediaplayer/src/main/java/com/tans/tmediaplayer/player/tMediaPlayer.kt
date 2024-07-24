@@ -189,28 +189,29 @@ class tMediaPlayer(
                             it
                         }
                     }
+
+                    // Start reader and decoders
+                    packetReader.requestReadPkt()
+                    packetReader.requestAttachment()
+                    audioDecoder.requestDecode()
+                    videoDecoder.requestDecode()
+
+                    // Renderers
+                    audioRenderer.flush()
+                    audioRenderer.pause()
+                    videoRenderer.pause()
+
+                    // Subtitle
+                    internalSubtitle.get()?.resetSubtitle()
+                    val lastExternalSubtitle = externalSubtitle.get()
+                    if (lastExternalSubtitle != null) {
+                        lastExternalSubtitle.release()
+                        externalSubtitle.set(null)
+                    }
+
                     if (result == OptResult.Success) {
                         // Load media file success.
                         MediaLog.d(TAG, "Prepare player success: mediaInfo=${getMediaInfo()}")
-
-                        // Start reader and decoders
-                        packetReader.requestReadPkt()
-                        packetReader.requestAttachment()
-                        audioDecoder.requestDecode()
-                        videoDecoder.requestDecode()
-
-                        // Renderers
-                        audioRenderer.flush()
-                        audioRenderer.pause()
-                        videoRenderer.pause()
-
-                        // Subtitle
-                        internalSubtitle.get()?.resetSubtitle()
-                        val lastExternalSubtitle = externalSubtitle.get()
-                        if (lastExternalSubtitle != null) {
-                            lastExternalSubtitle.release()
-                            externalSubtitle.set(null)
-                        }
                     } else {
                         // Load media file fail.
                         releaseNative(nativePlayer)

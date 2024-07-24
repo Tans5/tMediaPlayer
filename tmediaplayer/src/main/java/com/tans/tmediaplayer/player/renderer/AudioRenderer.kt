@@ -33,12 +33,14 @@ internal class AudioRenderer(
             outputSampleBitDepth = outputSampleBitDepth,
             bufferQueueSize = bufferQueueSize
         ) {
-            val frame = waitingRenderFrames.pollFirst()
-            if (frame != null) {
-                player.audioClock.setClock(frame.pts, frame.serial)
-                player.externalClock.syncToClock(player.audioClock)
-                audioFrameQueue.enqueueWritable(frame)
-                player.writeableAudioFrameReady()
+            audioRendererHandler.post {
+                val frame = waitingRenderFrames.pollFirst()
+                if (frame != null) {
+                    player.audioClock.setClock(frame.pts, frame.serial)
+                    player.externalClock.syncToClock(player.audioClock)
+                    audioFrameQueue.enqueueWritable(frame)
+                    player.writeableAudioFrameReady()
+                }
             }
         }
     }
