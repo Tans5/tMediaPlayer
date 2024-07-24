@@ -69,15 +69,16 @@ internal class AudioRenderer(
     private val audioRendererHandler: Handler by lazy {
         object : Handler(audioRendererThread.looper) {
 
+            fun enqueueWritableFrame(frame: AudioFrame) {
+                audioFrameQueue.enqueueWritable(frame)
+                player.writeableAudioFrameReady()
+            }
+
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
                 synchronized(this@AudioRenderer) {
                     when (msg.what) {
                         RendererHandlerMsg.RequestRender.ordinal -> {
-                            fun enqueueWritableFrame(frame: AudioFrame) {
-                                audioFrameQueue.enqueueWritable(frame)
-                                player.writeableAudioFrameReady()
-                            }
                             val playerState = player.getState()
                             val state = getState()
                             val mediaInfo = player.getMediaInfo()

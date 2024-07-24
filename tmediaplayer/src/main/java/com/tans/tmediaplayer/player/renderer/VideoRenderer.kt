@@ -57,15 +57,23 @@ internal class VideoRenderer(
             var lastRenderFrame: LastRenderFrame = LastRenderFrame(duration = 0L, pts = 0L, serial = -1)
             var frameTimer: Long = 0
 
+            fun enqueueWriteableFrame(f: VideoFrame, isAsync: Boolean = false) {
+                if (isAsync) {
+                    post {
+                        videoFrameQueue.enqueueWritable(f)
+                        player.writeableVideoFrameReady()
+                    }
+                } else {
+                    videoFrameQueue.enqueueWritable(f)
+                    player.writeableVideoFrameReady()
+                }
+            }
+
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
                 synchronized(this@VideoRenderer) {
                     when (msg.what) {
                         RendererHandlerMsg.RequestRender.ordinal -> {
-                            fun enqueueWriteableFrame(f: VideoFrame) {
-                                videoFrameQueue.enqueueWritable(f)
-                                player.writeableVideoFrameReady()
-                            }
                             if (renderForce.get()) {
                                 val frame = videoFrameQueue.dequeueReadable()
                                 if (frame != null) {
@@ -179,10 +187,6 @@ internal class VideoRenderer(
 
             fun renderVideoFrame(frame: VideoFrame) {
                 val playerView = this@VideoRenderer.playerView.get()
-                val enqueueWritableFrameRunnable = Runnable {
-                    videoFrameQueue.enqueueWritable(frame)
-                    player.writeableVideoFrameReady()
-                }
                 if (playerView != null) {
                     when (frame.imageType) {
                         ImageRawType.Yuv420p -> {
@@ -195,12 +199,13 @@ internal class VideoRenderer(
                                     height = frame.height,
                                     yBytes = y,
                                     uBytes = u,
-                                    vBytes = v,
-                                    callback = enqueueWritableFrameRunnable
-                                )
+                                    vBytes = v
+                                ) {
+                                    enqueueWriteableFrame(frame, true)
+                                }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                enqueueWritableFrameRunnable.run()
+                                enqueueWriteableFrame(frame)
                             }
                         }
                         ImageRawType.Nv12 -> {
@@ -211,12 +216,13 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
-                                    uvBytes = uv,
-                                    callback = enqueueWritableFrameRunnable
-                                )
+                                    uvBytes = uv
+                                ) {
+                                    enqueueWriteableFrame(frame, true)
+                                }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                enqueueWritableFrameRunnable.run()
+                                enqueueWriteableFrame(frame)
                             }
                         }
                         ImageRawType.Nv21 -> {
@@ -227,12 +233,12 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
-                                    vuBytes = vu,
-                                    enqueueWritableFrameRunnable
-                                )
+                                    vuBytes = vu) {
+                                    enqueueWriteableFrame(frame, true)
+                                }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                enqueueWritableFrameRunnable.run()
+                                enqueueWriteableFrame(frame)
                             }
                         }
                         ImageRawType.Rgba -> {
@@ -241,20 +247,21 @@ internal class VideoRenderer(
                                 playerView.requestRenderRgbaFrame(
                                     width = frame.width,
                                     height = frame.height,
-                                    imageBytes = rgba,
-                                    callback = enqueueWritableFrameRunnable
-                                )
+                                    imageBytes = rgba
+                                ) {
+                                    enqueueWriteableFrame(frame, true)
+                                }
                             } else {
                                 MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
-                                enqueueWritableFrameRunnable.run()
+                                enqueueWriteableFrame(frame)
                             }
                         }
                         ImageRawType.Unknown -> {
-                            enqueueWritableFrameRunnable.run()
+                            enqueueWriteableFrame(frame)
                         }
                     }
                 } else {
-                    enqueueWritableFrameRunnable.run()
+                    enqueueWriteableFrame(frame)
                 }
             }
 

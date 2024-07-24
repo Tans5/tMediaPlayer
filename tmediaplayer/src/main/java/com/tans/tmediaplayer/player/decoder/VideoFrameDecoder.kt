@@ -170,6 +170,8 @@ internal class VideoFrameDecoder(
         if (state == DecoderState.WaitingReadablePacketBuffer ||
             state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
+        } else {
+            MediaLog.d(TAG, "Skip handle readable package ready, because of state: $state")
         }
     }
 
@@ -177,6 +179,8 @@ internal class VideoFrameDecoder(
         val state = getState()
         if (state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
+        } else {
+            MediaLog.d(TAG, "Skip handle writable frame ready, because of state: $state")
         }
     }
 

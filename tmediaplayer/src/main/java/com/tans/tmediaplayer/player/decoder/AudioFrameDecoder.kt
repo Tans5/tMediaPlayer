@@ -160,6 +160,8 @@ internal class AudioFrameDecoder(
         if (state == DecoderState.WaitingReadablePacketBuffer ||
             state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
+        } else {
+            MediaLog.d(TAG, "Skip handle readable package ready, because of state: $state")
         }
     }
 
@@ -167,6 +169,8 @@ internal class AudioFrameDecoder(
         val state = getState()
         if (state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
+        } else {
+            MediaLog.d(TAG, "Skip handle writeable frame ready, because of state: $state")
         }
     }
 
