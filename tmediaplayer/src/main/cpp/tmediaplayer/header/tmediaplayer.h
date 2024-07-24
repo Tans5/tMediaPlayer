@@ -109,8 +109,6 @@ typedef struct tMediaPlayerContext {
      * Java
      */
     JavaVM* jvm = nullptr;
-    jobject jplayer = nullptr;
-    jclass jplayerClazz = nullptr;
 
     /**
      * Video

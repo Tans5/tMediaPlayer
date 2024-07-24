@@ -15,9 +15,6 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_createPlayerNative(
     env->GetJavaVM(&jvm);
     auto player = new tMediaPlayerContext;
     player->jvm = jvm;
-    player->jplayer = env->NewGlobalRef(j_player);
-    player->jplayerClazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-            env->FindClass("com/tans/tmediaplayer/player/tMediaPlayer")));
     return reinterpret_cast<jlong>(player);
 }
 
@@ -164,10 +161,6 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    env->DeleteGlobalRef(player->jplayer);
-    player->jplayer = nullptr;
-    env->DeleteGlobalRef(player->jplayerClazz);
-    player->jplayerClazz = nullptr;
     player->jvm = nullptr;
     player->release();
 }
