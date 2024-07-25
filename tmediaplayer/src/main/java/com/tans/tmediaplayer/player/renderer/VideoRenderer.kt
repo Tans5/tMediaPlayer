@@ -131,6 +131,9 @@ internal class VideoRenderer(
                                             if (frame !== frameToCheck) {
                                                 MediaLog.e(TAG, "Wrong render frame: $frame")
                                                 requestRender()
+                                                if (frameToCheck != null) {
+                                                    enqueueWriteableFrame(frameToCheck)
+                                                }
                                                 return@synchronized
                                             }
                                             lastRenderFrame = LastRenderFrame(frame)
@@ -151,6 +154,9 @@ internal class VideoRenderer(
                                                     if (nextFrameToCheck === nextFrame) {
                                                         enqueueWriteableFrame(nextFrame)
                                                     } else {
+                                                        if (nextFrameToCheck != null) {
+                                                            enqueueWriteableFrame(nextFrameToCheck)
+                                                        }
                                                         MediaLog.e(TAG, "Wrong render frame: $nextFrame")
                                                     }
                                                 }

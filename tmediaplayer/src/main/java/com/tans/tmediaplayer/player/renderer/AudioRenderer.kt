@@ -38,8 +38,7 @@ internal class AudioRenderer(
                 if (frame != null) {
                     player.audioClock.setClock(frame.pts, frame.serial)
                     player.externalClock.syncToClock(player.audioClock)
-                    audioFrameQueue.enqueueWritable(frame)
-                    player.writeableAudioFrameReady()
+                    enqueueWritableFrame(frame)
                 }
             }
         }
@@ -68,11 +67,6 @@ internal class AudioRenderer(
 
     private val audioRendererHandler: Handler by lazy {
         object : Handler(audioRendererThread.looper) {
-
-            fun enqueueWritableFrame(frame: AudioFrame) {
-                audioFrameQueue.enqueueWritable(frame)
-                player.writeableAudioFrameReady()
-            }
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -258,6 +252,11 @@ internal class AudioRenderer(
         } else {
             MediaLog.e(TAG, "Request render error, because of state: $state")
         }
+    }
+
+    private fun enqueueWritableFrame(frame: AudioFrame) {
+        audioFrameQueue.enqueueWritable(frame)
+        player.writeableAudioFrameReady()
     }
 
     companion object {
