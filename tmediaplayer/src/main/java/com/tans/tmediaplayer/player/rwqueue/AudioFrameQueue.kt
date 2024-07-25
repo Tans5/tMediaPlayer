@@ -28,12 +28,12 @@ internal class AudioFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
         super.enqueueReadable(b)
     }
 
-    override fun enqueueWritable(b: AudioFrame) {
-        b.pts = 0
-        b.duration = 0
-        b.serial = 0
-        b.isEof = false
-        super.enqueueWritable(b)
+    override fun dequeueWritable(): AudioFrame? {
+        return super.dequeueWritable()?.apply { reset() }
+    }
+
+    override fun dequeueWriteableForce(): AudioFrame {
+        return super.dequeueWriteableForce().apply { reset() }
     }
 
     companion object {

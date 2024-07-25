@@ -30,11 +30,12 @@ internal class SubtitleFrameQueue(
         super.enqueueReadable(b)
     }
 
-    override fun enqueueWritable(b: SubtitleFrame) {
-        b.subtitles = null
-        b.startPts = 0L
-        b.endPts = 0L
-        super.enqueueWritable(b)
+    override fun dequeueWritable(): SubtitleFrame? {
+        return super.dequeueWritable()?.apply { reset() }
+    }
+
+    override fun dequeueWriteableForce(): SubtitleFrame {
+        return super.dequeueWriteableForce().apply { reset() }
     }
 
     companion object {

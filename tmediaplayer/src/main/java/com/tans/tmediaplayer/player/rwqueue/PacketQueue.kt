@@ -52,13 +52,12 @@ internal class PacketQueue(
         super.enqueueReadable(b)
     }
 
-    override fun enqueueWritable(b: Packet) {
-        b.sizeInBytes = 0
-        b.duration = 0
-        b.pts = 0
-        b.serial = 0
-        b.isEof = false
-        super.enqueueWritable(b)
+    override fun dequeueWritable(): Packet? {
+        return super.dequeueWritable()?.apply { reset() }
+    }
+
+    override fun dequeueWriteableForce(): Packet {
+        return super.dequeueWriteableForce().apply { reset() }
     }
 
     override fun dequeueReadable(): Packet? {

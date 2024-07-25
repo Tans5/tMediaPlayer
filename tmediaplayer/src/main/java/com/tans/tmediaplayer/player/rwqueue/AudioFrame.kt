@@ -17,4 +17,11 @@ internal class AudioFrame(val nativeFrame: Long) {
     override fun equals(other: Any?): Boolean {
         return other is AudioFrame && other.nativeFrame == nativeFrame
     }
+
+    fun reset() {
+        pts = 0L
+        duration = 0L
+        serial = 0
+        isEof = false
+    }
 }

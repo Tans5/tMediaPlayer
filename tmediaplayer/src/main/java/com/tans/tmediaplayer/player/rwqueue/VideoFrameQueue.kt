@@ -84,15 +84,12 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
         super.enqueueReadable(b)
     }
 
-    override fun enqueueWritable(b: VideoFrame) {
-        b.pts = 0
-        b.duration = 0
-        b.serial = 0
-        b.imageType = ImageRawType.Unknown
-        b.width = 0
-        b.height = 0
-        b.isEof = false
-        super.enqueueWritable(b)
+    override fun dequeueWritable(): VideoFrame? {
+        return super.dequeueWritable()?.apply { reset() }
+    }
+
+    override fun dequeueWriteableForce(): VideoFrame {
+        return super.dequeueWriteableForce().apply { reset() }
     }
 
     companion object {

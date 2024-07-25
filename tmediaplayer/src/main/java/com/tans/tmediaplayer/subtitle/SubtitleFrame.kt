@@ -16,4 +16,10 @@ internal class SubtitleFrame(val nativeFrame: Long) {
     override fun equals(other: Any?): Boolean {
         return other is SubtitleFrame && other.nativeFrame == nativeFrame
     }
+
+    fun reset() {
+        startPts = 0L
+        endPts = 0L
+        subtitles = null
+    }
 }

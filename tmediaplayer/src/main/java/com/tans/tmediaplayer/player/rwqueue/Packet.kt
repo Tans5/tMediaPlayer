@@ -19,4 +19,13 @@ internal class Packet(val nativePacket: Long) {
     override fun equals(other: Any?): Boolean {
         return other is Packet && other.nativePacket == nativePacket
     }
+
+    fun reset() {
+        streamIndex = -1
+        pts = 0L
+        duration = 0L
+        sizeInBytes = 0
+        serial = 0
+        isEof = false
+    }
 }

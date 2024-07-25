@@ -27,4 +27,19 @@ internal class VideoFrame(val nativeFrame: Long) {
     override fun equals(other: Any?): Boolean {
         return other is VideoFrame && other.nativeFrame == nativeFrame
     }
+
+    fun reset() {
+        pts = 0L
+        duration = 0L
+        serial = 0
+        imageType = ImageRawType.Unknown
+        width = 0
+        height = 0
+        yBuffer = null
+        uBuffer = null
+        vBuffer = null
+        uvBuffer = null
+        rgbaBuffer = null
+        isEof = false
+    }
 }
