@@ -218,6 +218,8 @@ internal class AudioRenderer(
         val state = getState()
         if (state == RendererState.WaitingReadableFrameBuffer) {
             requestRender()
+        } else {
+            MediaLog.d(TAG, "Skip handle readable audio frame ready, because of state: $state")
         }
     }
 

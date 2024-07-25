@@ -5,6 +5,7 @@ import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.decoder.VideoFrameDecoder
 import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
@@ -354,6 +355,8 @@ internal class VideoRenderer(
         val state = getState()
         if (state == RendererState.WaitingReadableFrameBuffer || renderForce.get()) {
             requestRender()
+        } else {
+            MediaLog.d(TAG, "Skip handle readable video frame ready, because of state: $state")
         }
     }
 
