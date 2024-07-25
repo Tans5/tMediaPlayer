@@ -176,7 +176,8 @@ internal class SubtitleFrameDecoder(
 
     fun readablePacketReady() {
         val state = getState()
-        if (state == DecoderState.WaitingReadablePacketBuffer) {
+        if (state == DecoderState.WaitingReadablePacketBuffer ||
+            state == DecoderState.Eof) {
             requestDecode()
         }
     }

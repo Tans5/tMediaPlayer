@@ -26,6 +26,7 @@ import com.tans.tmediaplayer.player.model.toImageRawType
 import com.tans.tmediaplayer.player.model.toOptResult
 import com.tans.tmediaplayer.player.model.toReadPacketResult
 import com.tans.tmediaplayer.player.pktreader.PacketReader
+import com.tans.tmediaplayer.player.pktreader.ReaderState
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.renderer.AudioRenderer
 import com.tans.tmediaplayer.player.renderer.RendererState
@@ -797,7 +798,8 @@ class tMediaPlayer(
                 state as tMediaPlayerState.Paused
                 state.mediaInfo
             }
-            if ((mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
+            if (packetReader.getState() == ReaderState.Eof &&
+                (mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
                 (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
             ) {
                 MediaLog.d(TAG, "Play end.")

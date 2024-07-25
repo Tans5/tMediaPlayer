@@ -34,7 +34,7 @@ internal class PacketReader(
         }.apply { start() }
     }
 
-    private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer)
+    private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer, ReaderState.Eof)
 
     private val requestAttachment: AtomicBoolean = AtomicBoolean(true)
 
@@ -61,6 +61,9 @@ internal class PacketReader(
                                     MediaLog.d(TAG, "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration")
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
+                                    if (state == ReaderState.WaitingWritableBuffer) {
+                                        this@PacketReader.state.set(ReaderState.Ready)
+                                    }
                                     when (player.readPacketInternal(nativePlayer)) {
                                         ReadPacketResult.ReadVideoAttachmentSuccess -> {
                                             if (requestAttachment.compareAndSet(true, false)) {
@@ -113,6 +116,7 @@ internal class PacketReader(
                                                 player.readableAudioPacketReady()
                                             }
                                             MediaLog.d(TAG, "Read pkt eof.")
+                                            this@PacketReader.state.set(ReaderState.Eof)
                                         }
                                         ReadPacketResult.ReadFail -> {
                                             MediaLog.e(TAG, "Read pkt fail.")
@@ -121,9 +125,6 @@ internal class PacketReader(
                                         ReadPacketResult.UnknownPkt -> {
                                             requestReadPkt()
                                         }
-                                    }
-                                    if (state == ReaderState.WaitingWritableBuffer) {
-                                        this@PacketReader.state.set(ReaderState.Ready)
                                     }
                                 }
                             }
@@ -140,6 +141,7 @@ internal class PacketReader(
                                         videoPacketQueue.flushReadableBuffer()
                                         player.getExternalSubtitle()?.requestSeek(position)
                                         MediaLog.d(TAG, "Seek to $position success, cost $cost ms")
+                                        this@PacketReader.state.compareAndSet(ReaderState.Eof, ReaderState.Ready)
                                     } else {
                                         MediaLog.e(TAG, "Seek to $position fail, cost $cost ms")
                                     }

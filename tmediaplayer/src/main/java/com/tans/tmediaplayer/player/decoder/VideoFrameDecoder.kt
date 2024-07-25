@@ -167,7 +167,8 @@ internal class VideoFrameDecoder(
 
     fun readablePacketReady() {
         val state = getState()
-        if (state == DecoderState.WaitingReadablePacketBuffer) {
+        if (state == DecoderState.WaitingReadablePacketBuffer ||
+            state == DecoderState.Eof) {
             requestDecode()
         } else {
             MediaLog.d(TAG, "Skip handle readable package ready, because of state: $state")

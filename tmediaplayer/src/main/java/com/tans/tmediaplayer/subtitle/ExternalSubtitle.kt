@@ -34,7 +34,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         }.apply { start() }
     }
 
-    private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer)
+    private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer, ReaderState.Eof)
 
     private val subtitle: tMediaSubtitle by lazy {
         tMediaSubtitle(
@@ -88,6 +88,9 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                     MediaLog.d(TAG, "Packet queue full, queueSize=$queueSize.")
                                     this@ExternalSubtitle.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
+                                    if (state == ReaderState.WaitingWritableBuffer) {
+                                        this@ExternalSubtitle.state.set(ReaderState.Ready)
+                                    }
                                     when (readPacketNative(readerNative).toReadPacketResult()) {
                                         ReadPacketResult.ReadSubtitleSuccess -> {
                                             val pkt = pktQueue.dequeueWriteableForce()
@@ -103,6 +106,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                         }
                                         ReadPacketResult.ReadEof -> {
                                             MediaLog.d(TAG, "Read subtitle pkt eof.")
+                                            this@ExternalSubtitle.state.set(ReaderState.Eof)
                                         }
                                         ReadPacketResult.ReadVideoSuccess,
                                         ReadPacketResult.ReadVideoAttachmentSuccess,
@@ -110,10 +114,6 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                         ReadPacketResult.UnknownPkt -> {
                                             requestReadPkt()
                                         }
-                                    }
-
-                                    if (state == ReaderState.WaitingWritableBuffer) {
-                                        this@ExternalSubtitle.state.set(ReaderState.Ready)
                                     }
                                 }
                             }

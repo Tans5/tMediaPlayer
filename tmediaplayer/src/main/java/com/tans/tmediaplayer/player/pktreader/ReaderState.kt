@@ -4,5 +4,6 @@ internal enum class ReaderState {
     NotInit,
     Ready,
     WaitingWritableBuffer,
+    Eof,
     Released
 }

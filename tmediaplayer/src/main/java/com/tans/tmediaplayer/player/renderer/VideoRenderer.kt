@@ -12,6 +12,7 @@ import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
 import com.tans.tmediaplayer.player.model.SyncType
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.renderer.AudioRenderer.Companion
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
@@ -165,11 +166,25 @@ internal class VideoRenderer(
                                             renderVideoFrame(frame)
                                             requestRender()
                                         } else {
-                                            lastRenderFrame = LastRenderFrame(frame)
-                                            videoFrameQueue.dequeueReadable()
-                                            this@VideoRenderer.state.set(RendererState.Eof)
-                                            MediaLog.d(TAG, "Render video frame eof.")
-                                            enqueueWriteableFrame(frame)
+                                            val frameToCheck = videoFrameQueue.dequeueReadable()
+                                            if (frameToCheck === frame) {
+                                                enqueueWriteableFrame(frame)
+                                                while (waitingRenderFrames.isNotEmpty()) {
+                                                    MediaLog.d(TAG, "Waiting video finish, count: ${waitingRenderFrames.size}")
+                                                    try {
+                                                        Thread.sleep(10)
+                                                    } catch (e: Throwable) {
+                                                        MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                    }
+                                                }
+                                                this@VideoRenderer.state.set(RendererState.Eof)
+                                                MediaLog.d(TAG, "Render video frame eof.")
+                                            } else {
+                                                if (frameToCheck != null) {
+                                                    enqueueWriteableFrame(frameToCheck)
+                                                }
+                                                requestRender()
+                                            }
                                         }
                                     } else {
                                         if (state == RendererState.Playing) {
