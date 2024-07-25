@@ -70,10 +70,9 @@ tMediaOptResult tMediaPlayerContext::prepare(
         int target_audio_sample_rate,
         int target_audio_sample_bit_depth) {
 
-    this->media_file = media_file_p;
     LOGD("Prepare media file: %s", media_file_p);
     this->format_ctx = avformat_alloc_context();
-    int result = avformat_open_input(&format_ctx, media_file, nullptr, nullptr);
+    int result = avformat_open_input(&format_ctx, media_file_p, nullptr, nullptr);
     if (result < 0) {
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
@@ -114,7 +113,8 @@ tMediaOptResult tMediaPlayerContext::prepare(
     }
 
     // Read metadata
-    readMetadata(format_ctx->metadata, &fileMetadata);
+    fileMetadata = new Metadata;
+    readMetadata(format_ctx->metadata, fileMetadata);
 
     // Container name
     const char *containerNameLocal = nullptr;
@@ -184,6 +184,12 @@ tMediaOptResult tMediaPlayerContext::prepare(
         }
     }
 
+    // No video stream and audio stream.
+    if (video_stream == nullptr && audio_stream == nullptr) {
+        LOGE("Didn't find video stream or audio stream");
+        return OptFail;
+    }
+
     // Read subtitle streams
     this->subtitleStreamCount = subtitleStreamCountLocal;
     LOGD("Find %d subtitle streams", subtitleStreamCountLocal);
@@ -208,12 +214,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
                 }
             }
         }
-    }
-
-    // No video stream and audio stream.
-    if (video_stream == nullptr && audio_stream == nullptr) {
-        LOGE("Didn't find video stream or audio stream");
-        return OptFail;
     }
 
     // Video
@@ -877,7 +877,7 @@ void tMediaPlayerContext::release() {
     }
 
     // File Metadata
-    releaseMetadata(&fileMetadata);
+    releaseMetadata(fileMetadata);
 
     // Container name
     if (containerName != nullptr) {

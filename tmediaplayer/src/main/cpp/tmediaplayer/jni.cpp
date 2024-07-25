@@ -34,7 +34,9 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_prepareNative(
     }
     av_jni_set_java_vm(player->jvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, JNI_FALSE);
-    return player->prepare(file_path_chars, requestHw, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
+    auto result = player->prepare(file_path_chars, requestHw, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
+    env->ReleaseStringUTFChars(file_path, file_path_chars);
+    return result;
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -195,14 +197,19 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_containAudioStreamNative(
 }
 
 jobjectArray readMetadata(JNIEnv *env, Metadata *src) {
-    auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
-    auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(src->metadataCount * 2, stringClazz, nullptr)));
+    auto stringClazz_ref = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
+    auto jarray = env->NewObjectArray(src->metadataCount * 2, stringClazz_ref, nullptr);
+    auto  jarray_ref = reinterpret_cast<jobjectArray>(env->NewLocalRef(jarray));
+    env->DeleteLocalRef(stringClazz_ref);
     for (int i = 0; i < src->metadataCount; i ++) {
-        auto key = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(src->metadata[i * 2])));
-        auto value = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(src->metadata[i * 2 + 1])));
-        env->SetObjectArrayElement(jarray, i * 2, key);
-        env->SetObjectArrayElement(jarray, i * 2 + 1, value);
+        auto key_ref = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(src->metadata[i * 2])));
+        auto value_ref = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(src->metadata[i * 2 + 1])));
+        env->SetObjectArrayElement(jarray_ref, i * 2, key_ref);
+        env->SetObjectArrayElement(jarray_ref, i * 2 + 1, value_ref);
+        env->DeleteLocalRef(key_ref);
+        env->DeleteLocalRef(value_ref);
     }
+    env->DeleteLocalRef(jarray_ref);
     return jarray;
 }
 
@@ -212,7 +219,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getMetadataNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    return readMetadata(env, &player->fileMetadata);
+    return readMetadata(env, player->fileMetadata);
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -221,7 +228,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getContainerNameNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto containerName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->containerName)));
+    auto containerName = env->NewStringUTF(player->containerName);
     return containerName;
 }
 // endregion
@@ -315,7 +322,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDecoderNameNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto decoderName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->videoDecoderName)));
+    auto decoderName = env->NewStringUTF(player->videoDecoderName);
     return decoderName;
 }
 
@@ -408,7 +415,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDecoderNameNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto decoderName = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(player->audioDecoderName)));
+    auto decoderName = env->NewStringUTF(player->audioDecoderName);
     return decoderName;
 }
 

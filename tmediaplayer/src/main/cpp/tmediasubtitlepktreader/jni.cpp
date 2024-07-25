@@ -20,7 +20,9 @@ Java_com_tans_tmediaplayer_subtitle_ExternalSubtitle_loadFileNative(
         jstring j_file_path) {
     auto readerCtx = reinterpret_cast<tMediaSubtitlePktReaderContext *>(native_reader);
     const char *file_path = env->GetStringUTFChars(j_file_path, JNI_FALSE);
-    return readerCtx->prepare(file_path);
+    auto result = readerCtx->prepare(file_path);
+    env->ReleaseStringUTFChars(j_file_path, file_path);
+    return result;
 }
 
 extern "C" JNIEXPORT jint JNICALL

@@ -6,9 +6,8 @@
 
 tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     LOGD("Prepare media file: %s", media_file_p);
-    this->media_file = media_file_p;
     this->format_ctx = avformat_alloc_context();
-    int result = avformat_open_input(&format_ctx, media_file, nullptr, nullptr);
+    int result = avformat_open_input(&format_ctx, media_file_p, nullptr, nullptr);
     if (result < 0) {
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
@@ -73,7 +72,7 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
 
     this->duration = 0L;
     if (format_ctx->duration != AV_NOPTS_VALUE) {
-        this->duration = ((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0;
+        this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     }
     return OptSuccess;
 }
@@ -227,6 +226,7 @@ void tMediaFrameLoaderContext::release() {
         avformat_free_context(format_ctx);
     }
     if (frame != nullptr) {
+        av_frame_unref(frame);
         av_frame_free(&frame);
     }
 
@@ -260,6 +260,8 @@ void tMediaFrameLoaderContext::release() {
         free(videoBuffer);
         videoBuffer = nullptr;
     }
+
+    video_stream = nullptr;
 
     free(this);
     LOGD("Release media frame loader.");

@@ -11,8 +11,9 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_createAudioTrackNative(
     auto audioTrack = new tMediaAudioTrackContext;
     audioTrack->jvm = jvm;
     audioTrack->j_audioTrack = env->NewGlobalRef(j_audio_track);
-    jclass clazz = reinterpret_cast<jclass>(env ->NewLocalRef(env->FindClass("com/tans/tmediaplayer/audiotrack/tMediaAudioTrack")));
+    jclass clazz = reinterpret_cast<jclass>(env->NewLocalRef(env->FindClass("com/tans/tmediaplayer/audiotrack/tMediaAudioTrack")));
     audioTrack->j_callbackMethodId = env->GetMethodID(clazz, "audioTrackQueueCallback", "()V");
+    env->DeleteLocalRef(clazz);
     return reinterpret_cast<jlong>(audioTrack);
 }
 

@@ -16,7 +16,6 @@ extern "C" {
 }
 
 typedef struct tMediaFrameLoaderContext {
-    const char *media_file = nullptr;
 
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;

@@ -120,8 +120,10 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
     auto lineSize = subtitleFrame->num_rects;
     auto subtitleRects = subtitleFrame->rects;
 
-    auto stringClazz = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
-    auto  jarray = reinterpret_cast<jobjectArray>(env->NewLocalRef(env->NewObjectArray(lineSize, stringClazz, nullptr)));
+    auto stringClazz_ref = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
+    auto result = env->NewObjectArray(lineSize, stringClazz_ref, nullptr);
+    auto jarray_ref = reinterpret_cast<jobjectArray>(env->NewLocalRef(result));
+    env->DeleteLocalRef(stringClazz_ref);
     for (int i = 0; i < lineSize; i ++) {
         auto rect = subtitleRects[i];
         const char * line = "";
@@ -136,10 +138,12 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
                 LOGE("Don't support subtitle format: %d", rect->type);
                 break;
         }
-        auto j_string = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(line)));
-        env->SetObjectArrayElement(jarray, i, j_string);
+        auto j_string_ref = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(line)));
+        env->SetObjectArrayElement(jarray_ref, i, j_string_ref);
+        env->DeleteLocalRef(j_string_ref);
     }
-    return jarray;
+    env->DeleteLocalRef(jarray_ref);
+    return result;
 }
 
 extern "C" JNIEXPORT void JNICALL

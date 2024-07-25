@@ -32,8 +32,10 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_prepareNative(
         return OptFail;
     }
     av_jni_set_java_vm(loader->jvm, nullptr);
-    const char * file_path_chars = env->GetStringUTFChars(file_path, 0);
-    return loader->prepare(file_path_chars);
+    const char * file_path_chars = env->GetStringUTFChars(file_path, JNI_FALSE);
+    auto result = loader->prepare(file_path_chars);
+    env->ReleaseStringUTFChars(file_path, file_path_chars);
+    return result;
 }
 
 extern "C" JNIEXPORT jint JNICALL
