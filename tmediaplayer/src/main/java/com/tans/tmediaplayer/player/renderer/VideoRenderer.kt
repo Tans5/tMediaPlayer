@@ -175,9 +175,11 @@ internal class VideoRenderer(
                                                         Thread.sleep(10)
                                                     } catch (e: Throwable) {
                                                         MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                        break
                                                     }
                                                     if (checkTimes >= VIDEO_EOF_MAX_CHECK_TIMES) {
                                                         MediaLog.e(TAG, "Waiting video renderer max times $VIDEO_EOF_MAX_CHECK_TIMES, bufferCount=${waitingRenderFrames.size}")
+                                                        break
                                                     }
                                                 }
                                                 while (waitingRenderFrames.isNotEmpty()) {

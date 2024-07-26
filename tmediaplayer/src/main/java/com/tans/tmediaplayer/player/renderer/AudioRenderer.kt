@@ -137,6 +137,7 @@ internal class AudioRenderer(
                                             bufferCount = audioTrack.getBufferQueueCount()
                                             if (checkTimes >= AUDIO_EOF_MAX_CHECK_TIMES) {
                                                 MediaLog.e(TAG, "Waiting audio track max times $AUDIO_EOF_MAX_CHECK_TIMES, bufferCount=$bufferCount")
+                                                break
                                             }
                                         }
                                         while (waitingRenderFrames.isNotEmpty()) {
