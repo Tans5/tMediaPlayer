@@ -5,6 +5,8 @@ import android.os.HandlerThread
 import android.os.Message
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.audiotrack.tMediaAudioTrack
+import com.tans.tmediaplayer.player.model.AUDIO_EOF_MAX_CHECK_TIMES
+import com.tans.tmediaplayer.player.model.AUDIO_TRACK_QUEUE_SIZE
 import com.tans.tmediaplayer.player.model.AudioChannel
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleRate
@@ -21,7 +23,7 @@ internal class AudioRenderer(
     outputChannel: AudioChannel,
     outputSampleRate: AudioSampleRate,
     outputSampleBitDepth: AudioSampleBitDepth,
-    bufferQueueSize: Int = 12,
+    bufferQueueSize: Int = AUDIO_TRACK_QUEUE_SIZE,
     private val audioFrameQueue: AudioFrameQueue,
     private val audioPacketQueue: PacketQueue,
     private val player: tMediaPlayer
@@ -123,8 +125,9 @@ internal class AudioRenderer(
                                         requestRender()
                                     } else {
                                         var bufferCount = audioTrack.getBufferQueueCount()
+                                        var checkTimes = 0
                                         while (bufferCount > 0) {
-                                            MediaLog.d(TAG, "Waiting audio track buffer finish, audio track queue count: $bufferCount")
+                                            MediaLog.d(TAG, "Waiting audio track buffer finish, queueCount$bufferCount, checkTimes=${checkTimes++}")
                                             try {
                                                 Thread.sleep(6)
                                             } catch (e: Throwable) {
@@ -132,16 +135,19 @@ internal class AudioRenderer(
                                                 break
                                             }
                                             bufferCount = audioTrack.getBufferQueueCount()
+                                            if (checkTimes >= AUDIO_EOF_MAX_CHECK_TIMES) {
+                                                MediaLog.e(TAG, "Waiting audio track max times $AUDIO_EOF_MAX_CHECK_TIMES, bufferCount=$bufferCount")
+                                            }
                                         }
                                         while (waitingRenderFrames.isNotEmpty()) {
                                             val b = waitingRenderFrames.pollFirst()
                                             if (b != null) {
-                                                audioFrameQueue.enqueueWritable(b)
+                                                enqueueWritableFrame(b)
                                             }
                                         }
-                                        MediaLog.d(TAG, "Render audio eof.")
                                         this@AudioRenderer.state.set(RendererState.Eof)
                                         enqueueWritableFrame(frame)
+                                        MediaLog.d(TAG, "Render audio eof.")
                                     }
                                 } else {
                                     if (state == RendererState.Playing) {

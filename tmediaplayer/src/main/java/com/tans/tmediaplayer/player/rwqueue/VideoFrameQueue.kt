@@ -2,12 +2,13 @@ package com.tans.tmediaplayer.player.rwqueue
 
 import com.tans.tmediaplayer.MediaLog
 import com.tans.tmediaplayer.player.model.ImageRawType
+import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 
 internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWriteQueue<VideoFrame>() {
 
-    override val maxQueueSize: Int = 4
+    override val maxQueueSize: Int = VIDEO_FRAME_QUEUE_SIZE
 
     override fun allocBuffer(): VideoFrame {
         val nativeFrame = player.allocVideoBufferInternal()

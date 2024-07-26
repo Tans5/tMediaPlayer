@@ -5,15 +5,14 @@ import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.MediaLog
-import com.tans.tmediaplayer.player.decoder.VideoFrameDecoder
 import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
 import com.tans.tmediaplayer.player.model.SyncType
+import com.tans.tmediaplayer.player.model.VIDEO_EOF_MAX_CHECK_TIMES
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
-import com.tans.tmediaplayer.player.renderer.AudioRenderer.Companion
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
@@ -169,16 +168,26 @@ internal class VideoRenderer(
                                         } else {
                                             val frameToCheck = videoFrameQueue.dequeueReadable()
                                             if (frameToCheck === frame) {
-                                                enqueueWriteableFrame(frame)
+                                                var checkTimes = 0
                                                 while (waitingRenderFrames.isNotEmpty()) {
-                                                    MediaLog.d(TAG, "Waiting video finish, count: ${waitingRenderFrames.size}")
+                                                    MediaLog.d(TAG, "Waiting video finish, bufferCount=${waitingRenderFrames.size}, checkTimes=${checkTimes++}")
                                                     try {
                                                         Thread.sleep(10)
                                                     } catch (e: Throwable) {
                                                         MediaLog.e(TAG, "Sleep error: ${e.message}", e)
                                                     }
+                                                    if (checkTimes >= VIDEO_EOF_MAX_CHECK_TIMES) {
+                                                        MediaLog.e(TAG, "Waiting video renderer max times $VIDEO_EOF_MAX_CHECK_TIMES, bufferCount=${waitingRenderFrames.size}")
+                                                    }
+                                                }
+                                                while (waitingRenderFrames.isNotEmpty()) {
+                                                    val b = waitingRenderFrames.pollFirst()
+                                                    if (b != null) {
+                                                        enqueueWriteableFrame(b)
+                                                    }
                                                 }
                                                 this@VideoRenderer.state.set(RendererState.Eof)
+                                                enqueueWriteableFrame(frame)
                                                 MediaLog.d(TAG, "Render video frame eof.")
                                             } else {
                                                 if (frameToCheck != null) {

@@ -1,12 +1,13 @@
 package com.tans.tmediaplayer.player.rwqueue
 
 import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.player.model.AUDIO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 
 internal class AudioFrameQueue(private val player: tMediaPlayer) : BaseReadWriteQueue<AudioFrame>() {
 
-    override val maxQueueSize: Int = 10
+    override val maxQueueSize: Int = AUDIO_FRAME_QUEUE_SIZE
 
     override fun allocBuffer(): AudioFrame {
         val nativeFrame = player.allocAudioBufferInternal()
