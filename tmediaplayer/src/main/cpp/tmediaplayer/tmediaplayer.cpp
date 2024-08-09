@@ -111,6 +111,35 @@ tMediaOptResult tMediaPlayerContext::prepare(
         audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
     }
 
+    // Find stream info.
+    result = avformat_find_stream_info(format_ctx, nullptr);
+    if (result < 0) {
+        LOGE("Avformat find stream info fail: %d", result);
+        return OptFail;
+    }
+
+    // Format
+    if (!strcmp(format_ctx->iformat->name, "rtp")
+        || !strcmp(format_ctx->iformat->name, "rtsp")
+        || !strcmp(format_ctx->iformat->name, "sdp")) {
+        isRealTime = true;
+    } else if (format_ctx->pb && (!strncmp(format_ctx->url, "rtp:", 4)|| !strncmp(format_ctx->url, "udp:", 4))) {
+        isRealTime = true;
+    } else {
+        isRealTime = false;
+    }
+    if (format_ctx->start_time != AV_NOPTS_VALUE) {
+        startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+    } else {
+        startTime = -1;
+    }
+    if (format_ctx->duration != AV_NOPTS_VALUE) {
+        this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+    } else {
+        this->duration = -1L;
+    }
+    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld", format_ctx->iformat->name, isRealTime, startTime, duration);
+
     // Read metadata
     fileMetadata = new Metadata;
     readMetadata(format_ctx->metadata, fileMetadata);
@@ -136,12 +165,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     containerName[containerNameLen] = '\0';
     LOGD("Container name: %s", containerName);
 
-    // Find out first audio stream and video stream.
-    result = avformat_find_stream_info(format_ctx, nullptr);
-    if (result < 0) {
-        LOGE("Avformat find stream info fail: %d", result);
-        return OptFail;
-    }
+    // Find out first audio stream, video stream and all subtitle streams.
     int subtitleStreamCountLocal = 0;
     for (int i = 0; i < format_ctx->nb_streams; i ++) {
         auto s = format_ctx->streams[i];
@@ -437,28 +461,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
 
     // decode need buffers.
     this->pkt = av_packet_alloc();
-
-    // Format
-    if (!strcmp(format_ctx->iformat->name, "rtp")
-        || !strcmp(format_ctx->iformat->name, "rtsp")
-        || !strcmp(format_ctx->iformat->name, "sdp")) {
-        isRealTime = true;
-    } else if (format_ctx->pb && (!strncmp(format_ctx->url, "rtp:", 4)|| !strncmp(format_ctx->url, "udp:", 4))) {
-        isRealTime = true;
-    } else {
-        isRealTime = false;
-    }
-    if (format_ctx->start_time != AV_NOPTS_VALUE) {
-        startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
-    } else {
-        startTime = -1;
-    }
-    if (format_ctx->duration != AV_NOPTS_VALUE) {
-        this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
-    } else {
-        this->duration = -1L;
-    }
-    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld", format_ctx->iformat->name, isRealTime, startTime, duration);
 
     return OptSuccess;
 }
