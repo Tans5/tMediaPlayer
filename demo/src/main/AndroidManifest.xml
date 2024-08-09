@@ -15,7 +15,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:name=".MyApp"
-        android:theme="@style/Theme.TMediaPlayer">
+        android:theme="@style/Theme.TMediaPlayer"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

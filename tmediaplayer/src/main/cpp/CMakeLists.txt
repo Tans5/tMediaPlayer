@@ -64,6 +64,20 @@ add_library( libdav1d
 set_target_properties( libdav1d
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libdav1d.so )
+
+add_library( libssl
+        SHARED
+        IMPORTED )
+set_target_properties( libssl
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libssl.so )
+
+add_library( libcrypto
+        SHARED
+        IMPORTED )
+set_target_properties( libcrypto
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libcrypto.so )
 # endregion
 
 # region android
@@ -105,7 +119,9 @@ target_link_libraries(
         libavutil
         libswresample
         libswscale
-        libdav1d)
+        libdav1d
+        libssl
+        libcrypto)
 # endregion
 
 # region tmediaframeloader
