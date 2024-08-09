@@ -77,7 +77,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
     }
-    LOGD("Input format: %s", format_ctx->iformat->name);
 
     // audio channels
     if (target_audio_channels == 1) {
@@ -439,12 +438,45 @@ tMediaOptResult tMediaPlayerContext::prepare(
     // decode need buffers.
     this->pkt = av_packet_alloc();
 
-    this->duration = 0L;
+    // Format
+    if (!strcmp(format_ctx->iformat->name, "rtp")
+        || !strcmp(format_ctx->iformat->name, "rtsp")
+        || !strcmp(format_ctx->iformat->name, "sdp")) {
+        isRealTime = true;
+    } else if (format_ctx->pb && (!strncmp(format_ctx->url, "rtp:", 4)|| !strncmp(format_ctx->url, "udp:", 4))) {
+        isRealTime = true;
+    } else {
+        isRealTime = false;
+    }
+    if (format_ctx->start_time != AV_NOPTS_VALUE) {
+        startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+    } else {
+        startTime = -1;
+    }
     if (format_ctx->duration != AV_NOPTS_VALUE) {
         this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+    } else {
+        this->duration = -1L;
     }
+    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld", format_ctx->iformat->name, isRealTime, startTime, duration);
 
     return OptSuccess;
+}
+
+bool pktPtsIsInRange(tMediaPlayerContext *ctx, AVStream *targetStream) {
+    if (ctx->duration >= 0) {
+        int64_t streamStartTime;
+        if (targetStream->start_time == AV_NOPTS_VALUE) {
+            streamStartTime = 0L;
+        } else {
+            streamStartTime = (int64_t) ((((double) targetStream->start_time) * av_q2d(targetStream->time_base)) * 1000.0);
+        }
+        int64_t pktTs = ctx->pkt->pts == AV_NOPTS_VALUE ? ctx->pkt->dts : ctx->pkt->pts;
+        pktTs = (int64_t) (((double)pktTs * av_q2d(targetStream->time_base)) * 1000.0);
+        return pktTs <= ctx->duration;
+    } else {
+        return true;
+    }
 }
 
 tMediaReadPktResult tMediaPlayerContext::readPacket() {
@@ -456,7 +488,8 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
             return ReadFail;
         }
     } else {
-        if (video_stream && pkt->stream_index == video_stream->index) {
+        if (video_stream && pkt->stream_index == video_stream->index &&
+                pktPtsIsInRange(this, video_stream)) {
             pkt->time_base = video_stream->time_base;
             // video
             if (videoIsAttachPic) {
@@ -465,7 +498,8 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
                 return ReadVideoSuccess;
             }
         }
-        if (audio_stream && pkt->stream_index == audio_stream->index) {
+        if (audio_stream && pkt->stream_index == audio_stream->index &&
+                pktPtsIsInRange(this, audio_stream)) {
             pkt->time_base = audio_stream->time_base;
             // audio
             return ReadAudioSuccess;

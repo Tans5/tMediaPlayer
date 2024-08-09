@@ -97,7 +97,10 @@ typedef struct SubtitleStream {
 typedef struct tMediaPlayerContext {
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
-    long duration = 0;
+    bool isRealTime = false;
+    long startTime = -1L;
+    long duration = -1L;
+
 
     Metadata *fileMetadata = nullptr;
 

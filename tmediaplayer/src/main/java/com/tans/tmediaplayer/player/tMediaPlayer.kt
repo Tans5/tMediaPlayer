@@ -716,6 +716,8 @@ class tMediaPlayer(
             duration = durationNative(nativePlayer),
             metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),
+            isRealTime = isRealTimeNative(nativePlayer),
+            startTime = getStartTimeNative(nativePlayer),
             audioStreamInfo = audioStreamInfo,
             videoStreamInfo = videoStreamInfo,
             subtitleStreams = subTitleStreams
@@ -904,6 +906,10 @@ class tMediaPlayer(
     private external fun getMetadataNative(nativePlayer: Long): Array<String>
 
     private external fun getContainerNameNative(nativePlayer: Long): String
+
+    private external fun isRealTimeNative(nativePlayer: Long): Boolean
+
+    private external fun getStartTimeNative(nativePlayer: Long): Long
     // endregion
 
     // region Native video stream info

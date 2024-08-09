@@ -231,6 +231,24 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getContainerNameNative(
     auto containerName = env->NewStringUTF(player->containerName);
     return containerName;
 }
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_isRealTimeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->isRealTime;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getStartTimeNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->startTime;
+}
 // endregion
 
 // region Video stream info
