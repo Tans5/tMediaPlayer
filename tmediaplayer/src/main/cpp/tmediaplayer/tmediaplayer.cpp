@@ -138,7 +138,12 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         this->duration = -1L;
     }
-    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld", format_ctx->iformat->name, isRealTime, startTime, duration);
+    if (format_ctx->pb) {
+        isSeekable = format_ctx->pb->seekable;
+    } else {
+        isSeekable = true;
+    }
+    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld, isSeekable=%d", format_ctx->iformat->name, isRealTime, startTime, duration, isSeekable);
 
     // Read metadata
     fileMetadata = new Metadata;

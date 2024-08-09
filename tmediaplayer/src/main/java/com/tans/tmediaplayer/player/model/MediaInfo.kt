@@ -6,6 +6,7 @@ data class MediaInfo(
     val metadata: Map<String, String>,
     val containerName: String,
     val isRealTime: Boolean,
+    val isSeekable: Boolean,
     val startTime: Long,
     val audioStreamInfo: AudioStreamInfo?,
     val videoStreamInfo: VideoStreamInfo?,

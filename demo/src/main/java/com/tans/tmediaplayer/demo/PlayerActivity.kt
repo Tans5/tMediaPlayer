@@ -120,8 +120,9 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         var isPlayerSbInTouching = false
         renderStateNewCoroutine({ it.progress }) { (progress, duration) ->
             viewBinding.progressTv.text = progress.formatDuration()
-            if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking) {
-                val progressInPercent = (progress.toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
+            val mediaInfo = mediaPlayer.getMediaInfo()
+            if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking && mediaInfo != null) {
+                val progressInPercent = ((progress - mediaInfo.startTime).toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
                 viewBinding.playerSb.progress = progressInPercent
             }
         }
@@ -191,7 +192,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 val mediaInfo = mediaPlayer.getMediaInfo()
                 if (seekBar != null && mediaInfo != null) {
                     val progressF = seekBar.progress.toFloat() / seekBar.max.toFloat()
-                    val requestMediaProgress = (progressF * mediaInfo.duration.toDouble()).toLong()
+                    val requestMediaProgress = (progressF * mediaInfo.duration.toDouble()).toLong() + mediaInfo.startTime
                     mediaPlayer.seekTo(requestMediaProgress)
                 }
             }

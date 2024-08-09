@@ -41,6 +41,8 @@ import com.tans.tmediaplayer.subtitle.ExternalSubtitle
 import com.tans.tmediaplayer.subtitle.InternalSubtitle
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
+import kotlin.math.min
 
 @Suppress("ClassName")
 @Keep
@@ -236,12 +238,20 @@ class tMediaPlayer(
             is tMediaPlayerState.Playing -> null
             is tMediaPlayerState.Prepared -> state.play()
             is tMediaPlayerState.Stopped  -> {
-                packetReader.requestSeek(0L)
-                state.play()
+                if (state.mediaInfo.isSeekable) {
+                    packetReader.requestSeek(state.mediaInfo.startTime)
+                    state.play()
+                }  else {
+                    null
+                }
             }
             is tMediaPlayerState.PlayEnd -> {
-                packetReader.requestSeek(0L)
-                state.play()
+                if (state.mediaInfo.isSeekable) {
+                    packetReader.requestSeek(state.mediaInfo.startTime)
+                    state.play()
+                }  else {
+                    null
+                }
             }
             is tMediaPlayerState.Seeking -> null
             tMediaPlayerState.Released -> null
@@ -318,35 +328,36 @@ class tMediaPlayer(
 
     @Synchronized
     override fun seekTo(position: Long): OptResult {
-        val state = getState()
-        val seekingState: tMediaPlayerState.Seeking? = when (state) {
-            is tMediaPlayerState.Error -> null
-            tMediaPlayerState.NoInit -> null
-            is tMediaPlayerState.Paused -> state.seek(position)
-            is tMediaPlayerState.PlayEnd -> state.seek(position)
-            is tMediaPlayerState.Playing -> state.seek(position)
-            is tMediaPlayerState.Prepared -> state.seek(position)
-            is tMediaPlayerState.Stopped -> state.seek(position)
-            is tMediaPlayerState.Seeking -> null
-            tMediaPlayerState.Released -> null
-        }
         val mediaInfo = getMediaInfo()
-        return if (mediaInfo != null && seekingState != null) {
-            if (position !in 0 .. mediaInfo.duration) {
-                MediaLog.e(TAG, "Wrong seek position: $position, for duration: ${mediaInfo.duration}")
-                OptResult.Fail
-            } else {
+        return if (mediaInfo?.isSeekable == true) {
+            val state = getState()
+            val seekingState: tMediaPlayerState.Seeking? = when (state) {
+                is tMediaPlayerState.Error -> null
+                tMediaPlayerState.NoInit -> null
+                is tMediaPlayerState.Paused -> state.seek(position)
+                is tMediaPlayerState.PlayEnd -> state.seek(position)
+                is tMediaPlayerState.Playing -> state.seek(position)
+                is tMediaPlayerState.Prepared -> state.seek(position)
+                is tMediaPlayerState.Stopped -> state.seek(position)
+                is tMediaPlayerState.Seeking -> null
+                tMediaPlayerState.Released -> null
+            }
+            if (seekingState != null) {
                 if (dispatchNewState(new = seekingState, old = state)) {
-                    MediaLog.d(TAG, "Request seek $position")
-                    packetReader.requestSeek(position)
+                    val fixedPosition = min(max(mediaInfo.startTime, position), mediaInfo.startTime + mediaInfo.duration)
+                    MediaLog.d(TAG, "RequestSeek=$position, FixedSeek=$fixedPosition")
+                    packetReader.requestSeek(fixedPosition)
                     OptResult.Success
                 } else {
                     MediaLog.e(TAG, "Update seeking state fail, currentState=${getState()}")
                     OptResult.Fail
                 }
+            } else {
+                MediaLog.e(TAG, "Wrong state: $state for seekTo() method.")
+                OptResult.Fail
             }
         } else {
-            MediaLog.e(TAG, "Wrong state: $state for seekTo() method.")
+            MediaLog.e(TAG, "Not seekable.")
             OptResult.Fail
         }
     }
@@ -711,17 +722,20 @@ class tMediaPlayer(
             }
             MediaLog.d(TAG, "Find subtitle streams: $subTitleStreams")
         }
+        val duration = durationNative(nativePlayer)
+        val isRealtime = isRealTimeNative(nativePlayer)
+        val startTime = getStartTimeNative(nativePlayer)
         return MediaInfo(
             nativePlayer = nativePlayer,
-            duration = durationNative(nativePlayer),
+            duration = duration,
             metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),
-            isRealTime = isRealTimeNative(nativePlayer),
-            startTime = getStartTimeNative(nativePlayer),
+            isRealTime = isRealtime,
+            isSeekable = duration >= 0 && startTime >=0 && !isRealtime && isSeekableNative(nativePlayer),
+            startTime = startTime,
             audioStreamInfo = audioStreamInfo,
             videoStreamInfo = videoStreamInfo,
-            subtitleStreams = subTitleStreams
-        )
+            subtitleStreams = subTitleStreams)
     }
 
     private fun dispatchNewState(new: tMediaPlayerState, old: tMediaPlayerState): Boolean {
@@ -910,6 +924,8 @@ class tMediaPlayer(
     private external fun isRealTimeNative(nativePlayer: Long): Boolean
 
     private external fun getStartTimeNative(nativePlayer: Long): Long
+
+    private external fun isSeekableNative(nativePlayer: Long): Boolean
     // endregion
 
     // region Native video stream info
