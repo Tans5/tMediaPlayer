@@ -20,9 +20,8 @@ import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @FullScreenStyle
@@ -93,12 +92,54 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         val viewBinding = PlayerActivityBinding.bind(contentView)
 
         launch {
-            stateFlow.map { it.playerState }.filterIsInstance<tMediaPlayerState.Prepared>().first()
+            // Waiting player load active.
+            stateFlow.filter {
+                val state = it.playerState
+                when (state) {
+                    is tMediaPlayerState.Error, tMediaPlayerState.NoInit, tMediaPlayerState.Released -> false
+                    else -> true
+                }
+            }.first()
             mediaPlayer.attachPlayerView(viewBinding.playerView)
             mediaPlayer.attachSubtitleView(viewBinding.subtitleTv)
-            // mediaPlayer.loadExternalSubtitleFile(File(filesDir, "test.ass").canonicalPath)
             if (mediaPlayer.getState() is tMediaPlayerState.Prepared) {
+                // mediaPlayer.loadExternalSubtitleFile(File(filesDir, "test.ass").canonicalPath)
                 mediaPlayer.play()
+            }
+            val mediaInfo = mediaPlayer.getMediaInfo()
+            if (mediaInfo?.isSeekable == true) {
+                viewBinding.seekingLoadingPb.visibility = View.VISIBLE
+                viewBinding.durationTv.visibility = View.VISIBLE
+                renderStateNewCoroutine({ it.progress.duration }) { duration ->
+                    viewBinding.durationTv.text = duration.formatDuration()
+                }
+                var isPlayerSbInTouching = false
+                renderStateNewCoroutine({ it.progress }) { (progress, duration) ->
+                    viewBinding.progressTv.text = progress.formatDuration()
+                    if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking) {
+                        val progressInPercent = ((progress - mediaInfo.startTime).toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
+                        viewBinding.playerSb.progress = progressInPercent
+                    }
+                }
+                viewBinding.playerSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
+
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                        isPlayerSbInTouching = true
+                    }
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                        isPlayerSbInTouching = false
+                        if (seekBar != null) {
+                            val progressF = seekBar.progress.toFloat() / seekBar.max.toFloat()
+                            val requestMediaProgress = (progressF * mediaInfo.duration.toDouble()).toLong() + mediaInfo.startTime
+                            mediaPlayer.seekTo(requestMediaProgress)
+                        }
+                    }
+                })
+
+            } else {
+                viewBinding.seekingLoadingPb.visibility = View.GONE
+                viewBinding.durationTv.visibility = View.GONE
             }
 
             if (mediaPlayer.getMediaInfo()?.subtitleStreams?.isEmpty() == false) {
@@ -113,19 +154,8 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             }
         }
 
-
-        renderStateNewCoroutine({ it.progress.duration }) { duration ->
-            viewBinding.durationTv.text = duration.formatDuration()
-        }
-
-        var isPlayerSbInTouching = false
-        renderStateNewCoroutine({ it.progress }) { (progress, duration) ->
+        renderStateNewCoroutine({ it.progress.progress }) { progress ->
             viewBinding.progressTv.text = progress.formatDuration()
-            val mediaInfo = mediaPlayer.getMediaInfo()
-            if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking && mediaInfo != null) {
-                val progressInPercent = ((progress - mediaInfo.startTime).toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
-                viewBinding.playerSb.progress = progressInPercent
-            }
         }
 
         renderStateNewCoroutine({ it.playerState }) { playerState ->
@@ -181,24 +211,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             mediaPlayer.play()
         }
 
-        viewBinding.playerSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                isPlayerSbInTouching = true
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                isPlayerSbInTouching = false
-                val mediaInfo = mediaPlayer.getMediaInfo()
-                if (seekBar != null && mediaInfo != null) {
-                    val progressF = seekBar.progress.toFloat() / seekBar.max.toFloat()
-                    val requestMediaProgress = (progressF * mediaInfo.duration.toDouble()).toLong() + mediaInfo.startTime
-                    mediaPlayer.seekTo(requestMediaProgress)
-                }
-            }
-        })
-
         viewBinding.infoIv.clicks(this) {
             val info = mediaPlayer.getMediaInfo()
             if (info != null) {
@@ -252,6 +264,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             val progress: Progress = Progress()
         )
 
-        const val TAG = "MainActivity"
+        const val TAG = "PlayerActivity"
     }
 }

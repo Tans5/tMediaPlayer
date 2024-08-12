@@ -182,7 +182,7 @@ class tMediaPlayer(
                         targetAudioSampleBitDepth = audioOutputSampleBitDepth.depth
                     ).toOptResult().let {
                         if (it == OptResult.Success) {
-                            val mediaInfo = getMediaInfo(nativePlayer)
+                            val mediaInfo = getMediaInfo(nativePlayer, file)
                             if (dispatchNewState(new = tMediaPlayerState.Prepared(mediaInfo), old = tMediaPlayerState.NoInit)) {
                                 OptResult.Success
                             } else {
@@ -658,7 +658,7 @@ class tMediaPlayer(
         }
     }
 
-    private fun getMediaInfo(nativePlayer: Long): MediaInfo {
+    private fun getMediaInfo(nativePlayer: Long, file: String): MediaInfo {
         fun convertMetadataToMap(metadataArray: Array<String>): Map<String, String> {
             val metadata = mutableMapOf<String, String>()
             repeat(metadataArray.size / 2) {
@@ -730,6 +730,7 @@ class tMediaPlayer(
         val startTime = getStartTimeNative(nativePlayer)
         return MediaInfo(
             nativePlayer = nativePlayer,
+            file = file,
             duration = duration,
             metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),

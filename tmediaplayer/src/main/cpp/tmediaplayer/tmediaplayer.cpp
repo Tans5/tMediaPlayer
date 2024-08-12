@@ -82,6 +82,8 @@ tMediaOptResult tMediaPlayerContext::prepare(
     this->format_ctx->interrupt_callback.opaque = this;
     AVDictionary * fmt_opts = nullptr;
     av_dict_set(&fmt_opts, "scan_all_pmts", "1", AV_DICT_DONT_OVERWRITE);
+    // Timeout 5 seconds.
+    av_dict_set(&fmt_opts, "rw_timeout", "5000000", AV_DICT_DONT_OVERWRITE);
     int result = avformat_open_input(&format_ctx, media_file_p, nullptr, &fmt_opts);
     av_dict_free(&fmt_opts);
     if (result < 0) {
