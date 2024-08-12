@@ -108,7 +108,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             }
             val mediaInfo = mediaPlayer.getMediaInfo()
             if (mediaInfo?.isSeekable == true) {
-                viewBinding.seekingLoadingPb.visibility = View.VISIBLE
+                viewBinding.playerSb.visibility = View.VISIBLE
                 viewBinding.durationTv.visibility = View.VISIBLE
                 renderStateNewCoroutine({ it.progress.duration }) { duration ->
                     viewBinding.durationTv.text = duration.formatDuration()
@@ -138,7 +138,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 })
 
             } else {
-                viewBinding.seekingLoadingPb.visibility = View.GONE
+                viewBinding.playerSb.visibility = View.GONE
                 viewBinding.durationTv.visibility = View.GONE
             }
 
