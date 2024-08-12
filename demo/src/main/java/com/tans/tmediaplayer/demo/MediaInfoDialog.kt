@@ -22,16 +22,12 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
     private val mediaInfo: MediaInfo?
 
-    private val file: String?
-
     constructor() : super(Unit) {
         this.mediaInfo = null
-        this.file = null
     }
 
-    constructor(mediaInfo: MediaInfo, file: String) : super(Unit) {
+    constructor(mediaInfo: MediaInfo) : super(Unit) {
         this.mediaInfo = mediaInfo
-        this.file = file
     }
 
     override val contentViewWidthInScreenRatio: Float = 0.5f
@@ -50,16 +46,18 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
     override fun bindContentView(view: View) {
         val mediaInfo = this.mediaInfo ?: return
-        val file = this.file ?: return
         val viewBinding = MediaInfoDialogBinding.bind(view)
 
         viewBinding.fileRv.adapter = SimpleAdapterBuilderImpl<String>(
             itemViewCreator = SingleItemViewCreatorImpl(R.layout.media_info_item_layout),
             dataSource = FlowDataSourceImpl(flow {
                 val result = mutableListOf<String>()
-                result.add("FilePath: $file")
-                val fileSizeStr = File(file).length().toSizeString()
-                result.add("FileSize: $fileSizeStr")
+                result.add("FilePath: ${mediaInfo.file}")
+                val f = File(mediaInfo.file)
+                if (f.isFile && f.canRead()) {
+                    val fileSizeStr = f.length().toSizeString()
+                    result.add("FileSize: $fileSizeStr")
+                }
                 result.add("FileFormat: ${mediaInfo.containerName}")
                 if (mediaInfo.metadata.isNotEmpty()) {
                     result.add("")

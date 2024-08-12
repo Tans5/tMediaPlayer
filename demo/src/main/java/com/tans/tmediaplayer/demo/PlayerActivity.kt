@@ -2,6 +2,8 @@ package com.tans.tmediaplayer.demo
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -115,7 +117,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 }
                 var isPlayerSbInTouching = false
                 renderStateNewCoroutine({ it.progress }) { (progress, duration) ->
-                    viewBinding.progressTv.text = progress.formatDuration()
                     if (!isPlayerSbInTouching && mediaPlayer.getState() !is tMediaPlayerState.Seeking) {
                         val progressInPercent = ((progress - mediaInfo.startTime).toFloat() * 100.0 / duration.toFloat() + 0.5f).toInt()
                         viewBinding.playerSb.progress = progressInPercent
@@ -211,11 +212,19 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             mediaPlayer.play()
         }
 
+        viewBinding.changeOrientationIv.clicks(this) {
+            requestedOrientation = if (this@PlayerActivity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            }
+        }
+
         viewBinding.infoIv.clicks(this) {
             val info = mediaPlayer.getMediaInfo()
             if (info != null) {
                 viewBinding.actionLayout.hide()
-                val d = MediaInfoDialog(info, intent.getMediaFileExtra())
+                val d = MediaInfoDialog(info)
                 d.show(supportFragmentManager, "MediaInfoDialog#${System.currentTimeMillis()}")
             }
 
