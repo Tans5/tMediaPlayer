@@ -151,7 +151,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     if (format_ctx->start_time != AV_NOPTS_VALUE) {
         startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     } else {
-        startTime = -1;
+        startTime = -1L;
     }
     if (format_ctx->duration != AV_NOPTS_VALUE) {
         this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);

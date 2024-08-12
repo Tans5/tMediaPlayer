@@ -725,9 +725,9 @@ class tMediaPlayer(
             }
             MediaLog.d(TAG, "Find subtitle streams: $subTitleStreams")
         }
-        val duration = durationNative(nativePlayer)
+        val duration = max(durationNative(nativePlayer), 0L)
         val isRealtime = isRealTimeNative(nativePlayer)
-        val startTime = getStartTimeNative(nativePlayer)
+        val startTime = max(getStartTimeNative(nativePlayer), 0L)
         return MediaInfo(
             nativePlayer = nativePlayer,
             file = file,
@@ -735,7 +735,7 @@ class tMediaPlayer(
             metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),
             isRealTime = isRealtime,
-            isSeekable = duration > 0 && startTime >= 0 && !isRealtime,
+            isSeekable = duration > 0 && !isRealtime,
             isNoFile = isNoFileNative(nativePlayer),
             startTime = startTime,
             audioStreamInfo = audioStreamInfo,
