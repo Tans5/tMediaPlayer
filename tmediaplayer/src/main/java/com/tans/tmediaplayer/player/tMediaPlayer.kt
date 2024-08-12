@@ -734,7 +734,7 @@ class tMediaPlayer(
             metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),
             isRealTime = isRealtime,
-            isSeekable = duration > 0 && startTime >= 0 && !isRealtime && isSeekableNative(nativePlayer),
+            isSeekable = duration > 0 && startTime >= 0 && !isRealtime,
             isNoFile = isNoFileNative(nativePlayer),
             startTime = startTime,
             audioStreamInfo = audioStreamInfo,
@@ -930,8 +930,6 @@ class tMediaPlayer(
     private external fun isRealTimeNative(nativePlayer: Long): Boolean
 
     private external fun getStartTimeNative(nativePlayer: Long): Long
-
-    private external fun isSeekableNative(nativePlayer: Long): Boolean
 
     private external fun isNoFileNative(nativePlayer: Long): Boolean
     // endregion

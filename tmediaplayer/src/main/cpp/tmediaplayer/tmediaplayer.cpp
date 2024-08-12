@@ -140,11 +140,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
         isRealTime = false;
     }
     int fmt_flags = format_ctx->iformat->flags;
-    if (fmt_flags & AVFMT_SEEK_TO_PTS) {
-        isSeekable = true;
-    } else {
-        isSeekable = false;
-    }
     if (fmt_flags & AVFMT_NOFILE) {
         isNoFile = true;
     } else {
@@ -161,7 +156,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         this->duration = -1L;
     }
-    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld, isSeekable=%d, isNoFile=%d", format_ctx->iformat->name, isRealTime, startTime, duration, isSeekable, isNoFile);
+    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld, isNoFile=%d", format_ctx->iformat->name, isRealTime, startTime, duration, isNoFile);
 
     // Read metadata
     fileMetadata = new Metadata;
