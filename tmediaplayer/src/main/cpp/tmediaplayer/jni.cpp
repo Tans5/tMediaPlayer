@@ -158,6 +158,16 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_moveDecodedAudioFrameToBufferNati
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_interruptPacketRead(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    player->requestInterruptReadPkt();
+}
+
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseNative(
         JNIEnv * env,
         jobject j_player,
@@ -257,6 +267,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_isSeekableNative(
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->isSeekable;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_isNoFileNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->isNoFile;
 }
 // endregion
 

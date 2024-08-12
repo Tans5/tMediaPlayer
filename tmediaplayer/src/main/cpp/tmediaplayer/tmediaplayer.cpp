@@ -63,6 +63,12 @@ bool isSupportSubtitleStream(AVStream * s) {
            );
 }
 
+static int decode_interrupt_cb(void *ctx)
+{
+    auto *player_ctx = static_cast<tMediaPlayerContext *>(ctx);
+    return player_ctx->interruptReadPkt;
+}
+
 tMediaOptResult tMediaPlayerContext::prepare(
         const char *media_file_p,
         bool is_request_hw,
@@ -72,7 +78,12 @@ tMediaOptResult tMediaPlayerContext::prepare(
 
     LOGD("Prepare media file: %s", media_file_p);
     this->format_ctx = avformat_alloc_context();
-    int result = avformat_open_input(&format_ctx, media_file_p, nullptr, nullptr);
+    this->format_ctx->interrupt_callback.callback = decode_interrupt_cb;
+    this->format_ctx->interrupt_callback.opaque = this;
+    AVDictionary * fmt_opts = nullptr;
+    av_dict_set(&fmt_opts, "scan_all_pmts", "1", AV_DICT_DONT_OVERWRITE);
+    int result = avformat_open_input(&format_ctx, media_file_p, nullptr, &fmt_opts);
+    av_dict_free(&fmt_opts);
     if (result < 0) {
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
@@ -128,6 +139,18 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         isRealTime = false;
     }
+    int fmt_flags = format_ctx->iformat->flags;
+    if (fmt_flags & AVFMT_SEEK_TO_PTS) {
+        isSeekable = true;
+    } else {
+        isSeekable = false;
+    }
+    if (fmt_flags & AVFMT_NOFILE) {
+        isNoFile = true;
+    } else {
+        isNoFile = false;
+    }
+
     if (format_ctx->start_time != AV_NOPTS_VALUE) {
         startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     } else {
@@ -138,12 +161,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         this->duration = -1L;
     }
-    if (format_ctx->pb) {
-        isSeekable = format_ctx->pb->seekable;
-    } else {
-        isSeekable = true;
-    }
-    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld, isSeekable=%d", format_ctx->iformat->name, isRealTime, startTime, duration, isSeekable);
+    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld, isSeekable=%d, isNoFile=%d", format_ctx->iformat->name, isRealTime, startTime, duration, isSeekable, isNoFile);
 
     // Read metadata
     fileMetadata = new Metadata;
@@ -470,22 +488,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
     return OptSuccess;
 }
 
-bool pktPtsIsInRange(tMediaPlayerContext *ctx, AVStream *targetStream) {
-    if (ctx->duration >= 0) {
-        int64_t streamStartTime;
-        if (targetStream->start_time == AV_NOPTS_VALUE) {
-            streamStartTime = 0L;
-        } else {
-            streamStartTime = (int64_t) ((((double) targetStream->start_time) * av_q2d(targetStream->time_base)) * 1000.0);
-        }
-        int64_t pktTs = ctx->pkt->pts == AV_NOPTS_VALUE ? ctx->pkt->dts : ctx->pkt->pts;
-        pktTs = (int64_t) (((double)pktTs * av_q2d(targetStream->time_base)) * 1000.0);
-        return pktTs <= ctx->duration;
-    } else {
-        return true;
-    }
-}
-
 tMediaReadPktResult tMediaPlayerContext::readPacket() {
     int ret = av_read_frame(format_ctx, pkt);
     if (ret < 0) {
@@ -495,8 +497,7 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
             return ReadFail;
         }
     } else {
-        if (video_stream && pkt->stream_index == video_stream->index &&
-                pktPtsIsInRange(this, video_stream)) {
+        if (video_stream && pkt->stream_index == video_stream->index) {
             pkt->time_base = video_stream->time_base;
             // video
             if (videoIsAttachPic) {
@@ -505,8 +506,7 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
                 return ReadVideoSuccess;
             }
         }
-        if (audio_stream && pkt->stream_index == audio_stream->index &&
-                pktPtsIsInRange(this, audio_stream)) {
+        if (audio_stream && pkt->stream_index == audio_stream->index) {
             pkt->time_base = audio_stream->time_base;
             // audio
             return ReadAudioSuccess;
@@ -527,12 +527,6 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
 
 void tMediaPlayerContext::movePacketRef(AVPacket *target) {
     av_packet_move_ref(target, pkt);
-//    if (video_stream && video_stream->index == pkt->stream_index) {
-//        target->time_base = video_stream->time_base;
-//    }
-//    if (audio_stream && audio_stream->index == pkt->stream_index) {
-//        target->time_base = audio_stream->time_base;
-//    }
 }
 
 tMediaOptResult tMediaPlayerContext::pauseReadPacket() {
@@ -903,6 +897,10 @@ void releaseMetadata(Metadata *src) {
     src->metadataCount = 0;
     free(src->metadata);
     src->metadata = nullptr;
+}
+
+void tMediaPlayerContext::requestInterruptReadPkt() {
+    this->interruptReadPkt = true;
 }
 
 void tMediaPlayerContext::release() {

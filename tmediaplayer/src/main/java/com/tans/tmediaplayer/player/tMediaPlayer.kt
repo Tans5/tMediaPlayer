@@ -143,6 +143,7 @@ class tMediaPlayer(
     // region public methods
     @Synchronized
     override fun prepare(file: String): OptResult {
+        getMediaInfo()?.let { releasePacketInternal(it.nativePlayer) }
         synchronized(packetReader) {
             synchronized(audioDecoder) {
                 synchronized(videoDecoder) {
@@ -217,6 +218,7 @@ class tMediaPlayer(
                         MediaLog.d(TAG, "Prepare player success: mediaInfo=${getMediaInfo()}")
                     } else {
                         // Load media file fail.
+                        interruptPacketRead(nativePlayer)
                         releaseNative(nativePlayer)
                         MediaLog.e(TAG, "Prepare player fail.")
                         dispatchNewState(new = tMediaPlayerState.Error("Prepare player fail."), old = getState())
@@ -409,6 +411,7 @@ class tMediaPlayer(
 
     @Synchronized
     override fun release(): OptResult {
+        getMediaInfo()?.let { interruptPacketRead(it.nativePlayer) }
         synchronized(packetReader) {
             synchronized(audioDecoder) {
                 synchronized(videoDecoder) {
@@ -731,7 +734,8 @@ class tMediaPlayer(
             metadata = convertMetadataToMap(getMetadataNative(nativePlayer)),
             containerName = getContainerNameNative(nativePlayer),
             isRealTime = isRealtime,
-            isSeekable = duration >= 0 && startTime >=0 && !isRealtime && isSeekableNative(nativePlayer),
+            isSeekable = duration > 0 && startTime >= 0 && !isRealtime && isSeekableNative(nativePlayer),
+            isNoFile = isNoFileNative(nativePlayer),
             startTime = startTime,
             audioStreamInfo = audioStreamInfo,
             videoStreamInfo = videoStreamInfo,
@@ -907,6 +911,8 @@ class tMediaPlayer(
 
     private external fun moveDecodedAudioFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
 
+    private external fun interruptPacketRead(nativePlayer: Long)
+
     private external fun releaseNative(nativePlayer: Long)
     // endregion
 
@@ -926,6 +932,8 @@ class tMediaPlayer(
     private external fun getStartTimeNative(nativePlayer: Long): Long
 
     private external fun isSeekableNative(nativePlayer: Long): Boolean
+
+    private external fun isNoFileNative(nativePlayer: Long): Boolean
     // endregion
 
     // region Native video stream info

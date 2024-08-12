@@ -74,6 +74,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 }
             })
 
+            // val loadResult = mediaPlayer.prepare("rtmp://liteavapp.qcloud.com/live/liteavdemoplayerstreamid")
             val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
             when (loadResult) {
                 OptResult.Success -> {

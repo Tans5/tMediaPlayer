@@ -95,17 +95,19 @@ typedef struct SubtitleStream {
 } SubtitleStream;
 
 typedef struct tMediaPlayerContext {
+    /**
+     * Format
+     */
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
     bool isRealTime = false;
     bool isSeekable = true;
+    bool isNoFile = false;
+    bool interruptReadPkt = false;
     long startTime = -1L;
     long duration = -1L;
-
-
-    Metadata *fileMetadata = nullptr;
-
     char *containerName = nullptr;
+    Metadata *fileMetadata = nullptr;
 
     /**
      * Java
@@ -192,6 +194,8 @@ typedef struct tMediaPlayerContext {
     tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer);
 
     void flushAudioCodecBuffer();
+
+    void requestInterruptReadPkt();
 
     void release();
 } tMediaPlayerContext;
