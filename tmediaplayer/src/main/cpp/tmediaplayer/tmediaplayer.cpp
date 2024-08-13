@@ -892,7 +892,9 @@ void releaseMetadata(Metadata *src) {
         src->metadata[i * 2 + 1] = nullptr;
     }
     src->metadataCount = 0;
-    free(src->metadata);
+    if (src->metadata != nullptr) {
+        free(src->metadata);
+    }
     src->metadata = nullptr;
 }
 
@@ -913,7 +915,11 @@ void tMediaPlayerContext::release() {
     }
 
     // File Metadata
-    releaseMetadata(fileMetadata);
+    if (fileMetadata != nullptr) {
+        releaseMetadata(fileMetadata);
+        free(fileMetadata);
+        fileMetadata = nullptr;
+    }
 
     // Container name
     if (containerName != nullptr) {
