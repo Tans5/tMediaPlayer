@@ -361,7 +361,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         //region Software Decoder
         this->video_decoder = avcodec_find_decoder(params->codec_id);
         if (video_decoder == nullptr) {
-            LOGE("Didn't find sw video decoder.");
+            LOGE("Didn't find sw video decoder, codec_id=%d", params->codec_id);
             return OptFail;
         }
         this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
@@ -422,7 +422,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         this->audio_bitrate = (int) params->bit_rate;
         this->audio_decoder = avcodec_find_decoder(params->codec_id);
         if (!audio_decoder) {
-            LOGE("Didn't find audio decoder.");
+            LOGE("Didn't find audio decoder, codec_id=%d", params->codec_id);
             return OptFail;
         }
         this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
