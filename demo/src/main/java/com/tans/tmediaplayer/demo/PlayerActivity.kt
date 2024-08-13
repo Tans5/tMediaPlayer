@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.activity.addCallback
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.demo.databinding.PlayerActivityBinding
@@ -153,6 +154,12 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
             } else {
                 viewBinding.subtitlesIv.hide()
             }
+        }
+
+        launch {
+            stateFlow().filter { it.playerState is tMediaPlayerState.Error }.first()
+            Toast.makeText(this@PlayerActivity, "Load media file fail.", Toast.LENGTH_SHORT).show()
+            finish()
         }
 
         renderStateNewCoroutine({ it.progress.progress }) { progress ->
