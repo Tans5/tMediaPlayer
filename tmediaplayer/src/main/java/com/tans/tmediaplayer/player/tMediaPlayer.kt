@@ -143,7 +143,7 @@ class tMediaPlayer(
     // region public methods
     @Synchronized
     override fun prepare(file: String): OptResult {
-        getMediaInfo()?.let { releasePacketInternal(it.nativePlayer) }
+        getMediaInfo()?.let { interruptPacketReadNative(it.nativePlayer) }
         synchronized(packetReader) {
             synchronized(audioDecoder) {
                 synchronized(videoDecoder) {
@@ -218,7 +218,7 @@ class tMediaPlayer(
                         MediaLog.d(TAG, "Prepare player success: mediaInfo=${getMediaInfo()}")
                     } else {
                         // Load media file fail.
-                        interruptPacketRead(nativePlayer)
+                        interruptPacketReadNative(nativePlayer)
                         releaseNative(nativePlayer)
                         MediaLog.e(TAG, "Prepare player fail.")
                         dispatchNewState(new = tMediaPlayerState.Error("Prepare player fail."), old = getState())
@@ -411,7 +411,7 @@ class tMediaPlayer(
 
     @Synchronized
     override fun release(): OptResult {
-        getMediaInfo()?.let { interruptPacketRead(it.nativePlayer) }
+        getMediaInfo()?.let { interruptPacketReadNative(it.nativePlayer) }
         synchronized(packetReader) {
             synchronized(audioDecoder) {
                 synchronized(videoDecoder) {
@@ -912,7 +912,7 @@ class tMediaPlayer(
 
     private external fun moveDecodedAudioFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
 
-    private external fun interruptPacketRead(nativePlayer: Long)
+    private external fun interruptPacketReadNative(nativePlayer: Long)
 
     private external fun releaseNative(nativePlayer: Long)
     // endregion

@@ -158,7 +158,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_moveDecodedAudioFrameToBufferNati
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tans_tmediaplayer_player_tMediaPlayer_interruptPacketRead(
+Java_com_tans_tmediaplayer_player_tMediaPlayer_interruptPacketReadNative(
         JNIEnv * env,
         jobject j_player,
         jlong native_player) {
