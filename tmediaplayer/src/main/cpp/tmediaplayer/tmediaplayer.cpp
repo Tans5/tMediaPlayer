@@ -142,11 +142,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
         isRealTime = false;
     }
     int fmt_flags = format_ctx->iformat->flags;
-    if (fmt_flags & AVFMT_NOFILE) {
-        isNoFile = true;
-    } else {
-        isNoFile = false;
-    }
 
     if (format_ctx->start_time != AV_NOPTS_VALUE) {
         startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
@@ -158,7 +153,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         this->duration = -1L;
     }
-    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld, isNoFile=%d", format_ctx->iformat->name, isRealTime, startTime, duration, isNoFile);
+    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld", format_ctx->iformat->name, isRealTime, startTime, duration);
 
     // Read metadata
     fileMetadata = new Metadata;

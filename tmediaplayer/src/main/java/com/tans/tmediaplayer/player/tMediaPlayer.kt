@@ -736,7 +736,6 @@ class tMediaPlayer(
             containerName = getContainerNameNative(nativePlayer),
             isRealTime = isRealtime,
             isSeekable = duration > 0 && !isRealtime,
-            isNoFile = isNoFileNative(nativePlayer),
             startTime = startTime,
             audioStreamInfo = audioStreamInfo,
             videoStreamInfo = videoStreamInfo,
@@ -931,8 +930,6 @@ class tMediaPlayer(
     private external fun isRealTimeNative(nativePlayer: Long): Boolean
 
     private external fun getStartTimeNative(nativePlayer: Long): Long
-
-    private external fun isNoFileNative(nativePlayer: Long): Boolean
     // endregion
 
     // region Native video stream info

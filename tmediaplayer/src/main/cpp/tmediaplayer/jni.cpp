@@ -259,15 +259,6 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getStartTimeNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     return player->startTime;
 }
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_tans_tmediaplayer_player_tMediaPlayer_isNoFileNative(
-        JNIEnv * env,
-        jobject j_player,
-        jlong native_player) {
-    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    return player->isNoFile;
-}
 // endregion
 
 // region Video stream info

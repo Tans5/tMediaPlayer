@@ -101,7 +101,6 @@ typedef struct tMediaPlayerContext {
     AVFormatContext *format_ctx = nullptr;
     AVPacket *pkt = nullptr;
     bool isRealTime = false;
-    bool isNoFile = false;
     bool interruptReadPkt = false;
     long startTime = -1L;
     long duration = -1L;
