@@ -6,7 +6,7 @@ void playerBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq, void *context) 
     if (context == nullptr) {
         return;
     }
-    tMediaAudioTrackContext *audioTrackContext = reinterpret_cast<tMediaAudioTrackContext *>(context);
+    auto *audioTrackContext = reinterpret_cast<tMediaAudioTrackContext *>(context);
     if (bq != audioTrackContext->playerBufferQueueInterface) {
         return;
     }
@@ -25,7 +25,6 @@ void playerBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq, void *context) 
         }
     }
     env->CallVoidMethod(audioTrackContext->j_audioTrack, audioTrackContext->j_callbackMethodId);
-    return;
 }
 
 tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize, unsigned int outputChannels, unsigned int outputSampleRate, unsigned int outputSampleBitDepth) {
@@ -171,7 +170,6 @@ tMediaOptResult tMediaAudioTrackContext::stop() {
 
 tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) {
     SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->contentSize);
-    SLAndroidSimpleBufferQueueState state;
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
     } else {
@@ -189,7 +187,7 @@ SLuint32 tMediaAudioTrackContext::getBufferQueueCount() {
 }
 
 tMediaOptResult tMediaAudioTrackContext ::clearBuffers() {
-    SLresult  result = (*playerBufferQueueInterface)->Clear(playerBufferQueueInterface);
+    SLresult result = (*playerBufferQueueInterface)->Clear(playerBufferQueueInterface);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
     } else {
