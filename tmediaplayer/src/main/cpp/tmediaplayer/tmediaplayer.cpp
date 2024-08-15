@@ -32,8 +32,8 @@ void readMetadata(AVDictionary *src, Metadata *dst) {
         metadataLocal = nullptr;
         for (int i = 0; i < metadataCountLocal; i ++) {
             metadataLocal = av_dict_get(src, "", metadataLocal, AV_DICT_IGNORE_SUFFIX);
-            int keyLen = strlen(metadataLocal->key);
-            int valueLen = strlen(metadataLocal->value);
+            size_t keyLen = strlen(metadataLocal->key);
+            size_t valueLen = strlen(metadataLocal->value);
             char *key = static_cast<char *>(malloc((keyLen + 1) * sizeof(char)));
             char *value = static_cast<char *>(malloc((valueLen + 1) * sizeof(char)));
             memcpy(key, metadataLocal->key, keyLen);
@@ -144,16 +144,16 @@ tMediaOptResult tMediaPlayerContext::prepare(
     int fmt_flags = format_ctx->iformat->flags;
 
     if (format_ctx->start_time != AV_NOPTS_VALUE) {
-        startTime = (long) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+        startTime = (int64_t) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     } else {
         startTime = -1L;
     }
     if (format_ctx->duration != AV_NOPTS_VALUE) {
-        this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+        this->duration = (int64_t) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     } else {
         this->duration = -1L;
     }
-    LOGD("Format=%s, isRealTime=%d, startTime=%ld, duration=%ld", format_ctx->iformat->name, isRealTime, startTime, duration);
+    LOGD("Format=%s, isRealTime=%d, startTime=%lld, duration=%lld", format_ctx->iformat->name, isRealTime, startTime, duration);
 
     // Read metadata
     fileMetadata = new Metadata;
@@ -166,7 +166,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         containerNameLocal = format_ctx->iformat->name;
     }
-    int containerNameLen = 0;
+    size_t containerNameLen = 0;
     if (containerNameLocal) {
         containerNameLen = strlen(containerNameLocal);
     }
@@ -194,9 +194,9 @@ tMediaOptResult tMediaPlayerContext::prepare(
                     videoIsAttachPic = s->disposition & AV_DISPOSITION_ATTACHED_PIC; // Is music files' picture, only have one frame.
                     this->video_duration = 0L;
                     if (s->time_base.den > 0 && s->duration > 0 && !videoIsAttachPic && s->duration != AV_NOPTS_VALUE) {
-                        this->video_duration = (long) (((double)s->duration) * av_q2d(s->time_base) * 1000.0);
+                        this->video_duration = (int64_t ) (((double)s->duration) * av_q2d(s->time_base) * 1000.0);
                     }
-                    LOGD("Find video stream: duration=%ld, isAttachPic=%d", video_duration, videoIsAttachPic);
+                    LOGD("Find video stream: duration=%lld, isAttachPic=%d", video_duration, videoIsAttachPic);
                 }
                 break;
             case AVMEDIA_TYPE_AUDIO:
@@ -206,9 +206,9 @@ tMediaOptResult tMediaPlayerContext::prepare(
                     this->audio_stream = s;
                     this->audio_duration = 0L;
                     if (s->duration != AV_NOPTS_VALUE && s->time_base.den > 0 && s->duration > 0) {
-                        this->audio_duration = (long) (((double)s->duration) * av_q2d(s->time_base) * 1000.0);
+                        this->audio_duration = (int64_t) (((double)s->duration) * av_q2d(s->time_base) * 1000.0);
                     }
-                    LOGD("Find audio stream: duration=%ld", audio_duration);
+                    LOGD("Find audio stream: duration=%lld", audio_duration);
                 }
                 break;
 
@@ -800,12 +800,12 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
     }
     auto time_base = video_stream->time_base;
     if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
-        videoBuffer->pts = (long) ((double)video_frame->pts * av_q2d(time_base) * 1000.0);
+        videoBuffer->pts = (int64_t) ((double)video_frame->pts * av_q2d(time_base) * 1000.0);
     } else {
         videoBuffer->pts = 0L;
     }
     if (time_base.den > 0) {
-        videoBuffer->duration = (long) ((double)video_frame->duration * av_q2d(time_base) * 1000.0);
+        videoBuffer->duration = (int64_t) ((double)video_frame->duration * av_q2d(time_base) * 1000.0);
     } else {
         videoBuffer->duration = 0L;
     }
@@ -859,12 +859,12 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     }
     auto time_base = audio_stream->time_base;
     if (time_base.den > 0 && audio_frame->pts != AV_NOPTS_VALUE) {
-        audioBuffer->pts = (long) ((double)audio_frame->pts * av_q2d(time_base) * 1000.0);
+        audioBuffer->pts = (int64_t) ((double)audio_frame->pts * av_q2d(time_base) * 1000.0);
     } else {
         audioBuffer->pts = 0L;
     }
     if (time_base.den > 0) {
-        audioBuffer->duration = (long) ((double)audio_frame->duration * av_q2d(time_base) * 1000.0);
+        audioBuffer->duration = (int64_t) ((double)audio_frame->duration * av_q2d(time_base) * 1000.0);
     } else {
         audioBuffer->duration = 0L;
     }

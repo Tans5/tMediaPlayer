@@ -21,7 +21,7 @@ typedef struct tMediaFrameLoaderContext {
     AVPacket *pkt = nullptr;
     AVFrame *frame = nullptr;
     bool skipPktRead = false;
-    long duration = 0;
+    int64_t duration = 0;
 
     /**
      * Java
@@ -34,8 +34,8 @@ typedef struct tMediaFrameLoaderContext {
     AVStream *video_stream = nullptr;
     const AVCodec *video_decoder = nullptr;
     SwsContext * sws_ctx = nullptr;
-    int video_width = 0;
-    int video_height = 0;
+    int32_t video_width = 0;
+    int32_t video_height = 0;
     AVCodecContext *video_decoder_ctx = nullptr;
     tMediaVideoBuffer *videoBuffer = nullptr;
 

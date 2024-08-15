@@ -72,7 +72,7 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
 
     this->duration = 0L;
     if (format_ctx->duration != AV_NOPTS_VALUE) {
-        this->duration = (long) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
+        this->duration = (int32_t) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     }
     return OptSuccess;
 }
@@ -83,7 +83,7 @@ tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition) {
             return OptFail;
         } else {
             if (framePosition > duration || framePosition < 0) {
-                LOGE("Wrong frame position: %ld, duration: %ld", framePosition, duration);
+                LOGE("Wrong frame position: %ld, duration: %lld", framePosition, duration);
                 return OptFail;
             }
             int64_t fixedPosition = framePosition;

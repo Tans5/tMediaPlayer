@@ -31,34 +31,34 @@ enum ImageRawType {
 };
 
 typedef struct tMediaVideoBuffer {
-    int width = 0;
-    int height = 0;
+    int32_t width = 0;
+    int32_t height = 0;
     ImageRawType type = UnknownImgType;
-    int rgbaBufferSize = 0;
-    int rgbaContentSize = 0;
+    int32_t rgbaBufferSize = 0;
+    int32_t rgbaContentSize = 0;
     uint8_t *rgbaBuffer = nullptr;
-    int yBufferSize = 0;
-    int yContentSize = 0;
+    int32_t yBufferSize = 0;
+    int32_t yContentSize = 0;
     uint8_t *yBuffer = nullptr;
-    int uBufferSize = 0;
-    int uContentSize = 0;
+    int32_t uBufferSize = 0;
+    int32_t uContentSize = 0;
     uint8_t  *uBuffer = nullptr;
-    int vBufferSize = 0;
-    int vContentSize = 0;
+    int32_t vBufferSize = 0;
+    int32_t vContentSize = 0;
     uint8_t  *vBuffer = nullptr;
-    int uvBufferSize = 0;
-    int uvContentSize = 0;
+    int32_t uvBufferSize = 0;
+    int32_t uvContentSize = 0;
     uint8_t  *uvBuffer = nullptr;
-    long pts = 0L;
-    long duration = 0L;
+    int64_t pts = 0L;
+    int64_t duration = 0L;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
-    int bufferSize = 0;
-    int contentSize = 0;
+    int32_t bufferSize = 0;
+    int32_t contentSize = 0;
     uint8_t  *pcmBuffer = nullptr;
-    long pts = 0L;
-    long duration = 0L;
+    int64_t pts = 0L;
+    int64_t duration = 0L;
 } tMediaAudioBuffer;
 
 enum tMediaDecodeResult {
@@ -85,7 +85,7 @@ enum tMediaOptResult {
 };
 
 typedef struct Metadata {
-    int metadataCount = 0;
+    int32_t metadataCount = 0;
     char ** metadata = nullptr;
 } Metadata;
 
@@ -102,8 +102,8 @@ typedef struct tMediaPlayerContext {
     AVPacket *pkt = nullptr;
     bool isRealTime = false;
     bool interruptReadPkt = false;
-    long startTime = -1L;
-    long duration = -1L;
+    int64_t startTime = -1L;
+    int64_t duration = -1L;
     char *containerName = nullptr;
     Metadata *fileMetadata = nullptr;
 
@@ -120,13 +120,13 @@ typedef struct tMediaPlayerContext {
     const AVCodec *video_decoder = nullptr;
     char *videoDecoderName = nullptr;
     SwsContext * video_sws_ctx = nullptr;
-    int video_width = 0;
-    int video_height = 0;
-    int video_bits_per_raw_sample = 0;
+    int32_t video_width = 0;
+    int32_t video_height = 0;
+    int32_t video_bits_per_raw_sample = 0;
     AVPixelFormat video_pixel_format = AV_PIX_FMT_NONE;
-    int video_bitrate = 0;
+    int32_t video_bitrate = 0;
     double video_fps = 0.0;
-    long video_duration = 0;
+    int64_t video_duration = 0;
     bool videoIsAttachPic = false;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     AVCodecContext *video_decoder_ctx = nullptr;
@@ -142,17 +142,17 @@ typedef struct tMediaPlayerContext {
     char *audioDecoderName = nullptr;
     AVCodecContext *audio_decoder_ctx = nullptr;
     SwrContext *audio_swr_ctx = nullptr;
-    int audio_channels = 0;
-    int audio_bits_per_raw_sample = 0;
+    int32_t audio_channels = 0;
+    int32_t audio_bits_per_raw_sample = 0;
     AVSampleFormat audio_sample_format = AV_SAMPLE_FMT_NONE;
-    int audio_bitrate = 0;
-    int audio_per_sample_bytes = 0;
-    int audio_simple_rate = 0;
-    long audio_duration = 0;
-    long audio_output_sample_rate = 48000;
+    int32_t audio_bitrate = 0;
+    int32_t audio_per_sample_bytes = 0;
+    int32_t audio_simple_rate = 0;
+    int64_t audio_duration = 0;
+    int64_t audio_output_sample_rate = 48000;
     AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
     AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
-    int audio_output_channels = 2;
+    int32_t audio_output_channels = 2;
     AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
     AVFrame *audio_frame = nullptr;
     AVPacket *audio_pkt = nullptr;
