@@ -188,10 +188,10 @@ class tMediaPlayerView : GLSurfaceView {
 
                 GLES30.glBindVertexArray(VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, VBO)
-                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 5 * 4 * 4 + 4, null, GLES30.GL_STREAM_DRAW)
+                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 5 * 4 * 4, null, GLES30.GL_STREAM_DRAW)
                 GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 5 * 4, 0)
                 GLES30.glEnableVertexAttribArray(0)
-                GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, 5 * 4, 3 * 4)
+                GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 5 * 4, 3 * 4)
                 GLES30.glEnableVertexAttribArray(1)
                 glRendererData = GLRendererData(
                     program = program,
