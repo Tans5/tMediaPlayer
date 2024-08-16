@@ -390,7 +390,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         } else {
             codecName = video_decoder->name;
         }
-        int codecNameLen = 0;
+        size_t codecNameLen = 0;
         if (codecName) {
             codecNameLen = strlen(codecName);
         }
@@ -455,7 +455,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         } else {
             codecName = audio_decoder->name;
         }
-        int codecNameLen = 0;
+        size_t codecNameLen = 0;
         if (codecName) {
             codecNameLen = strlen(codecName);
         }
