@@ -34,7 +34,7 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream) 
     return OptSuccess;
 }
 
-tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtitle *subtitleFrame) {
+tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtitle *subtitleFrame) const {
     if (subtitle_stream == nullptr || subtitle_decoder_ctx == nullptr) {
         LOGE("Subtitle stream is null.");
         return DecodeFail;
@@ -77,7 +77,7 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtit
     }
 }
 
-void tMediaSubtitleContext::flushDecoder() {
+void tMediaSubtitleContext::flushDecoder() const {
     if (subtitle_decoder_ctx != nullptr) {
         avcodec_flush_buffers(subtitle_decoder_ctx);
     }

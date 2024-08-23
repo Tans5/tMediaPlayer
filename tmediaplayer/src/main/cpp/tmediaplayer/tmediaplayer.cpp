@@ -19,7 +19,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
     return AV_PIX_FMT_NONE;
 }
 
-void readMetadata(AVDictionary *src, Metadata *dst) {
+static void readMetadata(AVDictionary *src, Metadata *dst) {
     AVDictionaryEntry *metadataLocal = nullptr;
     int metadataCountLocal = 0;
     while ((metadataLocal = av_dict_get(src, "", metadataLocal, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
@@ -51,7 +51,7 @@ void readMetadata(AVDictionary *src, Metadata *dst) {
  * @param s
  * @return
  */
-bool isSupportSubtitleStream(AVStream * s) {
+static bool isSupportSubtitleStream(AVStream * s) {
     auto codecId = s->codecpar->codec_id;
     auto type = s->codecpar->codec_type;
     return (type == AVMEDIA_TYPE_SUBTITLE &&
@@ -101,27 +101,37 @@ tMediaOptResult tMediaPlayerContext::prepare(
     }
 
     // audio sample rate.
-    if (target_audio_sample_rate == 44100) {
-        audio_output_sample_rate = 44100;
-    } else if (target_audio_sample_rate == 48000) {
-        audio_output_sample_rate = 48000;
-    } else if (target_audio_sample_rate == 96000) {
-        audio_output_sample_rate = 96000;
-    } else if (target_audio_sample_rate == 192000) {
-        audio_output_sample_rate = 192000;
-    } else {
-        audio_output_sample_rate = 44100;
+    switch (target_audio_sample_rate) {
+        case 48000: {
+            audio_output_sample_rate = 48000;
+            break;
+        }
+        case 96000: {
+            audio_output_sample_rate = 96000;
+            break;
+        }
+        case 192000: {
+            audio_output_sample_rate = 192000;
+            break;
+        }
+        default: {
+            audio_output_sample_rate = 44100;
+        }
     }
 
     // audio output sample depth
-    if (target_audio_sample_bit_depth == 8) {
-        audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
-    } else if (target_audio_sample_bit_depth == 16) {
-        audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
-    } else if (target_audio_sample_bit_depth == 32) {
-        audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
-    } else {
-        audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
+    switch (target_audio_sample_bit_depth) {
+        case 16: {
+            audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
+            break;
+        }
+        case 32: {
+            audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
+            break;
+        }
+        default: {
+            audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
+        }
     }
 
     // Find stream info.
@@ -134,9 +144,8 @@ tMediaOptResult tMediaPlayerContext::prepare(
     // Format
     if (!strcmp(format_ctx->iformat->name, "rtp")
         || !strcmp(format_ctx->iformat->name, "rtsp")
-        || !strcmp(format_ctx->iformat->name, "sdp")) {
-        isRealTime = true;
-    } else if (format_ctx->pb && (!strncmp(format_ctx->url, "rtp:", 4)|| !strncmp(format_ctx->url, "udp:", 4))) {
+        || !strcmp(format_ctx->iformat->name, "sdp")
+        || (format_ctx->pb && (!strncmp(format_ctx->url, "rtp:", 4) || !strncmp(format_ctx->url, "udp:", 4)))) {
         isRealTime = true;
     } else {
         isRealTime = false;
@@ -480,7 +489,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
     return OptSuccess;
 }
 
-tMediaReadPktResult tMediaPlayerContext::readPacket() {
+tMediaReadPktResult tMediaPlayerContext::readPacket() const {
     int ret = av_read_frame(format_ctx, pkt);
     if (ret < 0) {
         if (ret == AVERROR_EOF || avio_feof(format_ctx->pb)) {
@@ -517,21 +526,21 @@ tMediaReadPktResult tMediaPlayerContext::readPacket() {
     }
 }
 
-void tMediaPlayerContext::movePacketRef(AVPacket *target) {
+void tMediaPlayerContext::movePacketRef(AVPacket *target) const {
     av_packet_move_ref(target, pkt);
 }
 
-tMediaOptResult tMediaPlayerContext::pauseReadPacket() {
+tMediaOptResult tMediaPlayerContext::pauseReadPacket() const {
     av_read_pause(format_ctx);
     return OptSuccess;
 }
 
-tMediaOptResult tMediaPlayerContext::resumeReadPacket() {
+tMediaOptResult tMediaPlayerContext::resumeReadPacket() const {
     av_read_play(format_ctx);
     return OptSuccess;
 }
 
-tMediaOptResult tMediaPlayerContext::seekTo(int64_t targetPosInMillis) {
+tMediaOptResult tMediaPlayerContext::seekTo(int64_t targetPosInMillis) const {
     int64_t seekTs = targetPosInMillis * AV_TIME_BASE / 1000L;
     int ret = avformat_seek_file(format_ctx, -1, INT64_MIN, seekTs, INT64_MAX, AVSEEK_FLAG_BACKWARD);
     if (ret < 0) {
@@ -577,14 +586,14 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
     }
 }
 
-tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) {
+tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) const {
     if (targetPkt != nullptr) {
         av_packet_move_ref(video_pkt, targetPkt);
     }
     return decode(video_decoder_ctx, video_frame, video_pkt);
 }
 
-void tMediaPlayerContext::flushVideoCodecBuffer() {
+void tMediaPlayerContext::flushVideoCodecBuffer() const {
     avcodec_flush_buffers(video_decoder_ctx);
 }
 
@@ -817,18 +826,18 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
     return OptSuccess;
 }
 
-tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) {
+tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) const {
     if (targetPkt != nullptr) {
         av_packet_move_ref(audio_pkt, targetPkt);
     }
     return decode(audio_decoder_ctx, audio_frame, audio_pkt);
 }
 
-void tMediaPlayerContext::flushAudioCodecBuffer() {
+void tMediaPlayerContext::flushAudioCodecBuffer() const {
     avcodec_flush_buffers(audio_decoder_ctx);
 }
 
-tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBuffer *audioBuffer) {
+tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBuffer *audioBuffer) const {
     int in_nb_samples = audio_frame->nb_samples;
 
     // Get current output frame contains sample bufferSize per channel.

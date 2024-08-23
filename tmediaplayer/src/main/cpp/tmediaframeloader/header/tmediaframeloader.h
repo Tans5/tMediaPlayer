@@ -41,7 +41,7 @@ typedef struct tMediaFrameLoaderContext {
 
     tMediaOptResult prepare(const char * media_file);
 
-    tMediaOptResult getFrame(long framePosition);
+    tMediaOptResult getFrame(int64_t framePosition);
 
     tMediaOptResult decodeForGetFrame();
 

@@ -3,7 +3,7 @@
 //
 #include "tmediasubtitlepktreader.h"
 
-bool isSupportSubtitleStream(AVStream * s) {
+static bool isSupportSubtitleStream(AVStream * s) {
     auto codecId = s->codecpar->codec_id;
     auto type = s->codecpar->codec_type;
     return (type == AVMEDIA_TYPE_SUBTITLE &&
@@ -50,7 +50,7 @@ tMediaOptResult tMediaSubtitlePktReaderContext::prepare(const char *subtitle_fil
     return OptSuccess;
 }
 
-tMediaReadPktResult tMediaSubtitlePktReaderContext::readPacket() {
+tMediaReadPktResult tMediaSubtitlePktReaderContext::readPacket() const {
     if (format_ctx == nullptr || pkt == nullptr) {
         return ReadFail;
     }
@@ -71,7 +71,7 @@ tMediaReadPktResult tMediaSubtitlePktReaderContext::readPacket() {
     }
 }
 
-tMediaOptResult tMediaSubtitlePktReaderContext::seekTo(int16_t targetPosInMillis) {
+tMediaOptResult tMediaSubtitlePktReaderContext::seekTo(int64_t targetPosInMillis) const {
     if (format_ctx == nullptr) {
         return OptFail;
     }
@@ -84,7 +84,7 @@ tMediaOptResult tMediaSubtitlePktReaderContext::seekTo(int16_t targetPosInMillis
     }
 }
 
-void tMediaSubtitlePktReaderContext::movePacketRef(AVPacket *target) {
+void tMediaSubtitlePktReaderContext::movePacketRef(AVPacket *target) const {
     av_packet_move_ref(target, pkt);
 }
 

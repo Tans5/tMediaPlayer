@@ -13,11 +13,11 @@ typedef struct tMediaSubtitlePktReaderContext {
 
     tMediaOptResult prepare(const char *subtitle_file);
 
-    tMediaReadPktResult readPacket();
+    tMediaReadPktResult readPacket() const;
 
-    void movePacketRef(AVPacket *target);
+    void movePacketRef(AVPacket *target) const;
 
-    tMediaOptResult seekTo(int16_t targetPosInMillis);
+    tMediaOptResult seekTo(int64_t targetPosInMillis) const;
 
     void release();
 } tMediaSubtitlePktReaderContext;

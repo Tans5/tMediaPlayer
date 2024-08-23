@@ -73,26 +73,36 @@ tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize, u
         inputChannelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
     }
 
-    if (outputSampleRate == 44100) {
-        inputSampleRate = SL_SAMPLINGRATE_44_1;
-    } else if (outputSampleRate == 48000) {
-        inputSampleRate = SL_SAMPLINGRATE_48;
-    } else if (outputSampleRate == 96000) {
-        inputSampleRate = SL_SAMPLINGRATE_96;
-    } else if (outputSampleRate == 192000) {
-        inputSampleRate = SL_SAMPLINGRATE_192;
-    } else {
-        inputSampleRate = SL_SAMPLINGRATE_44_1;
+    switch (outputSampleRate) {
+        case 48000: {
+            inputSampleRate = SL_SAMPLINGRATE_48;
+            break;
+        }
+        case 96000: {
+            inputSampleRate = SL_SAMPLINGRATE_96;
+            break;
+        }
+        case 192000: {
+            inputSampleRate = SL_SAMPLINGRATE_192;
+            break;
+        }
+        default: {
+            inputSampleRate = SL_SAMPLINGRATE_44_1;
+        }
     }
 
-    if (outputSampleBitDepth == 8) {
-        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_8;
-    } else if (outputSampleBitDepth == 16) {
-        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
-    } else if (outputSampleBitDepth == 32) {
-        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_32;
-    } else {
-        inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_8;
+    switch(outputSampleBitDepth) {
+        case 16: {
+            inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_16;
+            break;
+        }
+        case 32: {
+            inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_32;
+            break;
+        }
+        default: {
+            inputSampleFormat = SL_PCMSAMPLEFORMAT_FIXED_8;
+        }
     }
 
     SLDataLocator_AndroidSimpleBufferQueue audioInputQueue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, bufferQueueSize};
@@ -103,7 +113,7 @@ tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize, u
 
     // Audio sink configure
     SLDataLocator_OutputMix outputMix = {SL_DATALOCATOR_OUTPUTMIX, outputMixObject};
-    SLDataSink audioSink = {&outputMix, NULL};
+    SLDataSink audioSink = {&outputMix, nullptr};
 
     const SLInterfaceID playerIds[3] = {SL_IID_BUFFERQUEUE };
     // not need volume and effect send.
@@ -141,7 +151,7 @@ tMediaOptResult tMediaAudioTrackContext::prepare(unsigned int bufferQueueSize, u
     return OptSuccess;
 }
 
-tMediaOptResult tMediaAudioTrackContext::play() {
+tMediaOptResult tMediaAudioTrackContext::play() const {
     SLresult result = (*playerInterface)->SetPlayState(playerInterface, SL_PLAYSTATE_PLAYING);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
@@ -150,7 +160,7 @@ tMediaOptResult tMediaAudioTrackContext::play() {
     }
 }
 
-tMediaOptResult tMediaAudioTrackContext::pause() {
+tMediaOptResult tMediaAudioTrackContext::pause() const {
     SLresult result = (*playerInterface)->SetPlayState(playerInterface, SL_PLAYSTATE_PAUSED);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
@@ -159,7 +169,7 @@ tMediaOptResult tMediaAudioTrackContext::pause() {
     }
 }
 
-tMediaOptResult tMediaAudioTrackContext::stop() {
+tMediaOptResult tMediaAudioTrackContext::stop() const {
     SLresult result = (*playerInterface)->SetPlayState(playerInterface, SL_PLAYSTATE_STOPPED);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
@@ -168,7 +178,7 @@ tMediaOptResult tMediaAudioTrackContext::stop() {
     }
 }
 
-tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) {
+tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer) const {
     SLresult result = (*playerBufferQueueInterface)->Enqueue(playerBufferQueueInterface, buffer->pcmBuffer, buffer->contentSize);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;
@@ -177,16 +187,16 @@ tMediaOptResult tMediaAudioTrackContext::enqueueBuffer(tMediaAudioBuffer *buffer
     }
 }
 
-SLuint32 tMediaAudioTrackContext::getBufferQueueCount() {
+int32_t tMediaAudioTrackContext::getBufferQueueCount() const {
     if (playerBufferQueueInterface != nullptr && playerBufferQueueState != nullptr) {
         (*playerBufferQueueInterface)->GetState(playerBufferQueueInterface, playerBufferQueueState);
-        return playerBufferQueueState->count;
+        return (int32_t) playerBufferQueueState->count;
     } else {
         return 0;
     }
 }
 
-tMediaOptResult tMediaAudioTrackContext ::clearBuffers() {
+tMediaOptResult tMediaAudioTrackContext::clearBuffers() const {
     SLresult result = (*playerBufferQueueInterface)->Clear(playerBufferQueueInterface);
     if (result == SL_RESULT_SUCCESS) {
         return OptSuccess;

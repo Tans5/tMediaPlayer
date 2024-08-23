@@ -18,9 +18,9 @@ typedef struct tMediaSubtitleContext {
 
     tMediaOptResult setupNewSubtitleStream(AVStream *stream);
 
-    tMediaDecodeResult decodeSubtitle(AVPacket* pkt, AVSubtitle *subtitleFrame);
+    tMediaDecodeResult decodeSubtitle(AVPacket* pkt, AVSubtitle *subtitleFrame) const;
 
-    void flushDecoder();
+    void flushDecoder() const;
 
     void releaseLastSubtitleStream();
 

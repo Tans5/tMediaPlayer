@@ -121,7 +121,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
     auto subtitleRects = subtitleFrame->rects;
 
     auto stringClazz_ref = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
-    auto result = env->NewObjectArray(lineSize, stringClazz_ref, nullptr);
+    auto result = env->NewObjectArray((int) lineSize, stringClazz_ref, nullptr);
     auto jarray_ref = reinterpret_cast<jobjectArray>(env->NewLocalRef(result));
     env->DeleteLocalRef(stringClazz_ref);
     for (int i = 0; i < lineSize; i ++) {

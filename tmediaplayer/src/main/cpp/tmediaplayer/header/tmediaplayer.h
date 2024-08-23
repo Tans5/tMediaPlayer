@@ -149,7 +149,7 @@ typedef struct tMediaPlayerContext {
     int32_t audio_per_sample_bytes = 0;
     int32_t audio_simple_rate = 0;
     int64_t audio_duration = 0;
-    int64_t audio_output_sample_rate = 48000;
+    int32_t audio_output_sample_rate = 48000;
     AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
     AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
     int32_t audio_output_channels = 2;
@@ -171,27 +171,27 @@ typedef struct tMediaPlayerContext {
             int target_audio_sample_rate,
             int target_audio_sample_bit_depth);
 
-    tMediaReadPktResult readPacket();
+    tMediaReadPktResult readPacket() const;
 
-    tMediaOptResult pauseReadPacket();
+    tMediaOptResult pauseReadPacket() const;
 
-    tMediaOptResult resumeReadPacket();
+    tMediaOptResult resumeReadPacket() const;
 
-    void movePacketRef(AVPacket *target);
+    void movePacketRef(AVPacket *target) const;
 
-    tMediaOptResult seekTo(int64_t targetPosInMillis);
+    tMediaOptResult seekTo(int64_t targetPosInMillis) const;
 
-    tMediaDecodeResult decodeVideo(AVPacket *targetPkt);
+    tMediaDecodeResult decodeVideo(AVPacket *targetPkt) const;
 
     tMediaOptResult moveDecodedVideoFrameToBuffer(tMediaVideoBuffer* buffer);
 
-    void flushVideoCodecBuffer();
+    void flushVideoCodecBuffer() const;
 
-    tMediaDecodeResult decodeAudio(AVPacket *targetPkt);
+    tMediaDecodeResult decodeAudio(AVPacket *targetPkt) const;
 
-    tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer);
+    tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer) const;
 
-    void flushAudioCodecBuffer();
+    void flushAudioCodecBuffer() const;
 
     void requestInterruptReadPkt();
 

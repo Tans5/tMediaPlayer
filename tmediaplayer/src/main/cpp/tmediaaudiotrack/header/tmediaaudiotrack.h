@@ -32,17 +32,17 @@ typedef struct tMediaAudioTrackContext {
 
     tMediaOptResult prepare(unsigned int bufferQueueSize, unsigned int outputChannels, unsigned int outputSampleRate, unsigned int outputSampleBitDepth);
 
-    tMediaOptResult play();
+    tMediaOptResult play() const;
 
-    tMediaOptResult pause();
+    tMediaOptResult pause() const;
 
-    tMediaOptResult stop();
+    tMediaOptResult stop() const;
 
-    tMediaOptResult enqueueBuffer(tMediaAudioBuffer* buffer);
+    tMediaOptResult enqueueBuffer(tMediaAudioBuffer* buffer) const;
 
-    SLuint32 getBufferQueueCount();
+    int32_t getBufferQueueCount() const;
 
-    tMediaOptResult clearBuffers();
+    tMediaOptResult clearBuffers() const;
 
     void release();
 

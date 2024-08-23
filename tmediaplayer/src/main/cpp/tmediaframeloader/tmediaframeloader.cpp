@@ -77,13 +77,13 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     return OptSuccess;
 }
 
-tMediaOptResult tMediaFrameLoaderContext::getFrame(long framePosition) {
+tMediaOptResult tMediaFrameLoaderContext::getFrame(int64_t framePosition) {
     if (format_ctx != nullptr) {
         if (video_stream == nullptr) {
             return OptFail;
         } else {
             if (framePosition > duration || framePosition < 0) {
-                LOGE("Wrong frame position: %ld, duration: %lld", framePosition, duration);
+                LOGE("Wrong frame position: %lld, duration: %lld", framePosition, duration);
                 return OptFail;
             }
             int64_t fixedPosition = framePosition;
