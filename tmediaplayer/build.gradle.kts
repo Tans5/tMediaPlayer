@@ -17,6 +17,8 @@ android {
 
         setProperty("archivesBaseName", "tmediaplayer-${properties["VERSION_NAME"].toString()}")
 
+        buildConfigField("String", "VERSION", "\"${properties["VERSION_NAME"].toString()}\"")
+
         consumerProguardFiles("consumer-rules.pro")
         ndk {
             abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64"))
@@ -48,6 +50,10 @@ android {
     }
 
     ndkVersion = properties["NDK_VERSION"].toString()
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
