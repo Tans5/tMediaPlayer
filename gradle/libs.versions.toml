@@ -1,20 +1,20 @@
 [versions]
-agp = "8.6.0"
-kotlin = "2.0.20"
-googleKsp = "2.0.20-1.0.25"
-coreKtx = "1.13.1"
+agp = "8.7.2"
+kotlin = "2.0.21"
+googleKsp = "2.0.21-1.0.26"
+coreKtx = "1.15.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.7.0"
 material = "1.12.0"
-activity = "1.9.2"
-constraintlayout = "2.1.4"
+activity = "1.9.3"
+constraintlayout = "2.2.0"
 corouines = "1.8.1"
-tuiutils = "1.0.9"
+tuiutils = "1.0.10"
 glide = "4.16.0"
 swiperefreshlayout = "1.1.0"
-tmediaplayer = "1.4.1"
+tmediaplayer = "1.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
