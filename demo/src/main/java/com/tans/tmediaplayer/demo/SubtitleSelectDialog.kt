@@ -32,9 +32,7 @@ class SubtitleSelectDialog : BaseCoroutineStateDialogFragment<SubtitleSelectDial
 
     override val contentViewWidthInScreenRatio: Float = 0.5f
 
-    override fun createContentView(context: Context, parent: ViewGroup): View {
-       return LayoutInflater.from(context).inflate(R.layout.subtitle_select_dialog, parent, false)
-    }
+    override val layoutId: Int = R.layout.subtitle_select_dialog
 
     override fun createDialog(contentView: View): Dialog {
         return requireActivity().createDefaultDialog(contentView = contentView, dimAmount = 0.0f)

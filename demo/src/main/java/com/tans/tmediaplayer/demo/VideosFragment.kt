@@ -12,7 +12,7 @@ import com.tans.tuiutils.adapter.impl.builders.SimpleAdapterBuilderImpl
 import com.tans.tuiutils.adapter.impl.databinders.DataBinderImpl
 import com.tans.tuiutils.adapter.impl.datasources.FlowDataSourceImpl
 import com.tans.tuiutils.adapter.impl.viewcreatators.SingleItemViewCreatorImpl
-import com.tans.tuiutils.dialog.dp2px
+import com.tans.tuiutils.dialog.showSimpleCancelableCoroutineResultDialogSuspend
 import com.tans.tuiutils.fragment.BaseCoroutineStateFragment
 import com.tans.tuiutils.mediastore.MediaStoreVideo
 import com.tans.tuiutils.mediastore.queryVideoFromMediaStore
@@ -77,7 +77,7 @@ class VideosFragment : BaseCoroutineStateFragment<VideosFragment.Companion.State
 
         viewBinding.customMediaLinkFab.clicks(this) {
             val ctx = requireActivity()
-            val mediaLink = ctx.supportFragmentManager.showTextInputDialogSuspend()
+            val mediaLink = ctx.supportFragmentManager.showSimpleCancelableCoroutineResultDialogSuspend(InputMediaLinkDialog())
             if (!mediaLink.isNullOrBlank()) {
                 ctx.startActivity(PlayerActivity.createIntent(ctx, mediaLink))
             }

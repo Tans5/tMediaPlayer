@@ -1,10 +1,7 @@
 package com.tans.tmediaplayer.demo
 
 import android.app.Dialog
-import android.content.Context
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import com.tans.tmediaplayer.demo.databinding.MediaInfoDialogBinding
 import com.tans.tmediaplayer.demo.databinding.MediaInfoItemLayoutBinding
 import com.tans.tmediaplayer.player.model.MediaInfo
@@ -32,9 +29,7 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
 
     override val contentViewWidthInScreenRatio: Float = 0.5f
 
-    override fun createContentView(context: Context, parent: ViewGroup): View {
-       return LayoutInflater.from(context).inflate(R.layout.media_info_dialog, parent, false)
-    }
+    override val layoutId: Int = R.layout.media_info_dialog
 
     override fun createDialog(contentView: View): Dialog {
         return requireActivity().createDefaultDialog(contentView = contentView, dimAmount = 0.0f)
