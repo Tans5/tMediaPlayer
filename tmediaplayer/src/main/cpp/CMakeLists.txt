@@ -78,6 +78,13 @@ add_library( libcrypto
 set_target_properties( libcrypto
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libcrypto.so )
+
+add_library( libsrt
+        SHARED
+        IMPORTED )
+set_target_properties( libsrt
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libsrt.so )
 # endregion
 
 # region android
@@ -121,7 +128,8 @@ target_link_libraries(
         libswscale
         libdav1d
         libssl
-        libcrypto)
+        libcrypto
+        libsrt)
 # endregion
 
 # region tmediaframeloader
