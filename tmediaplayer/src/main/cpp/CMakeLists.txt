@@ -16,13 +16,6 @@ set_target_properties( libavcodec
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavcodec.so )
 
-#add_library( libavdevice
-#        SHARED
-#        IMPORTED )
-#set_target_properties( libavdevice
-#        PROPERTIES IMPORTED_LOCATION
-#        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libavdevice.so )
-
 add_library( libavfilter
         SHARED
         IMPORTED )
@@ -58,6 +51,7 @@ set_target_properties( libswscale
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libswscale.so )
 
+# libdav1d
 add_library( libdav1d
         SHARED
         IMPORTED )
@@ -65,6 +59,7 @@ set_target_properties( libdav1d
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libdav1d.so )
 
+# openssl
 add_library( libssl
         SHARED
         IMPORTED )
@@ -79,12 +74,21 @@ set_target_properties( libcrypto
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libcrypto.so )
 
+# libsrt
 add_library( libsrt
         SHARED
         IMPORTED )
 set_target_properties( libsrt
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libsrt.so )
+
+# librtmp
+add_library( librtmp
+        SHARED
+        IMPORTED )
+set_target_properties( librtmp
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/librtmp.so )
 # endregion
 
 # region android
@@ -129,7 +133,8 @@ target_link_libraries(
         libdav1d
         libssl
         libcrypto
-        libsrt)
+        libsrt
+        librtmp)
 # endregion
 
 # region tmediaframeloader
