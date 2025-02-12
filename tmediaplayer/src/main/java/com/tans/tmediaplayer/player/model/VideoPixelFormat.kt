@@ -4,7 +4,7 @@ import androidx.annotation.Keep
 
 @Keep
 enum class VideoPixelFormat(val formatId: Int) {
-    UNKNOWN(-1),
+    NONE(-1),
     YUV420P(0),
     YUYV422(1),
     RGB24(2),

@@ -677,10 +677,10 @@ class tMediaPlayer(
                 audioSimpleRate = audioSampleRateNative(nativePlayer),
                 audioPerSampleBytes = audioPerSampleBytesNative(nativePlayer),
                 audioDuration = audioDurationNative(nativePlayer),
-                audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN,
+                audioCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.NONE,
                 audioBitrate = audioBitrateNative(nativePlayer),
                 audioSampleBitDepth = audioSampleBitDepthNative(nativePlayer),
-                audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.UNKNOWN,
+                audioSampleFormat = AudioSampleFormat.entries.find { it.formatId == sampleFormatId } ?: AudioSampleFormat.NONE,
                 audioDecoderName = audioDecoderNameNative(nativePlayer),
                 audioStreamMetadata = convertMetadataToMap(audioStreamMetadataNative(nativePlayer))
             ).apply {
@@ -698,10 +698,10 @@ class tMediaPlayer(
                 videoHeight = videoHeightNative(nativePlayer),
                 videoFps = videoFpsNative(nativePlayer),
                 videoDuration = videoDurationNative(nativePlayer),
-                videoCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.UNKNOWN,
+                videoCodec = FFmpegCodec.entries.find { it.codecId == codecId } ?: FFmpegCodec.NONE,
                 videoBitrate = videoBitrateNative(nativePlayer),
                 videoPixelBitDepth = videoPixelBitDepthNative(nativePlayer),
-                videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.UNKNOWN,
+                videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.NONE,
                 isAttachment = videoStreamIsAttachmentNative(nativePlayer),
                 videoDecoderName = videoDecoderNameNative(nativePlayer),
                 videoStreamMetadata = convertMetadataToMap(videoStreamMetadataNative(nativePlayer))

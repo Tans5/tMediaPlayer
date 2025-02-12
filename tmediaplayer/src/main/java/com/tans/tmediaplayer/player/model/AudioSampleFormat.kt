@@ -4,13 +4,12 @@ import androidx.annotation.Keep
 
 @Keep
 enum class AudioSampleFormat(val formatId: Int) {
-    UNKNOWN(-1),
+    NONE(-1),
     U8(0),
     S16(1),
     S32(2),
     FLT(3),
     DBL(4),
-
     U8P(5),
     S16P(6),
     S32P(7),

@@ -483,6 +483,7 @@ enum class FFmpegCodec(val codecId: Int) {
     AC4(86119),
     OSQ(86120),
     QOA(86121),
+    LC3(86122),
     FIRST_SUBTITLE(94208),
     DVD_SUBTITLE(94208),
     DVB_SUBTITLE(94209),
@@ -523,6 +524,7 @@ enum class FFmpegCodec(val codecId: Int) {
     TIMED_ID3(98313),
     BIN_DATA(98314),
     SMPTE_2038(98315),
+    LCEVC(98316),
     PROBE(102400),
     MPEG2TS(131072),
     MPEG4SYSTEMS(131073),
@@ -530,5 +532,4 @@ enum class FFmpegCodec(val codecId: Int) {
     WRAPPED_AVFRAME(135169),
     VNULL(135170),
     ANULL(135171),
-    UNKNOWN(135172)
 }
