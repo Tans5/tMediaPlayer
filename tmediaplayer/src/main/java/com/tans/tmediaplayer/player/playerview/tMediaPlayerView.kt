@@ -5,7 +5,7 @@ import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.AttributeSet
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
@@ -174,7 +174,7 @@ class tMediaPlayerView : GLSurfaceView {
 
         override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
             val glVersion = gl.glGetString(GLES30.GL_VERSION)
-            MediaLog.d(TAG, "Support gl version: $glVersion")
+            tMediaPlayerLog.d(TAG) { "Support gl version: $glVersion" }
             GLES30.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
             val program = compileShaderProgram(context, R.raw.t_media_player_vert, R.raw.t_media_player_frag)

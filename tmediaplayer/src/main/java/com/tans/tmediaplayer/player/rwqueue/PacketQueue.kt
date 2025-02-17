@@ -1,6 +1,6 @@
 package com.tans.tmediaplayer.player.rwqueue
 
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -25,12 +25,14 @@ internal class PacketQueue(
 
     override fun allocBuffer(): Packet {
         val nativeBuffer = player.allocPacketInternal()
-        MediaLog.d(TAG, "Alloc new packet, size=${packetSize.incrementAndGet()}")
+        packetSize.incrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Alloc new packet, size=${packetSize.get()}" }
         return Packet(nativeBuffer)
     }
 
     override fun recycleBuffer(b: Packet) {
-        MediaLog.d(TAG, "Recycle packet, size=${packetSize.decrementAndGet()}")
+        packetSize.decrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Recycle packet, size=${packetSize.get()}" }
         player.releasePacketInternal(b.nativePacket)
     }
 

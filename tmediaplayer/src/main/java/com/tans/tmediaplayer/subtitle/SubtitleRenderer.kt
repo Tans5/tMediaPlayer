@@ -5,7 +5,7 @@ import android.os.Looper
 import android.os.Message
 import android.view.View
 import android.widget.TextView
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.renderer.RendererHandlerMsg
 import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.tMediaPlayer
@@ -52,7 +52,7 @@ internal class SubtitleRenderer(
                                         if (f === frame) {
                                             frameQueue.enqueueWritable(f)
                                             subtitle.writeableFrameReady()
-                                            MediaLog.e(TAG, "Drop subtitle frame, playerPts=$playerPts, frame=${frame}")
+                                            tMediaPlayerLog.e(TAG) { "Drop subtitle frame, playerPts=$playerPts, frame=${frame}" }
                                         } else if (f != null) {
                                             frameQueue.enqueueWritable(f)
                                             subtitle.writeableFrameReady()
@@ -61,7 +61,7 @@ internal class SubtitleRenderer(
                                     }
                                     playerPts < frameShowRange.first -> {
                                         val needDelay = min( frameShowRange.first - playerPts, MAX_RENDER_DELAY_INTERVAL)
-                                        MediaLog.d(TAG, "Need delay ${needDelay}ms to show subtitle frame=$frame")
+                                        tMediaPlayerLog.d(TAG) { "Need delay ${needDelay}ms to show subtitle frame=$frame" }
                                         requestRender(needDelay)
                                     }
                                     else -> {
@@ -83,7 +83,7 @@ internal class SubtitleRenderer(
                                                     textView.text = text
                                                 }
                                             }
-                                            MediaLog.d(TAG, "Show subtitle: $frame")
+                                            tMediaPlayerLog.d(TAG) { "Show subtitle: $frame" }
                                         }
                                         if (f != null) {
                                             frameQueue.enqueueWritable(f)
@@ -97,7 +97,7 @@ internal class SubtitleRenderer(
                                 if (state == RendererState.Playing) {
                                     this@SubtitleRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                 }
-                                MediaLog.d(TAG, "Waiting readable subtitle frame.")
+                                tMediaPlayerLog.d(TAG) { "Waiting readable subtitle frame." }
                             }
                         }
                     }
@@ -115,7 +115,7 @@ internal class SubtitleRenderer(
                 this.state.set(RendererState.Playing)
                 requestRender()
             } else {
-                MediaLog.e(TAG, "Play error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Play error, because of state: $state" }
             }
         }
     }
@@ -126,7 +126,7 @@ internal class SubtitleRenderer(
             if (state in canRenderStates) {
                 this.state.set(RendererState.Paused)
             } else {
-                MediaLog.e(TAG, "Pause error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Pause error, because of state: $state" }
             }
         }
     }
@@ -143,9 +143,9 @@ internal class SubtitleRenderer(
                         view.hide()
                     }
                 }
-                MediaLog.d(TAG, "Subtitle renderer released.")
+                tMediaPlayerLog.d(TAG) { "Subtitle renderer released." }
             } else {
-                MediaLog.e(TAG, "Release error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
             }
         }
     }
@@ -159,7 +159,7 @@ internal class SubtitleRenderer(
                 if (textView.isVisible()) {
                     uiThreadHandler.post {
                         textView.hide()
-                        MediaLog.d(TAG, "Hide text view, pts=$pts, range=${latestSubtitleShowingRange.get()}")
+                        tMediaPlayerLog.d(TAG) { "Hide text view, pts=$pts, range=${latestSubtitleShowingRange.get()}" }
                     }
                 }
             } else {
@@ -167,7 +167,7 @@ internal class SubtitleRenderer(
                 if (!textView.isVisible()) {
                     uiThreadHandler.post {
                         textView.show()
-                        MediaLog.d(TAG, "Show text view, pts=$pts, range=${latestSubtitleShowingRange.get()}")
+                        tMediaPlayerLog.d(TAG) { "Show text view, pts=$pts, range=${latestSubtitleShowingRange.get()}" }
                     }
                 }
             }
@@ -189,7 +189,7 @@ internal class SubtitleRenderer(
             rendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
             rendererHandler.sendEmptyMessageDelayed(RendererHandlerMsg.RequestRender.ordinal, delay)
         } else {
-            MediaLog.e(TAG, "Request render error, because of state: $state")
+            tMediaPlayerLog.e(TAG) { "Request render error, because of state: $state" }
         }
     }
 

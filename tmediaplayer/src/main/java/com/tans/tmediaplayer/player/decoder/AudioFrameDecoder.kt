@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
@@ -67,7 +67,7 @@ internal class AudioFrameDecoder(
                                             false
                                         }
                                         if (serialChanged) {
-                                            MediaLog.d(TAG, "Serial changed, flush audio decoder, serial: $packetSerial")
+                                            tMediaPlayerLog.d(TAG) { "Serial changed, flush audio decoder, serial: $packetSerial" }
                                             player.flushAudioCodecBufferInternal(nativePlayer)
                                         }
                                         if (skipNextPktRead || pkt != null) {
@@ -77,7 +77,7 @@ internal class AudioFrameDecoder(
                                                 frame.isEof = true
                                                 frame.serial = packetSerial
                                                 audioFrameQueue.enqueueReadable(frame)
-                                                MediaLog.d(TAG, "Decode audio frame eof.")
+                                                tMediaPlayerLog.d(TAG) { "Decode audio frame eof." }
                                                 this@AudioFrameDecoder.state.set(DecoderState.Eof)
                                                 player.readableAudioFrameReady()
                                             } else {
@@ -95,21 +95,21 @@ internal class AudioFrameDecoder(
                                                             player.readableAudioFrameReady()
                                                         } else {
                                                             audioFrameQueue.enqueueWritable(frame)
-                                                            MediaLog.e(TAG, "Move audio frame fail.")
+                                                            tMediaPlayerLog.e(TAG) { "Move audio frame fail." }
                                                         }
                                                         skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                                         requestDecode()
                                                     }
                                                     DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
                                                         if (decodeResult == DecodeResult.Fail) {
-                                                            MediaLog.e(TAG, "Decode audio fail.")
+                                                            tMediaPlayerLog.e(TAG) { "Decode audio fail." }
                                                         }
                                                         skipNextPktRead = false
                                                         requestDecode()
                                                     }
                                                 }
                                                 val end = SystemClock.uptimeMillis()
-                                                MediaLog.d(TAG, "Decode audio cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, audioFrame=${audioFrame}")
+                                                tMediaPlayerLog.d(TAG) { "Decode audio cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, audioFrame=${audioFrame}" }
                                                 if (state != DecoderState.Ready) {
                                                     this@AudioFrameDecoder.state.set(DecoderState.Ready)
                                                 }
@@ -122,11 +122,11 @@ internal class AudioFrameDecoder(
                                             requestDecode()
                                         }
                                     } else {
-                                        MediaLog.d(TAG, "Waiting frame queue writeable buffer.")
+                                        tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                         this@AudioFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                     }
                                 } else {
-                                    MediaLog.d(TAG, "Waiting packet queue readable buffer.")
+                                    tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                     this@AudioFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }
                             }
@@ -142,7 +142,7 @@ internal class AudioFrameDecoder(
         while (!isLooperPrepared.get()) {}
         audioDecoderHandler
         state.set(DecoderState.Ready)
-        MediaLog.d(TAG, "Audio decoder inited.")
+        tMediaPlayerLog.d(TAG) { "Audio decoder inited." }
     }
 
     fun requestDecode() {
@@ -151,7 +151,7 @@ internal class AudioFrameDecoder(
             audioDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
             audioDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
         } else {
-            MediaLog.e(TAG, "Request decode fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request decode fail, wrong state: $state" }
         }
     }
 
@@ -161,7 +161,7 @@ internal class AudioFrameDecoder(
             state == DecoderState.Eof) {
             requestDecode()
         } else {
-            MediaLog.d(TAG, "Skip handle readable package ready, because of state: $state")
+            tMediaPlayerLog.d(TAG) { "Skip handle readable package ready, because of state: $state" }
         }
     }
 
@@ -170,7 +170,7 @@ internal class AudioFrameDecoder(
         if (state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
         } else {
-            MediaLog.d(TAG, "Skip handle writeable frame ready, because of state: $state")
+            tMediaPlayerLog.d(TAG) { "Skip handle writeable frame ready, because of state: $state" }
         }
     }
 
@@ -181,9 +181,9 @@ internal class AudioFrameDecoder(
                 state.set(DecoderState.Released)
                 audioDecoderThread.quit()
                 audioDecoderThread.quitSafely()
-                MediaLog.d(TAG, "Video decoder released.")
+                tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
-                MediaLog.e(TAG, "Release fail, wrong state: $oldState")
+                tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }
             }
         }
     }

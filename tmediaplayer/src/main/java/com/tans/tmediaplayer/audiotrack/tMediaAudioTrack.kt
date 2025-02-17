@@ -1,7 +1,7 @@
 package com.tans.tmediaplayer.audiotrack
 
 import androidx.annotation.Keep
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.AudioChannel
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
 import com.tans.tmediaplayer.player.model.AudioSampleRate
@@ -32,9 +32,9 @@ internal class tMediaAudioTrack(
             ).toOptResult()
         if (result != OptResult.Success) {
             releaseNative(nativeAudioTrack)
-            MediaLog.e(TAG, "Prepare audio track fail.")
+            tMediaPlayerLog.e(TAG) { "Prepare audio track fail." }
         } else {
-            MediaLog.d(TAG, "Prepare audio track success.")
+            tMediaPlayerLog.d(TAG) { "Prepare audio track success." }
             this.nativeAudioTrack.set(nativeAudioTrack)
         }
     }
@@ -47,7 +47,7 @@ internal class tMediaAudioTrack(
             enqueueBufferNative(nativeAudioTrack, nativeBuffer).toOptResult()
         }
         if (result != OptResult.Success) {
-            MediaLog.e(TAG, "Enqueue buffer fail.")
+            tMediaPlayerLog.e(TAG) { "Enqueue buffer fail." }
         }
         return result
     }
@@ -69,7 +69,7 @@ internal class tMediaAudioTrack(
             clearBuffersNative(nativeAudioTrack).toOptResult()
         }
         if (result != OptResult.Success) {
-            MediaLog.e(TAG, "Clear buffers fail.")
+            tMediaPlayerLog.e(TAG) { "Clear buffers fail." }
         }
         return result
     }
@@ -82,7 +82,7 @@ internal class tMediaAudioTrack(
             playNative(nativeAudioTrack).toOptResult()
         }
         if (result != OptResult.Success) {
-            MediaLog.e(TAG, "Play fail.")
+            tMediaPlayerLog.e(TAG) { "Play fail." }
         }
         return result
     }
@@ -95,7 +95,7 @@ internal class tMediaAudioTrack(
             pauseNative(nativeAudioTrack).toOptResult()
         }
         if (result != OptResult.Success) {
-            MediaLog.e(TAG, "Pause fail.")
+            tMediaPlayerLog.e(TAG) { "Pause fail." }
         }
         return result
     }
@@ -108,7 +108,7 @@ internal class tMediaAudioTrack(
             stopNative(nativeAudioTrack).toOptResult()
         }
         if (result != OptResult.Success) {
-            MediaLog.e(TAG, "Stop fail.")
+            tMediaPlayerLog.e(TAG) { "Stop fail." }
         }
         return result
     }
@@ -119,7 +119,7 @@ internal class tMediaAudioTrack(
             OptResult.Fail
         } else {
             releaseNative(nativeAudioTrack)
-            MediaLog.d(TAG, "Release audio track.")
+            tMediaPlayerLog.d(TAG) { "Release audio track." }
             OptResult.Success
         }
         return result

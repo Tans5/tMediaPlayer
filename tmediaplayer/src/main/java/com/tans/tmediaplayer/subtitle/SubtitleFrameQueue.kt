@@ -1,6 +1,6 @@
 package com.tans.tmediaplayer.subtitle
 
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.rwqueue.BaseReadWriteQueue
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -12,13 +12,15 @@ internal class SubtitleFrameQueue(
 
     override fun allocBuffer(): SubtitleFrame {
         val nativeFrame = subtitle.allocSubtitleBufferInternal()
-        MediaLog.d(TAG, "Alloc new subtitle frame, size=${frameSize.incrementAndGet()}")
+        frameSize.incrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Alloc new subtitle frame, size=${frameSize.get()}" }
         return SubtitleFrame(nativeFrame)
     }
 
     override fun recycleBuffer(b: SubtitleFrame) {
         subtitle.releaseSubtitleBufferInternal(b.nativeFrame)
-        MediaLog.d(TAG, "Recycle subtitle frame, size=${frameSize.decrementAndGet()}")
+        frameSize.decrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Recycle subtitle frame, size=${frameSize.get()}" }
     }
 
     override fun enqueueReadable(b: SubtitleFrame) {

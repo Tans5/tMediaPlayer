@@ -3,7 +3,7 @@ package com.tans.tmediaplayer.frameloader
 import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.annotation.Keep
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.toOptResult
 import java.io.File
@@ -50,7 +50,8 @@ object tMediaFrameLoader {
             } finally {
                 releaseNative(nativeLoader)
                 val end = SystemClock.uptimeMillis()
-                MediaLog.d(TAG, "Load frame $mediaFile: position=$position, cost=${end - start}ms")
+                val cost = end - start
+                tMediaPlayerLog.d(TAG) { "Load frame $mediaFile: position=$position, cost=${cost}ms" }
             }
         } else {
             return null

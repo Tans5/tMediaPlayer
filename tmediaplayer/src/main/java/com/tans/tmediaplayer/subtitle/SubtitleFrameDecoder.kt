@@ -3,7 +3,7 @@ package com.tans.tmediaplayer.subtitle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.decoder.DecoderState
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
@@ -56,11 +56,11 @@ internal class SubtitleFrameDecoder(
                                                 frameQueue.enqueueReadable(frame)
                                                 subtitle.readableFrameReady()
                                                 requestDecode()
-                                                MediaLog.d(TAG, "Decode subtitle success: $frame")
+                                                tMediaPlayerLog.d(TAG) { "Decode subtitle success: $frame" }
                                             }
                                             DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
                                                 if (decodeResult == DecodeResult.Fail) {
-                                                    MediaLog.e(TAG, "Decode subtitle fail.")
+                                                    tMediaPlayerLog.e(TAG) { "Decode subtitle fail." }
                                                 }
                                                 frameQueue.enqueueWritable(frame)
                                                 requestDecode()
@@ -77,11 +77,11 @@ internal class SubtitleFrameDecoder(
                                         this@SubtitleFrameDecoder.state.set(DecoderState.Ready)
                                     }
                                 } else {
-                                    MediaLog.d(TAG, "Waiting frame queue writeable buffer.")
+                                    tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                     this@SubtitleFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                 }
                             } else {
-                                MediaLog.d(TAG, "Waiting packet queue readable buffer.")
+                                tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                 this@SubtitleFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                             }
                         }
@@ -91,7 +91,7 @@ internal class SubtitleFrameDecoder(
                             subtitle.frameQueue.flushReadableBuffer()
                             subtitle.packetQueue.flushReadableBuffer()
                             writeablePktReady?.invoke()
-                            MediaLog.d(TAG, "Flush decoder.")
+                            tMediaPlayerLog.d(TAG) { "Flush decoder." }
                             requestDecode()
                         }
                         DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal -> {
@@ -103,10 +103,10 @@ internal class SubtitleFrameDecoder(
                                 writeablePktReady?.invoke()
                                 val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
                                 if (result == OptResult.Success) {
-                                    MediaLog.d(TAG, "Setup internal subtitle stream success: $subtitleStreamId")
+                                    tMediaPlayerLog.d(TAG) { "Setup internal subtitle stream success: $subtitleStreamId" }
                                     requestDecode()
                                 } else {
-                                    MediaLog.e(TAG, "Setup internal subtitle stream fail: $subtitleStreamId")
+                                    tMediaPlayerLog.e(TAG) { "Setup internal subtitle stream fail: $subtitleStreamId" }
                                 }
                             }
                         }
@@ -119,10 +119,10 @@ internal class SubtitleFrameDecoder(
                                 writeablePktReady?.invoke()
                                 val result = subtitle.setupSubtitleStreamFromPktReaderInternal(subtitleNative = nativeSubtitle, readerNative = readerNative)
                                 if (result == OptResult.Success) {
-                                    MediaLog.d(TAG, "Setup external subtitle stream success.")
+                                    tMediaPlayerLog.d(TAG) { "Setup external subtitle stream success." }
                                     requestDecode()
                                 } else {
-                                    MediaLog.e(TAG, "Setup external subtitle stream fail.")
+                                    tMediaPlayerLog.e(TAG) { "Setup external subtitle stream fail." }
                                 }
                             }
                         }
@@ -138,7 +138,7 @@ internal class SubtitleFrameDecoder(
             decoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
             decoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
         } else {
-            MediaLog.e(TAG, "Request decode fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request decode fail, wrong state: $state" }
         }
     }
 
@@ -148,7 +148,7 @@ internal class SubtitleFrameDecoder(
             decoderHandler.removeMessages(DecoderHandlerMsg.RequestFlushDecoder.ordinal)
             decoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestFlushDecoder.ordinal)
         } else {
-            MediaLog.e(TAG, "Request flush decoder fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request flush decoder fail, wrong state: $state" }
         }
     }
 
@@ -159,7 +159,7 @@ internal class SubtitleFrameDecoder(
             val msg = decoderHandler.obtainMessage(DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal, streamIndex)
             decoderHandler.sendMessage(msg)
         } else {
-            MediaLog.d(TAG, "Request setup subtitle stream, wrong state: $state")
+            tMediaPlayerLog.d(TAG) { "Request setup subtitle stream, wrong state: $state" }
         }
     }
 
@@ -170,7 +170,7 @@ internal class SubtitleFrameDecoder(
             val msg = decoderHandler.obtainMessage(DecoderHandlerMsg.RequestSetupExternalSubtitleStream.ordinal, readerNative)
             decoderHandler.sendMessage(msg)
         } else {
-            MediaLog.d(TAG, "Request setup subtitle stream, wrong state: $state")
+            tMediaPlayerLog.d(TAG) { "Request setup subtitle stream, wrong state: $state" }
         }
     }
 
@@ -194,9 +194,9 @@ internal class SubtitleFrameDecoder(
             val oldState = getState()
             if (oldState != DecoderState.NotInit && oldState != DecoderState.Released) {
                 state.set(DecoderState.Released)
-                MediaLog.d(TAG, "Subtitle decoder released.")
+                tMediaPlayerLog.d(TAG) { "Subtitle decoder released." }
             } else {
-                MediaLog.e(TAG, "Release fail, wrong state: $oldState")
+                tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }
             }
         }
     }

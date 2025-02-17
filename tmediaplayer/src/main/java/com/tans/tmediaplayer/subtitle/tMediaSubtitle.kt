@@ -2,7 +2,7 @@ package com.tans.tmediaplayer.subtitle
 
 import android.os.HandlerThread
 import androidx.annotation.Keep
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.toDecodeResult
@@ -62,11 +62,11 @@ internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -
                 streamIndex = streamIndex
             ).toOptResult().apply {
                 if (this == OptResult.Fail) {
-                    MediaLog.e(TAG, "Setup subtitle stream fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex")
+                    tMediaPlayerLog.e(TAG) { "Setup subtitle stream fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex" }
                 }
             }
         } else {
-            MediaLog.e(TAG, "Setup subtitle stream fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex")
+            tMediaPlayerLog.e(TAG) { "Setup subtitle stream fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex" }
             OptResult.Fail
         }
     }

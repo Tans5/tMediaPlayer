@@ -2,8 +2,7 @@ package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
 import android.opengl.GLES30
-import android.util.Log
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
@@ -46,7 +45,7 @@ internal fun compileShaderProgram(
     if (vertexCompileState.get() <= 0) {
         val log = GLES30.glGetShaderInfoLog(vertexShader)
         GLES30.glDeleteShader(vertexShader)
-        MediaLog.e(TAG, "Compile vertex shader fail: $log")
+        tMediaPlayerLog.e(TAG) { "Compile vertex shader fail: $log" }
         return null
     }
 
@@ -66,7 +65,7 @@ internal fun compileShaderProgram(
         val log = GLES30.glGetShaderInfoLog(fragmentShader)
         GLES30.glDeleteShader(vertexShader)
         GLES30.glDeleteShader(fragmentShader)
-        MediaLog.e(TAG, "Compile fragment shader fail: $log")
+        tMediaPlayerLog.e(TAG) { "Compile fragment shader fail: $log" }
         return null
     }
 
@@ -88,10 +87,10 @@ internal fun compileShaderProgram(
     if (linkProgramState.get() <= 0) {
         val log = GLES30.glGetProgramInfoLog(shaderProgram)
         GLES30.glDeleteProgram(shaderProgram)
-        Log.e(TAG, "Link program fail: $log")
+        tMediaPlayerLog.e(TAG) { "Link program fail: $log" }
         return null
     }
-    Log.d(TAG, "Compile program success!!")
+    tMediaPlayerLog.d(TAG) { "Compile program success!!" }
     return shaderProgram
 }
 
@@ -174,7 +173,7 @@ internal fun offScreenRender(
 
     val frameBufferStatus = GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER)
     if (frameBufferStatus != GLES30.GL_FRAMEBUFFER_COMPLETE) {
-        MediaLog.e(TAG, "Create frame buffer fail: $frameBufferStatus")
+        tMediaPlayerLog.e(TAG) { "Create frame buffer fail: $frameBufferStatus" }
         return
     }
 

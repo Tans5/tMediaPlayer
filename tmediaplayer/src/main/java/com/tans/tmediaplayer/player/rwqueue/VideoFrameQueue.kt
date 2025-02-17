@@ -1,6 +1,6 @@
 package com.tans.tmediaplayer.player.rwqueue
 
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.tMediaPlayer
@@ -12,13 +12,15 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
 
     override fun allocBuffer(): VideoFrame {
         val nativeFrame = player.allocVideoBufferInternal()
-        MediaLog.d(TAG, "Alloc new video frame, size=${frameSize.incrementAndGet()}")
+        frameSize.incrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Alloc new video frame, size=${frameSize.get()}" }
         return VideoFrame(nativeFrame)
     }
 
     override fun recycleBuffer(b: VideoFrame) {
         player.releaseVideoBufferInternal(b.nativeFrame)
-        MediaLog.d(TAG, "Recycle video frame, size=${frameSize.decrementAndGet()}")
+        frameSize.decrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Recycle video frame, size=${frameSize.get()}" }
     }
 
     /**

@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import androidx.annotation.Keep
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.ReadPacketResult
 import com.tans.tmediaplayer.player.model.toOptResult
@@ -59,15 +59,15 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                 if (filePath is String) {
                                     val loadResult = loadFileNative(readerNative = readerNative, file = filePath).toOptResult()
                                     if (loadResult == OptResult.Success) {
-                                        MediaLog.d(TAG, "Load subtitle file: $filePath, success.")
+                                        tMediaPlayerLog.d(TAG) { "Load subtitle file: $filePath, success." }
                                         val pts = player.getProgress()
                                         val seekResult = seekToNative(readerNative = readerNative, position = pts).toOptResult()
-                                        MediaLog.d(TAG, "Seek to $pts result: $seekResult")
+                                        tMediaPlayerLog.d(TAG) { "Seek to $pts result: $seekResult" }
                                         requestReadPkt()
                                         subtitle.decoder.requestSetupExternalSubtitleStream(readerNative)
                                     } else {
                                         readerHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
-                                        MediaLog.e(TAG, "Load subtitle file: $filePath, fail.")
+                                        tMediaPlayerLog.e(TAG) { "Load subtitle file: $filePath, fail." }
                                     }
                                 }
                             }
@@ -75,7 +75,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                 val position = msg.obj
                                 if (position is Long) {
                                     val result = seekToNative(readerNative = readerNative, position = position).toOptResult()
-                                    MediaLog.d(TAG, "Seek to $position result: $result")
+                                    tMediaPlayerLog.d(TAG) { "Seek to $position result: $result" }
                                     subtitle.decoder.requestFlushDecoder()
                                     requestReadPkt()
                                 }
@@ -85,7 +85,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                 val queueSize = pktQueue.readableQueueSize()
                                 if (queueSize >= MAX_PKT_SIZE) {
                                     subtitle.decoder.readablePacketReady()
-                                    MediaLog.d(TAG, "Packet queue full, queueSize=$queueSize.")
+                                    tMediaPlayerLog.d(TAG) { "Packet queue full, queueSize=$queueSize." }
                                     this@ExternalSubtitle.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     if (state == ReaderState.WaitingWritableBuffer) {
@@ -98,14 +98,14 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                             pktQueue.enqueueReadable(pkt)
                                             subtitle.decoder.readablePacketReady()
                                             requestReadPkt()
-                                            MediaLog.d(TAG, "Read subtitle pkt: $pkt")
+                                            tMediaPlayerLog.d(TAG) { "Read subtitle pkt: $pkt" }
                                         }
                                         ReadPacketResult.ReadFail -> {
-                                            MediaLog.e(TAG, "Read subtitle pkt fail.")
+                                            tMediaPlayerLog.e(TAG) { "Read subtitle pkt fail." }
                                             requestReadPkt(100L)
                                         }
                                         ReadPacketResult.ReadEof -> {
-                                            MediaLog.d(TAG, "Read subtitle pkt eof.")
+                                            tMediaPlayerLog.d(TAG) { "Read subtitle pkt eof." }
                                             this@ExternalSubtitle.state.set(ReaderState.Eof)
                                         }
                                         ReadPacketResult.ReadVideoSuccess,
@@ -131,7 +131,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         readerHandler
         subtitle
         state.set(ReaderState.Ready)
-        MediaLog.d(TAG, "Subtitle packet reader inited.")
+        tMediaPlayerLog.d(TAG) { "Subtitle packet reader inited." }
     }
 
     fun getState(): ReaderState = state.get()
@@ -146,7 +146,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                 val msg = readerHandler.obtainMessage(HandlerMsg.RequestLoadFile.ordinal, file)
                 readerHandler.sendMessage(msg)
             } else {
-                MediaLog.e(TAG, "Request load file: $file fail, wrong state: $state")
+                tMediaPlayerLog.e(TAG) { "Request load file: $file fail, wrong state: $state" }
             }
         }
     }
@@ -160,7 +160,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
             val msg = readerHandler.obtainMessage(HandlerMsg.RequestSeek.ordinal, targetPosition)
             readerHandler.sendMessage(msg)
         } else {
-            MediaLog.e(TAG, "Request seek fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request seek fail, wrong state: $state" }
         }
     }
 
@@ -207,7 +207,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
             readerHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
             readerHandler.sendEmptyMessageDelayed(HandlerMsg.RequestReadPkt.ordinal, delay)
         } else {
-            MediaLog.e(TAG, "Request read pkt fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request read pkt fail, wrong state: $state" }
         }
     }
 

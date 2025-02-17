@@ -2,7 +2,7 @@ package com.tans.tmediaplayer.player.playerview.texconverter
 
 import android.content.Context
 import android.opengl.GLES30
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import java.nio.ByteBuffer
@@ -35,7 +35,7 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
             )
             renderData.outputTexId
         } else {
-            MediaLog.e(TAG, "Wrong image type: ${imageData.imageRawData::class.java.simpleName}")
+            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageRawData::class.java.simpleName}" }
             0
         }
     }

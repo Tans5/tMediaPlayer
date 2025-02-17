@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
@@ -74,7 +74,7 @@ internal class VideoRenderer(
                                     // lastRenderFrame = LastRenderFrame(frame)
                                     if (frame.serial != videoPacketQueue.getSerial()) {
                                         enqueueWriteableFrame(frame)
-                                        MediaLog.e(TAG, "Serial changed, skip force render.")
+                                        tMediaPlayerLog.e(TAG) { "Serial changed, skip force render." }
                                         requestRender()
                                         return@synchronized
                                     }
@@ -83,14 +83,14 @@ internal class VideoRenderer(
                                         player.videoClock.setClock(frame.pts, frame.serial)
                                         player.externalClock.syncToClock(player.videoClock)
                                         renderVideoFrame(frame)
-                                        MediaLog.d(TAG, "Force render video success.")
+                                        tMediaPlayerLog.d(TAG) { "Force render video success." }
                                     } else {
                                         this@VideoRenderer.state.set(RendererState.Eof)
                                         enqueueWriteableFrame(frame)
-                                        MediaLog.d(TAG, "Force render video frame eof.")
+                                        tMediaPlayerLog.d(TAG) { "Force render video frame eof." }
                                     }
                                 } else {
-                                    MediaLog.d(TAG, "Force render waiting readable video frame")
+                                    tMediaPlayerLog.d(TAG) { "Force render waiting readable video frame" }
                                 }
                             } else {
                                 val state = getState()
@@ -104,9 +104,9 @@ internal class VideoRenderer(
                                             if (frameToCheck === frame) {
                                                 enqueueWriteableFrame(frame)
                                             } else {
-                                                MediaLog.e(TAG, "Wrong render frame: $frame")
+                                                tMediaPlayerLog.e(TAG) { "Wrong render frame: $frame" }
                                             }
-                                            MediaLog.d(TAG, "Serial changed, skip render.")
+                                            tMediaPlayerLog.d(TAG) { "Serial changed, skip render." }
                                             requestRender()
                                             return@synchronized
                                         }
@@ -116,7 +116,7 @@ internal class VideoRenderer(
                                             }
                                             val lastFrame = lastRenderFrame
                                             if (frame.serial != lastFrame.serial) {
-                                                MediaLog.d(TAG, "Serial changed, reset frame timer.")
+                                                tMediaPlayerLog.d(TAG) { "Serial changed, reset frame timer." }
                                                 frameTimer = SystemClock.uptimeMillis()
                                             }
                                             val lastDuration = frameDuration(lastFrame, frame)
@@ -124,13 +124,13 @@ internal class VideoRenderer(
                                             val time = SystemClock.uptimeMillis()
                                             if (time < frameTimer + delay) {
                                                 val remainingTime = min(frameTimer + delay - time, VIDEO_REFRESH_RATE)
-                                                MediaLog.d(TAG, "Frame=${frame.pts}, need delay ${remainingTime}ms to display.")
+                                                tMediaPlayerLog.d(TAG) { "Frame=${frame.pts}, need delay ${remainingTime}ms to display." }
                                                 requestRender(remainingTime)
                                                 return@synchronized
                                             }
                                             val frameToCheck = videoFrameQueue.dequeueReadable()
                                             if (frame !== frameToCheck) {
-                                                MediaLog.e(TAG, "Wrong render frame: $frame")
+                                                tMediaPlayerLog.e(TAG) { "Wrong render frame: $frame" }
                                                 requestRender()
                                                 if (frameToCheck != null) {
                                                     enqueueWriteableFrame(frameToCheck)
@@ -140,7 +140,7 @@ internal class VideoRenderer(
                                             lastRenderFrame = LastRenderFrame(frame)
                                             frameTimer += delay
                                             if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
-                                                MediaLog.e(TAG, "Behind time ${time - frameTimer}ms reset frame timer.")
+                                                tMediaPlayerLog.e(TAG) { "Behind time ${time - frameTimer}ms reset frame timer." }
                                                 frameTimer = time
                                             }
                                             player.videoClock.setClock(frame.pts, frame.serial)
@@ -150,7 +150,7 @@ internal class VideoRenderer(
                                             if (nextFrame != null && !nextFrame.isEof) {
                                                 val duration = frameDuration(lastRenderFrame, nextFrame)
                                                 if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
-                                                    MediaLog.e(TAG, "Drop next frame: ${nextFrame.pts}")
+                                                    tMediaPlayerLog.e(TAG) { "Drop next frame: ${nextFrame.pts}" }
                                                     val nextFrameToCheck = videoFrameQueue.dequeueReadable()
                                                     if (nextFrameToCheck === nextFrame) {
                                                         enqueueWriteableFrame(nextFrame)
@@ -158,7 +158,7 @@ internal class VideoRenderer(
                                                         if (nextFrameToCheck != null) {
                                                             enqueueWriteableFrame(nextFrameToCheck)
                                                         }
-                                                        MediaLog.e(TAG, "Wrong render frame: $nextFrame")
+                                                        tMediaPlayerLog.e(TAG) { "Wrong render frame: $nextFrame" }
                                                     }
                                                 }
                                             }
@@ -170,15 +170,19 @@ internal class VideoRenderer(
                                             if (frameToCheck === frame) {
                                                 var checkTimes = 0
                                                 while (waitingRenderFrames.isNotEmpty()) {
-                                                    MediaLog.d(TAG, "Waiting video finish, bufferCount=${waitingRenderFrames.size}, checkTimes=${checkTimes++}")
+                                                    checkTimes++
+                                                    tMediaPlayerLog.d(TAG) { "Waiting video finish, bufferCount=${waitingRenderFrames.size}, checkTimes=$checkTimes" }
                                                     try {
                                                         Thread.sleep(10)
                                                     } catch (e: Throwable) {
-                                                        MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                        tMediaPlayerLog.e(
+                                                            tag = TAG,
+                                                            msgGetter = { "Sleep error: ${e.message}" },
+                                                            errorGetter = { e })
                                                         break
                                                     }
                                                     if (checkTimes >= VIDEO_EOF_MAX_CHECK_TIMES) {
-                                                        MediaLog.e(TAG, "Waiting video renderer max times $VIDEO_EOF_MAX_CHECK_TIMES, bufferCount=${waitingRenderFrames.size}")
+                                                        tMediaPlayerLog.e(TAG) { "Waiting video renderer max times $VIDEO_EOF_MAX_CHECK_TIMES, bufferCount=${waitingRenderFrames.size}" }
                                                         break
                                                     }
                                                 }
@@ -190,7 +194,7 @@ internal class VideoRenderer(
                                                 }
                                                 this@VideoRenderer.state.set(RendererState.Eof)
                                                 enqueueWriteableFrame(frame)
-                                                MediaLog.d(TAG, "Render video frame eof.")
+                                                tMediaPlayerLog.d(TAG) { "Render video frame eof." }
                                             } else {
                                                 if (frameToCheck != null) {
                                                     enqueueWriteableFrame(frameToCheck)
@@ -202,7 +206,7 @@ internal class VideoRenderer(
                                         if (state == RendererState.Playing) {
                                             this@VideoRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                         }
-                                        MediaLog.d(TAG, "Waiting readable video frame.")
+                                        tMediaPlayerLog.d(TAG) { "Waiting readable video frame." }
                                     }
                                 }
                             }
@@ -231,7 +235,7 @@ internal class VideoRenderer(
                                     renderViewCallback()
                                 }
                             } else {
-                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
                                 enqueueWriteableFrame(frame)
                             }
                         }
@@ -249,7 +253,7 @@ internal class VideoRenderer(
                                     renderViewCallback()
                                 }
                             } else {
-                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
                                 enqueueWriteableFrame(frame)
                             }
                         }
@@ -266,7 +270,7 @@ internal class VideoRenderer(
                                     renderViewCallback()
                                 }
                             } else {
-                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
                                 enqueueWriteableFrame(frame)
                             }
                         }
@@ -282,7 +286,7 @@ internal class VideoRenderer(
                                     renderViewCallback()
                                 }
                             } else {
-                                MediaLog.e(TAG, "Wrong ${frame.imageType} image.")
+                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
                                 enqueueWriteableFrame(frame)
                             }
                         }
@@ -334,7 +338,7 @@ internal class VideoRenderer(
         while (!isLooperPrepared.get()) {}
         videoRendererHandler
         state.set(RendererState.Paused)
-        MediaLog.d(TAG, "Video renderer inited.")
+        tMediaPlayerLog.d(TAG) { "Video renderer inited." }
     }
 
     fun play() {
@@ -346,7 +350,7 @@ internal class VideoRenderer(
                 this.state.set(RendererState.Playing)
                 requestRender()
             } else {
-                MediaLog.e(TAG, "Play error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Play error, because of state: $state" }
             }
         }
     }
@@ -357,7 +361,7 @@ internal class VideoRenderer(
             if (state in canRenderStates) {
                 this.state.set(RendererState.Paused)
             } else {
-                MediaLog.e(TAG, "Pause error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Pause error, because of state: $state" }
             }
         }
     }
@@ -367,7 +371,7 @@ internal class VideoRenderer(
         if (state == RendererState.WaitingReadableFrameBuffer || renderForce.get()) {
             requestRender()
         } else {
-            MediaLog.d(TAG, "Skip handle readable video frame ready, because of state: $state")
+            tMediaPlayerLog.d(TAG) { "Skip handle readable video frame ready, because of state: $state" }
         }
     }
 
@@ -377,10 +381,10 @@ internal class VideoRenderer(
             if (renderForce.compareAndSet(false, true)) {
                 requestRender()
             } else {
-                MediaLog.e(TAG, "Force render error, already have a force render task.")
+                tMediaPlayerLog.e(TAG) { "Force render error, already have a force render task." }
             }
         } else {
-            MediaLog.e(TAG, "Force render error, because of state: $state")
+            tMediaPlayerLog.e(TAG) { "Force render error, because of state: $state" }
         }
     }
 
@@ -398,9 +402,9 @@ internal class VideoRenderer(
                 }
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
-                MediaLog.d(TAG, "Video renderer released.")
+                tMediaPlayerLog.d(TAG) { "Video renderer released." }
             } else {
-                MediaLog.e(TAG, "Release error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
             }
         }
     }
@@ -417,7 +421,7 @@ internal class VideoRenderer(
             videoRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
             videoRendererHandler.sendEmptyMessageDelayed(RendererHandlerMsg.RequestRender.ordinal, delay)
         } else {
-            MediaLog.e(TAG, "Request render error, because of state: $state")
+            tMediaPlayerLog.e(TAG) { "Request render error, because of state: $state" }
         }
     }
 

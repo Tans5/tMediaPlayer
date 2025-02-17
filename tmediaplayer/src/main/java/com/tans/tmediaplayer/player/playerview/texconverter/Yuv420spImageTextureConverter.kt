@@ -2,7 +2,7 @@ package com.tans.tmediaplayer.player.playerview.texconverter
 
 import android.content.Context
 import android.opengl.GLES30
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.playerview.compileShaderProgram
 import com.tans.tmediaplayer.player.playerview.glGenBuffers
@@ -63,11 +63,11 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
                 }
                 renderData.outputTexId
             } else {
-                MediaLog.e(TAG, "Render data is null.")
+                tMediaPlayerLog.e(TAG) { "Render data is null." }
                 0
             }
         } else {
-            MediaLog.e(TAG, "Wrong image type: ${imageData.imageRawData::class.java.simpleName}")
+            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageRawData::class.java.simpleName}" }
             0
         }
     }

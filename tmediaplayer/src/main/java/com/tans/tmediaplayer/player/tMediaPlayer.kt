@@ -2,7 +2,7 @@ package com.tans.tmediaplayer.player
 
 import android.widget.TextView
 import androidx.annotation.Keep
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.decoder.AudioFrameDecoder
 import com.tans.tmediaplayer.player.decoder.VideoFrameDecoder
 import com.tans.tmediaplayer.player.model.SyncType.*
@@ -149,7 +149,7 @@ class tMediaPlayer(
                 synchronized(videoDecoder) {
                     val lastState = getState()
                     if (lastState == tMediaPlayerState.Released) {
-                        MediaLog.e(TAG, "Prepare fail, player has released.")
+                        tMediaPlayerLog.e(TAG) { "Prepare fail, player has released." }
                         return OptResult.Fail
                     }
                     val lastMediaInfo = getMediaInfo()
@@ -157,7 +157,7 @@ class tMediaPlayer(
                     if (lastMediaInfo != null) {
                         // Release last nativePlayer.
                         releaseNative(lastMediaInfo.nativePlayer)
-                        MediaLog.d(TAG, "Release last native player.")
+                        tMediaPlayerLog.d(TAG) { "Release last native player." }
                     }
 
                     // Flush pkt and frame queues.
@@ -186,7 +186,7 @@ class tMediaPlayer(
                             if (dispatchNewState(new = tMediaPlayerState.Prepared(mediaInfo), old = tMediaPlayerState.NoInit)) {
                                 OptResult.Success
                             } else {
-                                MediaLog.e(TAG, "Update prepared state fail, currentState=${getState()}")
+                                tMediaPlayerLog.e(TAG) { "Update prepared state fail, currentState=${getState()}" }
                                 OptResult.Fail
                             }
                         } else {
@@ -215,12 +215,12 @@ class tMediaPlayer(
 
                     if (result == OptResult.Success) {
                         // Load media file success.
-                        MediaLog.d(TAG, "Prepare player success: mediaInfo=${getMediaInfo()}")
+                        tMediaPlayerLog.d(TAG) { "Prepare player success: mediaInfo=${getMediaInfo()}" }
                     } else {
                         // Load media file fail.
                         interruptPacketReadNative(nativePlayer)
                         releaseNative(nativePlayer)
-                        MediaLog.e(TAG, "Prepare player fail.")
+                        tMediaPlayerLog.e(TAG) { "Prepare player fail." }
                         dispatchNewState(new = tMediaPlayerState.Error("Prepare player fail."), old = getState())
                     }
                     return result
@@ -260,7 +260,7 @@ class tMediaPlayer(
         }
         return if (playingState != null) {
             if (dispatchNewState(new = playingState, old = state)) {
-                MediaLog.d(TAG, "Request play.")
+                tMediaPlayerLog.d(TAG) { "Request play." }
                 playReadPacketNative(playingState.mediaInfo.nativePlayer)
                 // Play clocks
                 videoClock.play()
@@ -277,11 +277,11 @@ class tMediaPlayer(
 
                 OptResult.Success
             } else {
-                MediaLog.e(TAG, "Update play state fail, currentState=${getState()}")
+                tMediaPlayerLog.e(TAG) { "Update play state fail, currentState=${getState()}" }
                 OptResult.Fail
             }
         } else {
-            MediaLog.e(TAG, "Wrong state: $state for play() method.")
+            tMediaPlayerLog.e(TAG) { "Wrong state: $state for play() method." }
             OptResult.Fail
         }
     }
@@ -302,7 +302,7 @@ class tMediaPlayer(
         }
         return if (pauseState != null) {
             if (dispatchNewState(new = pauseState, old = state)) {
-                MediaLog.d(TAG, "Request pause.")
+                tMediaPlayerLog.d(TAG) { "Request pause." }
                 pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
                 // Pause clocks
                 videoClock.pause()
@@ -319,11 +319,11 @@ class tMediaPlayer(
 
                 OptResult.Success
             } else {
-                MediaLog.e(TAG, "Update pause state fail, currentState=${getState()}")
+                tMediaPlayerLog.e(TAG) {  "Update pause state fail, currentState=${getState()}" }
                 OptResult.Fail
             }
         } else {
-            MediaLog.e(TAG, "Wrong state: $state for pause() method.")
+            tMediaPlayerLog.e(TAG) { "Wrong state: $state for pause() method." }
             OptResult.Fail
         }
     }
@@ -347,19 +347,19 @@ class tMediaPlayer(
             if (seekingState != null) {
                 if (dispatchNewState(new = seekingState, old = state)) {
                     val fixedPosition = min(max(mediaInfo.startTime, position), mediaInfo.startTime + mediaInfo.duration)
-                    MediaLog.d(TAG, "RequestSeek=$position, FixedSeek=$fixedPosition")
+                    tMediaPlayerLog.d(TAG) { "RequestSeek=$position, FixedSeek=$fixedPosition" }
                     packetReader.requestSeek(fixedPosition)
                     OptResult.Success
                 } else {
-                    MediaLog.e(TAG, "Update seeking state fail, currentState=${getState()}")
+                    tMediaPlayerLog.e(TAG) { "Update seeking state fail, currentState=${getState()}" }
                     OptResult.Fail
                 }
             } else {
-                MediaLog.e(TAG, "Wrong state: $state for seekTo() method.")
+                tMediaPlayerLog.e(TAG) { "Wrong state: $state for seekTo() method." }
                 OptResult.Fail
             }
         } else {
-            MediaLog.e(TAG, "Not seekable.")
+            tMediaPlayerLog.e(TAG) { "Not seekable." }
             OptResult.Fail
         }
     }
@@ -380,7 +380,7 @@ class tMediaPlayer(
         }
         return if (stopState != null) {
             if (dispatchNewState(new = stopState, old = state)) {
-                MediaLog.d(TAG, "Request stop.")
+                tMediaPlayerLog.d(TAG) { "Request stop." }
                 // Update clocks and pause them.
                 videoClock.setClock(stopState.mediaInfo.duration, videoPacketQueue.getSerial())
                 videoClock.pause()
@@ -400,11 +400,11 @@ class tMediaPlayer(
                 dispatchProgress(stopState.mediaInfo.duration, false)
                 OptResult.Success
             } else {
-                MediaLog.e(TAG, "Update stop state fail, currentState=${getState()}")
+                tMediaPlayerLog.e(TAG) { "Update stop state fail, currentState=${getState()}" }
                 OptResult.Fail
             }
         } else {
-            MediaLog.e(TAG, "Wrong state: $state for stop() method.")
+            tMediaPlayerLog.e(TAG) { "Wrong state: $state for stop() method." }
             OptResult.Fail
         }
     }
@@ -448,10 +448,10 @@ class tMediaPlayer(
                         externalSubtitle.get()?.release()
                         externalSubtitle.set(null)
                         subtitleView.set(null)
-                        MediaLog.d(TAG, "Release player")
+                        tMediaPlayerLog.d(TAG) { "Release player" }
                         return OptResult.Success
                     } else {
-                        MediaLog.e(TAG, "Update release state fail, currentState=${getState()}")
+                        tMediaPlayerLog.e(TAG) { "Update release state fail, currentState=${getState()}" }
                         return OptResult.Fail
                     }
                 }
@@ -514,7 +514,7 @@ class tMediaPlayer(
                 internalSubtitle?.selectSubtitleStream(subtitle)
             }
         } else {
-            MediaLog.e(TAG, "Wrong subtitle stream info: $subtitle")
+            tMediaPlayerLog.e(TAG) { "Wrong subtitle stream info: $subtitle" }
         }
     }
 
@@ -594,7 +594,7 @@ class tMediaPlayer(
                         videoRenderer.play()
                         audioRenderer.play()
                     } else {
-                        MediaLog.e(TAG, "Update seeking result state fail, currentState=${getState()}")
+                        tMediaPlayerLog.e(TAG) { "Update seeking result state fail, currentState=${getState()}" }
                     }
                 } else {
                     if (dispatchNewState(new = tMediaPlayerState.Paused(mediaInfo), old = state)) {
@@ -603,7 +603,7 @@ class tMediaPlayer(
                             videoRenderer.requestRenderForce()
                         }
                     } else {
-                        MediaLog.e(TAG, "Update seeking result state fail, currentState=${getState()}")
+                        tMediaPlayerLog.e(TAG) { "Update seeking result state fail, currentState=${getState()}" }
                     }
                 }
             } else {
@@ -611,7 +611,7 @@ class tMediaPlayer(
             }
         } else {
             // Stop and PlayEnd state replay.
-            MediaLog.d(TAG, "Wrong state for handing seeking result: $state")
+            tMediaPlayerLog.d(TAG) { "Wrong state for handing seeking result: $state" }
         }
     }
 
@@ -684,10 +684,10 @@ class tMediaPlayer(
                 audioDecoderName = audioDecoderNameNative(nativePlayer),
                 audioStreamMetadata = convertMetadataToMap(audioStreamMetadataNative(nativePlayer))
             ).apply {
-                MediaLog.d(TAG, "Find audio stream: $this")
+                tMediaPlayerLog.d(TAG) { "Find audio stream: $this" }
             }
         } else {
-            MediaLog.d(TAG, "Don't find audio stream")
+            tMediaPlayerLog.d(TAG) { "Don't find audio stream" }
             null
         }
         val videoStreamInfo: VideoStreamInfo? = if (containVideoStreamNative(nativePlayer)) {
@@ -706,10 +706,10 @@ class tMediaPlayer(
                 videoDecoderName = videoDecoderNameNative(nativePlayer),
                 videoStreamMetadata = convertMetadataToMap(videoStreamMetadataNative(nativePlayer))
             ).apply {
-                MediaLog.d(TAG, "Find video stream: $this")
+                tMediaPlayerLog.d(TAG) { "Find video stream: $this" }
             }
         } else {
-            MediaLog.d(TAG, "Don't find video stream")
+            tMediaPlayerLog.d(TAG) { "Don't find video stream" }
             null
         }
         val subTitleStreams = mutableListOf<SubtitleStreamInfo>()
@@ -723,7 +723,7 @@ class tMediaPlayer(
                     )
                 )
             }
-            MediaLog.d(TAG, "Find subtitle streams: $subTitleStreams")
+            tMediaPlayerLog.d(TAG) { "Find subtitle streams: $subTitleStreams" }
         }
         val duration = max(durationNative(nativePlayer), 0L)
         val isRealtime = isRealTimeNative(nativePlayer)
@@ -765,7 +765,7 @@ class tMediaPlayer(
                 externalSubtitle.get()?.playerProgressUpdated(progress)
             }
         } else {
-            MediaLog.e(TAG, "Ignore progress update, because of state: $state")
+            tMediaPlayerLog.e(TAG) { "Ignore progress update, because of state: $state" }
         }
     }
 
@@ -822,7 +822,7 @@ class tMediaPlayer(
                 (mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoRenderer.getState() == RendererState.Eof) &&
                 (mediaInfo.audioStreamInfo == null || audioRenderer.getState() == RendererState.Eof)
             ) {
-                MediaLog.d(TAG, "Play end.")
+                tMediaPlayerLog.d(TAG) { "Play end." }
                 if (dispatchNewState(new = tMediaPlayerState.PlayEnd(mediaInfo), old = state)) {
                     // Clocks
                     videoClock.setClock(mediaInfo.duration, videoPacketQueue.getSerial())
@@ -839,7 +839,7 @@ class tMediaPlayer(
                     internalSubtitle.get()?.pause()
                     externalSubtitle.get()?.pause()
                 } else {
-                    MediaLog.e(TAG, "Update play end state fail, currentState=${getState()}")
+                    tMediaPlayerLog.e(TAG) { "Update play end state fail, currentState=${getState()}" }
                 }
             }
         }

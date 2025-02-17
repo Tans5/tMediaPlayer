@@ -3,7 +3,7 @@ package com.tans.tmediaplayer.player.renderer
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.audiotrack.tMediaAudioTrack
 import com.tans.tmediaplayer.player.model.AUDIO_EOF_MAX_CHECK_TIMES
 import com.tans.tmediaplayer.player.model.AUDIO_TRACK_QUEUE_SIZE
@@ -83,7 +83,7 @@ internal class AudioRenderer(
                                 if (frame != null) {
                                     if (frame.serial != audioPacketQueue.getSerial()) {
                                         enqueueWritableFrame(frame)
-                                        MediaLog.d(TAG, "Serial changed, skip render.")
+                                        tMediaPlayerLog.d(TAG) { "Serial changed, skip render." }
                                         requestRender()
                                         return@synchronized
                                     }
@@ -92,31 +92,35 @@ internal class AudioRenderer(
                                         if (audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
                                             waitingRenderFrames.addLast(frame)
                                         } else {
-                                            MediaLog.e(TAG, "Audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}")
+                                            tMediaPlayerLog.e(TAG) { "Audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}" }
                                             var retryTimes = 5
                                             var retryEnqueueSuccess = false
                                             while (retryTimes > 0) {
                                                 try {
                                                     Thread.sleep(6)
                                                 } catch (e: Throwable) {
-                                                    MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                    tMediaPlayerLog.e(
+                                                        tag = TAG,
+                                                        msgGetter = { "Sleep error: ${e.message}" },
+                                                        errorGetter = { e }
+                                                    )
                                                     break
                                                 }
                                                 retryTimes --
                                                 if (audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
                                                     retryEnqueueSuccess = true
                                                     waitingRenderFrames.addLast(frame)
-                                                    MediaLog.d(TAG, "Retry audio frame enqueue success, audio track queue count: ${audioTrack.getBufferQueueCount()}")
+                                                    tMediaPlayerLog.d(TAG) { "Retry audio frame enqueue success, audio track queue count: ${audioTrack.getBufferQueueCount()}" }
                                                     break
                                                 } else {
-                                                    MediaLog.e(TAG, "Retry audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}")
+                                                    tMediaPlayerLog.e(TAG) { "Retry audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}" }
                                                 }
                                             }
                                             if (!retryEnqueueSuccess) {
-                                                MediaLog.e(TAG, "After retry enqueue audio frame fail.")
+                                                tMediaPlayerLog.e(TAG) { "After retry enqueue audio frame fail." }
                                                 enqueueWritableFrame(frame)
                                             } else {
-                                                MediaLog.d(TAG, "After retry enqueue audio frame success.")
+                                                tMediaPlayerLog.d(TAG) { "After retry enqueue audio frame success." }
                                             }
                                         }
                                         if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
@@ -127,16 +131,17 @@ internal class AudioRenderer(
                                         var bufferCount = audioTrack.getBufferQueueCount()
                                         var checkTimes = 0
                                         while (bufferCount > 0) {
-                                            MediaLog.d(TAG, "Waiting audio track buffer finish, queueCount$bufferCount, checkTimes=${checkTimes++}")
+                                            checkTimes++
+                                            tMediaPlayerLog.d(TAG) { "Waiting audio track buffer finish, queueCount$bufferCount, checkTimes=$checkTimes" }
                                             try {
                                                 Thread.sleep(6)
                                             } catch (e: Throwable) {
-                                                MediaLog.e(TAG, "Sleep error: ${e.message}", e)
+                                                tMediaPlayerLog.e(tag = TAG, msgGetter = { "Sleep error: ${e.message}" }, errorGetter = { e })
                                                 break
                                             }
                                             bufferCount = audioTrack.getBufferQueueCount()
                                             if (checkTimes >= AUDIO_EOF_MAX_CHECK_TIMES) {
-                                                MediaLog.e(TAG, "Waiting audio track max times $AUDIO_EOF_MAX_CHECK_TIMES, bufferCount=$bufferCount")
+                                                tMediaPlayerLog.e(TAG) { "Waiting audio track max times $AUDIO_EOF_MAX_CHECK_TIMES, bufferCount=$bufferCount" }
                                                 break
                                             }
                                         }
@@ -148,16 +153,16 @@ internal class AudioRenderer(
                                         }
                                         this@AudioRenderer.state.set(RendererState.Eof)
                                         enqueueWritableFrame(frame)
-                                        MediaLog.d(TAG, "Render audio eof.")
+                                        tMediaPlayerLog.d(TAG) { "Render audio eof." }
                                     }
                                 } else {
                                     if (state == RendererState.Playing) {
                                         this@AudioRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                     }
-                                    MediaLog.d(TAG, "Waiting readable audio frame.")
+                                    tMediaPlayerLog.d(TAG) { "Waiting readable audio frame." }
                                 }
                             } else {
-                                MediaLog.e(TAG, "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo")
+                                tMediaPlayerLog.e(TAG) { "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo" }
                             }
                         }
                     }
@@ -172,7 +177,7 @@ internal class AudioRenderer(
         audioRendererHandler
         state.set(RendererState.Paused)
         audioTrack
-        MediaLog.d(TAG, "Audio renderer inited.")
+        tMediaPlayerLog.d(TAG) { "Audio renderer inited." }
     }
 
     fun play() {
@@ -184,7 +189,7 @@ internal class AudioRenderer(
                 requestRender()
                 audioTrack.play()
             } else {
-                MediaLog.e(TAG, "Play error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Play error, because of state: $state" }
             }
         }
     }
@@ -196,7 +201,7 @@ internal class AudioRenderer(
                 this.state.set(RendererState.Paused)
                 audioTrack.pause()
             } else {
-                MediaLog.e(TAG, "Pause error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Pause error, because of state: $state" }
             }
         }
     }
@@ -217,7 +222,7 @@ internal class AudioRenderer(
                 player.writeableAudioFrameReady()
             }
         } else {
-            MediaLog.e(TAG, "Flush error, because of state: $state")
+            tMediaPlayerLog.e(TAG) { "Flush error, because of state: $state" }
         }
     }
 
@@ -226,7 +231,7 @@ internal class AudioRenderer(
         if (state == RendererState.WaitingReadableFrameBuffer) {
             requestRender()
         } else {
-            MediaLog.d(TAG, "Skip handle readable audio frame ready, because of state: $state")
+            tMediaPlayerLog.d(TAG) { "Skip handle readable audio frame ready, because of state: $state" }
         }
     }
 
@@ -244,9 +249,9 @@ internal class AudioRenderer(
                 }
                 audioRendererThread.quit()
                 audioRendererThread.quitSafely()
-                MediaLog.d(TAG, "Audio renderer released.")
+                tMediaPlayerLog.d(TAG) { "Audio renderer released." }
             } else {
-                MediaLog.e(TAG, "Release error, because of state: $state")
+                tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
             }
         }
     }
@@ -259,7 +264,7 @@ internal class AudioRenderer(
             audioRendererHandler.removeMessages(RendererHandlerMsg.RequestRender.ordinal)
             audioRendererHandler.sendEmptyMessage(RendererHandlerMsg.RequestRender.ordinal)
         } else {
-            MediaLog.e(TAG, "Request render error, because of state: $state")
+            tMediaPlayerLog.e(TAG) { "Request render error, because of state: $state" }
         }
     }
 

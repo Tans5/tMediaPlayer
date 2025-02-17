@@ -9,7 +9,7 @@ import android.graphics.PorterDuff
 import android.opengl.GLES30
 import android.os.SystemClock
 import androidx.annotation.FloatRange
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.playerview.compileShaderProgram
 import com.tans.tmediaplayer.player.playerview.glGenBuffers
@@ -202,7 +202,7 @@ class AsciiArtImageFilter : ImageFilter {
                     GLES30.glDrawArraysInstanced(GLES30.GL_TRIANGLE_FAN, 0, 4, pixelSize)
                     GLES30.glDisable(GLES30.GL_BLEND)
                     val end = SystemClock.uptimeMillis()
-                    MediaLog.d(TAG, "Char render cost: ${end - start} ms")
+                    tMediaPlayerLog.d(TAG) { "Char render cost: ${end - start} ms" }
                 }
                 FilterImageTexture(
                     width = input.width,

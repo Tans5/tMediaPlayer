@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
@@ -72,7 +72,7 @@ internal class VideoFrameDecoder(
                                             false
                                         }
                                         if (serialChanged) {
-                                            MediaLog.d(TAG, "Serial changed, flush video decoder, serial: $packetSerial")
+                                            tMediaPlayerLog.d(TAG) { "Serial changed, flush video decoder, serial: $packetSerial" }
                                             player.flushVideoCodecBufferInternal(nativePlayer)
                                         }
                                         if (skipNextPktRead || pkt != null) {
@@ -82,7 +82,7 @@ internal class VideoFrameDecoder(
                                                 frame.isEof = true
                                                 frame.serial = packetSerial
                                                 videoFrameQueue.enqueueReadable(frame)
-                                                MediaLog.d(TAG, "Decode video frame eof.")
+                                                tMediaPlayerLog.d(TAG) { "Decode video frame eof." }
                                                 this@VideoFrameDecoder.state.set(DecoderState.Eof)
                                                 player.readableVideoFrameReady()
                                             } else {
@@ -105,7 +105,7 @@ internal class VideoFrameDecoder(
                                                             player.readableVideoFrameReady()
                                                         } else {
                                                             videoFrameQueue.enqueueWritable(frame)
-                                                            MediaLog.e(TAG, "Move video frame fail.")
+                                                            tMediaPlayerLog.e(TAG) { "Move video frame fail." }
                                                         }
                                                         skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                                         requestDecode()
@@ -113,13 +113,13 @@ internal class VideoFrameDecoder(
 
                                                     DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
                                                         if (decodeResult == DecodeResult.Fail) {
-                                                            MediaLog.e(TAG, "Decode video fail.")
+                                                            tMediaPlayerLog.e(TAG) { "Decode video fail." }
                                                         }
                                                         requestDecode()
                                                     }
                                                 }
                                                 val end = SystemClock.uptimeMillis()
-                                                MediaLog.d(TAG, "Decode video cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, videoFrame=${videoFrame}")
+                                                tMediaPlayerLog.d(TAG) { "Decode video cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, videoFrame=${videoFrame}" }
                                                 if (state != DecoderState.Ready) {
                                                     this@VideoFrameDecoder.state.set(DecoderState.Ready)
                                                 }
@@ -132,11 +132,11 @@ internal class VideoFrameDecoder(
                                             requestDecode()
                                         }
                                     } else {
-                                        MediaLog.d(TAG, "Waiting frame queue writeable buffer.")
+                                        tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                         this@VideoFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                     }
                                 } else {
-                                    MediaLog.d(TAG, "Waiting packet queue readable buffer.")
+                                    tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                     this@VideoFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }
                             }
@@ -152,7 +152,7 @@ internal class VideoFrameDecoder(
         while (!isLooperPrepared.get()) {}
         videoDecoderHandler
         state.set(DecoderState.Ready)
-        MediaLog.d(TAG, "Video decoder inited.")
+        tMediaPlayerLog.d(TAG) { "Video decoder inited." }
     }
 
     fun requestDecode() {
@@ -161,7 +161,7 @@ internal class VideoFrameDecoder(
             videoDecoderHandler.removeMessages(DecoderHandlerMsg.RequestDecode.ordinal)
             videoDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
         } else {
-            MediaLog.e(TAG, "Request decode fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request decode fail, wrong state: $state" }
         }
     }
 
@@ -171,7 +171,7 @@ internal class VideoFrameDecoder(
             state == DecoderState.Eof) {
             requestDecode()
         } else {
-            MediaLog.d(TAG, "Skip handle readable package ready, because of state: $state")
+            tMediaPlayerLog.d(TAG) { "Skip handle readable package ready, because of state: $state" }
         }
     }
 
@@ -180,7 +180,7 @@ internal class VideoFrameDecoder(
         if (state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
         } else {
-            MediaLog.d(TAG, "Skip handle writable frame ready, because of state: $state")
+            tMediaPlayerLog.d(TAG) { "Skip handle writable frame ready, because of state: $state" }
         }
     }
 
@@ -191,9 +191,9 @@ internal class VideoFrameDecoder(
                 state.set(DecoderState.Released)
                 videoDecoderThread.quit()
                 videoDecoderThread.quitSafely()
-                MediaLog.d(TAG, "Video decoder released.")
+                tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
-                MediaLog.e(TAG, "Release fail, wrong state: $oldState")
+                tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }
             }
         }
     }

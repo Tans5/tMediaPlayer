@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.ReadPacketResult
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
@@ -58,7 +58,9 @@ internal class PacketReader(
                                 val videoQueueIsFull = mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoDuration > MAX_QUEUE_DURATION
                                 if (!mediaInfo.isRealTime && (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioQueueIsFull && videoQueueIsFull))) {
                                     // queue full
-                                    MediaLog.d(TAG, "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration")
+                                    tMediaPlayerLog.d(TAG) {
+                                        "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration"
+                                    }
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     if (state == ReaderState.WaitingWritableBuffer) {
@@ -74,9 +76,9 @@ internal class PacketReader(
                                                 eofPkt.isEof = true
                                                 videoPacketQueue.enqueueReadable(eofPkt)
                                                 player.readableVideoPacketReady()
-                                                MediaLog.d(TAG, "Read video attachment.")
+                                                tMediaPlayerLog.d(TAG) { "Read video attachment." }
                                             } else {
-                                                MediaLog.d(TAG, "Skip handle video attachment.")
+                                                tMediaPlayerLog.d(TAG) { "Skip handle video attachment." }
                                             }
                                             requestReadPkt()
                                         }
@@ -84,7 +86,7 @@ internal class PacketReader(
                                             val pkt = videoPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             videoPacketQueue.enqueueReadable(pkt)
-                                            MediaLog.d(TAG, "Read video pkt: $pkt")
+                                            tMediaPlayerLog.d(TAG) { "Read video pkt: $pkt" }
                                             player.readableVideoPacketReady()
                                             requestReadPkt()
 
@@ -93,12 +95,12 @@ internal class PacketReader(
                                             val pkt = audioPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             audioPacketQueue.enqueueReadable(pkt)
-                                            MediaLog.d(TAG, "Read audio pkt: $pkt")
+                                            tMediaPlayerLog.d(TAG) { "Read audio pkt: $pkt" }
                                             player.readableAudioPacketReady()
                                             requestReadPkt()
                                         }
                                         ReadPacketResult.ReadSubtitleSuccess -> {
-                                            MediaLog.d(TAG, "Read subtitle pkt.")
+                                            tMediaPlayerLog.d(TAG) { "Read subtitle pkt." }
                                             player.getInternalSubtitle()?.enqueueSubtitlePacket()
                                             requestReadPkt()
                                         }
@@ -115,11 +117,11 @@ internal class PacketReader(
                                                 audioPacketQueue.enqueueReadable(audioEofPkt)
                                                 player.readableAudioPacketReady()
                                             }
-                                            MediaLog.d(TAG, "Read pkt eof.")
+                                            tMediaPlayerLog.d(TAG) { "Read pkt eof." }
                                             this@PacketReader.state.set(ReaderState.Eof)
                                         }
                                         ReadPacketResult.ReadFail -> {
-                                            MediaLog.e(TAG, "Read pkt fail.")
+                                            tMediaPlayerLog.e(TAG) { "Read pkt fail." }
                                             requestReadPkt()
                                         }
                                         ReadPacketResult.UnknownPkt -> {
@@ -140,10 +142,10 @@ internal class PacketReader(
                                         audioPacketQueue.flushReadableBuffer()
                                         videoPacketQueue.flushReadableBuffer()
                                         player.getExternalSubtitle()?.requestSeek(position)
-                                        MediaLog.d(TAG, "Seek to $position success, cost $cost ms")
+                                        tMediaPlayerLog.d(TAG) { "Seek to $position success, cost $cost ms" }
                                         this@PacketReader.state.compareAndSet(ReaderState.Eof, ReaderState.Ready)
                                     } else {
-                                        MediaLog.e(TAG, "Seek to $position fail, cost $cost ms")
+                                        tMediaPlayerLog.e(TAG) { "Seek to $position fail, cost $cost ms" }
                                     }
                                     player.seekResult(position, result)
                                     player.getInternalSubtitle()?.flushDecoder()
@@ -162,7 +164,7 @@ internal class PacketReader(
         while (!isLooperPrepared.get()) {}
         pktReaderHandler
         state.set(ReaderState.Ready)
-        MediaLog.d(TAG, "Packet reader inited.")
+        tMediaPlayerLog.d(TAG) { "Packet reader inited." }
     }
 
     fun requestReadPkt() {
@@ -171,7 +173,7 @@ internal class PacketReader(
             pktReaderHandler.removeMessages(HandlerMsg.RequestReadPkt.ordinal)
             pktReaderHandler.sendEmptyMessage(HandlerMsg.RequestReadPkt.ordinal)
         } else {
-            MediaLog.e(TAG, "Request read pkt fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request read pkt fail, wrong state: $state" }
         }
     }
 
@@ -184,7 +186,7 @@ internal class PacketReader(
             msg.obj = targetPosition
             pktReaderHandler.sendMessage(msg)
         } else {
-            MediaLog.e(TAG, "Request seek fail, wrong state: $state")
+            tMediaPlayerLog.e(TAG) { "Request seek fail, wrong state: $state" }
         }
     }
 
@@ -208,9 +210,9 @@ internal class PacketReader(
                 state.set(ReaderState.Released)
                 pktReaderThread.quit()
                 pktReaderThread.quitSafely()
-                MediaLog.d(TAG, "Package reader released.")
+                tMediaPlayerLog.d(TAG) { "Package reader released." }
             } else {
-                MediaLog.e(TAG, "Release fail, wrong state: $state")
+                tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $state" }
             }
         }
     }

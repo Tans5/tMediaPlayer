@@ -1,6 +1,6 @@
 package com.tans.tmediaplayer.player.rwqueue
 
-import com.tans.tmediaplayer.MediaLog
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.AUDIO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicInteger
@@ -11,13 +11,15 @@ internal class AudioFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
 
     override fun allocBuffer(): AudioFrame {
         val nativeFrame = player.allocAudioBufferInternal()
-        MediaLog.d(TAG, "Alloc new audio frame, size=${frameSize.incrementAndGet()}")
+        frameSize.incrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Alloc new audio frame, size=${frameSize.get()}" }
         return AudioFrame(nativeFrame)
     }
 
     override fun recycleBuffer(b: AudioFrame) {
         player.releaseAudioBufferInternal(b.nativeFrame)
-        MediaLog.d(TAG, "Recycle audio frame, size=${frameSize.decrementAndGet()}")
+        frameSize.decrementAndGet()
+        tMediaPlayerLog.d(TAG) { "Recycle audio frame, size=${frameSize.get()}" }
     }
 
     /**
