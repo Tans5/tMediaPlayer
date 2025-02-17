@@ -35,11 +35,6 @@ internal class VideoFrame(val nativeFrame: Long) {
         imageType = ImageRawType.Unknown
         width = 0
         height = 0
-        yBuffer = null
-        uBuffer = null
-        vBuffer = null
-        uvBuffer = null
-        rgbaBuffer = null
         isEof = false
     }
 }

@@ -39,6 +39,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     val ySize = player.getVideoFrameYSizeNativeInternal(b.nativeFrame)
                     if (b.yBuffer?.size != ySize) {
                         b.yBuffer = ByteArray(ySize)
+                        tMediaPlayerLog.d(TAG) { "Alloc Y buffer: $ySize" }
                     }
                     player.getVideoFrameYBytesNativeInternal(b.nativeFrame, b.yBuffer!!)
 
@@ -46,6 +47,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     val uSize = player.getVideoFrameUSizeNativeInternal(b.nativeFrame)
                     if (b.uBuffer?.size != uSize) {
                         b.uBuffer = ByteArray(uSize)
+                        tMediaPlayerLog.d(TAG) { "Alloc U buffer: $uSize" }
                     }
                     player.getVideoFrameUBytesNativeInternal(b.nativeFrame, b.uBuffer!!)
 
@@ -53,6 +55,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     val vSize = player.getVideoFrameVSizeNativeInternal(b.nativeFrame)
                     if (b.vBuffer?.size != vSize) {
                         b.vBuffer = ByteArray(vSize)
+                        tMediaPlayerLog.d(TAG) { "Alloc V buffer: $vSize" }
                     }
                     player.getVideoFrameVBytesNativeInternal(b.nativeFrame, b.vBuffer!!)
                 }
@@ -61,6 +64,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     val ySize = player.getVideoFrameYSizeNativeInternal(b.nativeFrame)
                     if (b.yBuffer?.size != ySize) {
                         b.yBuffer = ByteArray(ySize)
+                        tMediaPlayerLog.d(TAG) { "Alloc Y buffer: $ySize" }
                     }
                     player.getVideoFrameYBytesNativeInternal(b.nativeFrame, b.yBuffer!!)
 
@@ -68,6 +72,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     val uvSize = player.getVideoFrameUVSizeNativeInternal(b.nativeFrame)
                     if (b.uvBuffer?.size != uvSize) {
                         b.uvBuffer = ByteArray(uvSize)
+                        tMediaPlayerLog.d(TAG) { "Alloc UV buffer: $uvSize" }
                     }
                     player.getVideoFrameUVBytesNativeInternal(b.nativeFrame, b.uvBuffer!!)
                 }
@@ -76,6 +81,7 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     val rgbaSize = player.getVideoFrameRgbaSizeNativeInternal(b.nativeFrame)
                     if (b.rgbaBuffer?.size != rgbaSize) {
                         b.rgbaBuffer = ByteArray(rgbaSize)
+                        tMediaPlayerLog.d(TAG) { "Alloc RGBA buffer: $rgbaSize" }
                     }
                     player.getVideoFrameRgbaBytesNativeInternal(b.nativeFrame, b.rgbaBuffer!!)
                 }

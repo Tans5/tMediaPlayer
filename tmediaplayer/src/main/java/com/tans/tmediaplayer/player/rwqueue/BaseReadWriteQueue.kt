@@ -1,6 +1,5 @@
 package com.tans.tmediaplayer.player.rwqueue
 
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -10,7 +9,6 @@ internal const val INFINITY_MAX_QUEUE_SIZE = -1
 internal abstract class BaseReadWriteQueue<T : Any> {
 
     abstract val maxQueueSize: Int
-
 
     private val currentQueueSize: AtomicInteger by lazy {
         AtomicInteger(0)
@@ -28,10 +26,6 @@ internal abstract class BaseReadWriteQueue<T : Any> {
         LinkedBlockingDeque<T>()
     }
 
-    private val recycledBuffers: ConcurrentHashMap<T, T> by lazy {
-        ConcurrentHashMap()
-    }
-
     fun getCurrentQueueSize() = if (isReleased.get()) 0 else currentQueueSize.get()
 
     // region Readable
@@ -43,7 +37,7 @@ internal abstract class BaseReadWriteQueue<T : Any> {
         if (!isReleased.get()) {
             readableQueue.addLast(b)
         } else {
-            recycleBufferSafe(b)
+            recycleBuffer(b)
         }
     }
 
@@ -85,10 +79,10 @@ internal abstract class BaseReadWriteQueue<T : Any> {
 
     open fun enqueueWritable(b: T) {
         if (isReleased.get()) {
-            recycleBufferSafe(b)
+            recycleBuffer(b)
         } else {
             if (maxQueueSize != INFINITY_MAX_QUEUE_SIZE && getCurrentQueueSize() > maxQueueSize) {
-                recycleBufferSafe(b)
+                recycleBuffer(b)
                 currentQueueSize.decrementAndGet()
             } else {
                 writeableQueue.addFirst(b)
@@ -144,23 +138,16 @@ internal abstract class BaseReadWriteQueue<T : Any> {
             while (readableQueue.isNotEmpty()) {
                 val b = readableQueue.pollFirst()
                 if (b != null) {
-                    recycleBufferSafe(b)
+                    recycleBuffer(b)
                 }
             }
             while (writeableQueue.isNotEmpty()) {
                 val b = writeableQueue.pollFirst()
                 if (b != null) {
-                    recycleBufferSafe(b)
+                    recycleBuffer(b)
                 }
             }
             currentQueueSize.set(0)
-        }
-    }
-
-    @Synchronized
-    private fun recycleBufferSafe(b: T) {
-        if (recycledBuffers.putIfAbsent(b, b) == null) {
-            recycleBuffer(b)
         }
     }
 }
