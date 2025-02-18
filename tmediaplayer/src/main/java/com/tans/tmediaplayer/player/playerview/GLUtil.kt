@@ -132,20 +132,24 @@ internal fun newGlIntBuffer(): IntBuffer {
     }
 }
 
+private val glGenFrameBufferBuffer = newGlIntBuffer()
 internal fun glGenFrameBuffer(): Int {
-    val buffer = newGlIntBuffer()
-    GLES30.glGenFramebuffers(1, buffer)
-    buffer.position(0)
-    return buffer.get()
+    glGenFrameBufferBuffer.position(0)
+    GLES30.glGenFramebuffers(1, glGenFrameBufferBuffer)
+    glGenFrameBufferBuffer.position(0)
+    return glGenFrameBufferBuffer.get()
 }
 
+private val glGenTextureBuffer = newGlIntBuffer()
 fun glGenTexture(): Int {
-    val buffer = newGlIntBuffer()
-    GLES30.glGenTextures(1, buffer)
-    buffer.position(0)
-    return buffer.get()
+    glGenTextureBuffer.position(0)
+    GLES30.glGenTextures(1, glGenTextureBuffer)
+    glGenTextureBuffer.position(0)
+    return glGenTextureBuffer.get()
 }
 
+private val offScreenRenderViewport = IntArray(4)
+private val offScreenRenderFbo = IntArray(1)
 internal fun offScreenRender(
     outputTexId: Int,
     outputTexWidth: Int,
@@ -178,7 +182,7 @@ internal fun offScreenRender(
     }
 
     // 获取当前的 view port, 离屏渲染完成后，需要还原
-    val lastViewPort = IntArray(4)
+    val lastViewPort = offScreenRenderViewport
     GLES30.glGetIntegerv(GLES30.GL_VIEWPORT, lastViewPort, 0)
 
     // 创建离屏渲染的 view port
@@ -210,7 +214,8 @@ internal fun offScreenRender(
 
     // 激活默认缓冲
     GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
-    GLES30.glDeleteFramebuffers(1, intArrayOf(fbo) , 0)
+    offScreenRenderFbo[0] = fbo
+    GLES30.glDeleteFramebuffers(1, offScreenRenderFbo , 0)
 }
 
 internal fun glGenTextureAndSetDefaultParams(): Int {
@@ -224,15 +229,20 @@ internal fun glGenTextureAndSetDefaultParams(): Int {
     return tex
 }
 
+
+private val glGenBuffersBuffer = newGlIntBuffer()
 internal fun glGenBuffers(): Int {
-    val buffer = newGlIntBuffer()
+    val buffer = glGenBuffersBuffer
+    buffer.position(0)
     GLES30.glGenBuffers(1, buffer)
     buffer.position(0)
     return buffer.get()
 }
 
+private val glGenVertexArraysBuffer = newGlIntBuffer()
 internal fun glGenVertexArrays(): Int {
-    val buffer = newGlIntBuffer()
+    val buffer = glGenVertexArraysBuffer
+    buffer.position(0)
     GLES30.glGenVertexArrays(1, buffer)
     buffer.position(0)
     return buffer.get()

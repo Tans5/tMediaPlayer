@@ -1,7 +1,7 @@
 package com.tans.tmediaplayer.player.playerview.filter
 
-data class FilterImageTexture(
-    val texture: Int,
-    val width: Int,
-    val height: Int
-)
+class FilterImageTexture {
+    var texture: Int = 0
+    var width: Int = 0
+    var height: Int = 0
+}

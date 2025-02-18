@@ -12,8 +12,9 @@ interface ImageFilter {
     fun filter(
         context: Context,
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
-        input: FilterImageTexture
-    ): FilterImageTexture
+        input: FilterImageTexture,
+        output: FilterImageTexture
+    )
 
     fun recycle()
 }

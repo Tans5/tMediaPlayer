@@ -100,9 +100,10 @@ class AsciiArtImageFilter : ImageFilter {
     override fun filter(
         context: Context,
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
-        input: FilterImageTexture
-    ): FilterImageTexture {
-        return if (isEnable()) {
+        input: FilterImageTexture,
+        output: FilterImageTexture
+    ) {
+        if (isEnable()) {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
                 val asciiWidth = charLineWidth.get()
@@ -204,16 +205,19 @@ class AsciiArtImageFilter : ImageFilter {
                     val end = SystemClock.uptimeMillis()
                     tMediaPlayerLog.d(TAG) { "Char render cost: ${end - start} ms" }
                 }
-                FilterImageTexture(
-                    width = input.width,
-                    height = input.height,
-                    texture = renderData.charTexture
-                )
+
+                output.width = input.width
+                output.height = input.height
+                output.texture = renderData.charTexture
             } else {
-                input
+                output.width = input.width
+                output.height = input.height
+                output.texture = input.texture
             }
         } else {
-            input
+            output.width = input.width
+            output.height = input.height
+            output.texture = input.texture
         }
     }
 

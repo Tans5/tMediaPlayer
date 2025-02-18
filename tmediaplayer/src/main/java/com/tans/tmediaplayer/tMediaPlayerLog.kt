@@ -5,8 +5,8 @@ import android.util.Log
 @Suppress("ClassName")
 object tMediaPlayerLog {
 
-    internal var logLevel: LogLevel = LogLevel.Debug
-        private set(value) {
+    var logLevel: LogLevel = LogLevel.Debug
+        set(value) {
             synchronized(this) {
                 field = value
             }
@@ -18,10 +18,6 @@ object tMediaPlayerLog {
         } else {
             LogLevel.Error
         }
-    }
-
-    fun setLogLevel(logLevel: LogLevel) {
-        this.logLevel = logLevel
     }
 
     internal inline fun d(tag: String, msgGetter: () -> String) {

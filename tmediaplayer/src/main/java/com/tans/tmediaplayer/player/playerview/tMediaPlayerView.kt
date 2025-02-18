@@ -219,14 +219,17 @@ class tMediaPlayerView : GLSurfaceView {
                 }
                 val convertTextureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
 
-                val filterOutput = asciiArtFilter.filter(
+                val filterInput = FilterImageTexture()
+                filterInput.width = imageData.imageWidth
+                filterInput.height = imageData.imageHeight
+                filterInput.texture = convertTextureId
+                val filterOutput = FilterImageTexture()
+
+                asciiArtFilter.filter(
                     context = context,
                     surfaceSize = screenSize,
-                    input = FilterImageTexture(
-                        texture = convertTextureId,
-                        width = imageData.imageWidth,
-                        height = imageData.imageHeight
-                    )
+                    input = filterInput,
+                    output = filterOutput
                 )
 
                 GLES30.glUseProgram(rendererData.program)
