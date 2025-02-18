@@ -71,13 +71,14 @@ internal class VideoFrameDecoder(
                                         } else {
                                             false
                                         }
-                                        if (serialChanged) {
+
+                                        if (serialChanged) { // Serial changed (because of seeking) flush decoder context
                                             tMediaPlayerLog.d(TAG) { "Serial changed, flush video decoder, serial: $packetSerial" }
                                             player.flushVideoCodecBufferInternal(nativePlayer)
                                         }
-                                        if (skipNextPktRead || pkt != null) {
+                                        if (skipNextPktRead || pkt != null) { // Decode
                                             skipNextPktRead = false
-                                            if (pkt?.isEof == true) {
+                                            if (pkt?.isEof == true) { // Eof, add a eof frame.
                                                 val frame = videoFrameQueue.dequeueWriteableForce()
                                                 frame.isEof = true
                                                 frame.serial = packetSerial
@@ -85,12 +86,12 @@ internal class VideoFrameDecoder(
                                                 tMediaPlayerLog.d(TAG) { "Decode video frame eof." }
                                                 this@VideoFrameDecoder.state.set(DecoderState.Eof)
                                                 player.readableVideoFrameReady()
-                                            } else {
+                                            } else { // Not eof.
                                                 val start = SystemClock.uptimeMillis()
-                                                val decodeResult = player.decodeVideoInternal(nativePlayer, pkt)
+                                                val decodeResult = player.decodeVideoInternal(nativePlayer, pkt) // do decode.
                                                 var videoFrame: VideoFrame? = null
                                                 when (decodeResult) {
-                                                    DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> {
+                                                    DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> { // decode success.
                                                         val frame =
                                                             videoFrameQueue.dequeueWriteableForce()
                                                         frame.serial = packetSerial
@@ -107,11 +108,11 @@ internal class VideoFrameDecoder(
                                                             videoFrameQueue.enqueueWritable(frame)
                                                             tMediaPlayerLog.e(TAG) { "Move video frame fail." }
                                                         }
-                                                        skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
+                                                        skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt // Is next decode need a new pkt?
                                                         requestDecode()
                                                     }
 
-                                                    DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
+                                                    DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> { // decode fail.
                                                         if (decodeResult == DecodeResult.Fail) {
                                                             tMediaPlayerLog.e(TAG) { "Decode video fail." }
                                                         }
@@ -128,14 +129,14 @@ internal class VideoFrameDecoder(
                                                 videoPacketQueue.enqueueWritable(pkt)
                                                 player.writeableVideoPacketReady()
                                             }
-                                        } else {
+                                        } else { // No pkt to decode.
                                             requestDecode()
                                         }
-                                    } else {
+                                    } else { // Waiting for renderer.
                                         tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                         this@VideoFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                     }
-                                } else {
+                                } else { // Waiting for packet reader
                                     tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                     this@VideoFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }

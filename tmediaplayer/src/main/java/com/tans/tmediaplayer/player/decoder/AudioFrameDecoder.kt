@@ -66,13 +66,13 @@ internal class AudioFrameDecoder(
                                         } else {
                                             false
                                         }
-                                        if (serialChanged) {
+                                        if (serialChanged) { // Serial changed (because of seeking) flush decoder context
                                             tMediaPlayerLog.d(TAG) { "Serial changed, flush audio decoder, serial: $packetSerial" }
                                             player.flushAudioCodecBufferInternal(nativePlayer)
                                         }
-                                        if (skipNextPktRead || pkt != null) {
+                                        if (skipNextPktRead || pkt != null) { // Decode
                                             skipNextPktRead = false
-                                            if (pkt?.isEof == true) {
+                                            if (pkt?.isEof == true) { // Eof, add a eof frame.
                                                 val frame = audioFrameQueue.dequeueWriteableForce()
                                                 frame.isEof = true
                                                 frame.serial = packetSerial
@@ -80,12 +80,12 @@ internal class AudioFrameDecoder(
                                                 tMediaPlayerLog.d(TAG) { "Decode audio frame eof." }
                                                 this@AudioFrameDecoder.state.set(DecoderState.Eof)
                                                 player.readableAudioFrameReady()
-                                            } else {
+                                            } else { // Not eof.
                                                 val start = SystemClock.uptimeMillis()
-                                                val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)
+                                                val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)  // do decode.
                                                 var audioFrame: AudioFrame? = null
                                                 when (decodeResult) {
-                                                    DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> {
+                                                    DecodeResult.Success, DecodeResult.SuccessAndSkipNextPkt -> { // decode success.
                                                         val frame = audioFrameQueue.dequeueWriteableForce()
                                                         frame.serial = packetSerial
                                                         val moveResult = player.moveDecodedAudioFrameToBufferInternal(nativePlayer, frame)
@@ -100,7 +100,7 @@ internal class AudioFrameDecoder(
                                                         skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                                         requestDecode()
                                                     }
-                                                    DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> {
+                                                    DecodeResult.Fail, DecodeResult.FailAndNeedMorePkt, DecodeResult.DecodeEnd -> { // decode fail.
                                                         if (decodeResult == DecodeResult.Fail) {
                                                             tMediaPlayerLog.e(TAG) { "Decode audio fail." }
                                                         }

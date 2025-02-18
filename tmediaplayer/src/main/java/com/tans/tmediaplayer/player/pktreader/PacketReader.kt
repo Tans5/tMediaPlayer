@@ -57,7 +57,7 @@ internal class PacketReader(
                                 val audioQueueIsFull = mediaInfo.audioStreamInfo == null || audioDuration > MAX_QUEUE_DURATION
                                 val videoQueueIsFull = mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoDuration > MAX_QUEUE_DURATION
                                 if (!mediaInfo.isRealTime && (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioQueueIsFull && videoQueueIsFull))) {
-                                    // queue full
+                                    // queue full, waiting for decoder.
                                     tMediaPlayerLog.d(TAG) {
                                         "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration"
                                     }
@@ -67,7 +67,7 @@ internal class PacketReader(
                                         this@PacketReader.state.set(ReaderState.Ready)
                                     }
                                     when (player.readPacketInternal(nativePlayer)) {
-                                        ReadPacketResult.ReadVideoAttachmentSuccess -> {
+                                        ReadPacketResult.ReadVideoAttachmentSuccess -> { // Video attachment, like audio album cover image.
                                             if (requestAttachment.compareAndSet(true, false)) {
                                                 val pkt = videoPacketQueue.dequeueWriteableForce()
                                                 player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
@@ -82,7 +82,7 @@ internal class PacketReader(
                                             }
                                             requestReadPkt()
                                         }
-                                        ReadPacketResult.ReadVideoSuccess -> {
+                                        ReadPacketResult.ReadVideoSuccess -> { // Video frame
                                             val pkt = videoPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             videoPacketQueue.enqueueReadable(pkt)
@@ -91,7 +91,7 @@ internal class PacketReader(
                                             requestReadPkt()
 
                                         }
-                                        ReadPacketResult.ReadAudioSuccess -> {
+                                        ReadPacketResult.ReadAudioSuccess -> { // Audio frame
                                             val pkt = audioPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             audioPacketQueue.enqueueReadable(pkt)
@@ -99,19 +99,19 @@ internal class PacketReader(
                                             player.readableAudioPacketReady()
                                             requestReadPkt()
                                         }
-                                        ReadPacketResult.ReadSubtitleSuccess -> {
+                                        ReadPacketResult.ReadSubtitleSuccess -> { // Subtitle frame
                                             tMediaPlayerLog.d(TAG) { "Read subtitle pkt." }
                                             player.getInternalSubtitle()?.enqueueSubtitlePacket()
                                             requestReadPkt()
                                         }
-                                        ReadPacketResult.ReadEof -> {
-                                            if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) {
+                                        ReadPacketResult.ReadEof -> { // Eof
+                                            if (mediaInfo.videoStreamInfo != null && !mediaInfo.videoStreamInfo.isAttachment) { // Add eof frame to video frame queue.
                                                 val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
                                                 videoEofPkt.isEof = true
                                                 videoPacketQueue.enqueueReadable(videoEofPkt)
                                                 player.readableVideoPacketReady()
                                             }
-                                            if (mediaInfo.audioStreamInfo != null) {
+                                            if (mediaInfo.audioStreamInfo != null) { // Add eof frame to audio frame queue.
                                                 val audioEofPkt = audioPacketQueue.dequeueWriteableForce()
                                                 audioEofPkt.isEof = true
                                                 audioPacketQueue.enqueueReadable(audioEofPkt)
@@ -133,12 +133,13 @@ internal class PacketReader(
 
                             HandlerMsg.RequestSeek.ordinal -> {
                                 val position = msg.obj
-                                if (position is Long) {
+                                if (position is Long) { // Request seek.
                                     val start = SystemClock.uptimeMillis()
                                     val result = player.seekToInternal(nativePlayer, position)
                                     val end = SystemClock.uptimeMillis()
                                     val cost = end - start
-                                    if (result == OptResult.Success) {
+                                    if (result == OptResult.Success) { // Seek success.
+                                        // Flush audio and video pkt.
                                         audioPacketQueue.flushReadableBuffer()
                                         videoPacketQueue.flushReadableBuffer()
                                         player.getExternalSubtitle()?.requestSeek(position)
