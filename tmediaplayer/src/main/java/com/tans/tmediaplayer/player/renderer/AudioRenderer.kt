@@ -35,8 +35,10 @@ internal class AudioRenderer(
             outputSampleBitDepth = outputSampleBitDepth,
             bufferQueueSize = bufferQueueSize
         ) {
+            // Audio track render success callback
             renderCallbackExecutor.execute {
                 val frame = waitingRenderFrames.pollFirst()
+                // Update clock and recycle finished frames.
                 if (frame != null) {
                     player.audioClock.setClock(frame.pts, frame.serial)
                     player.externalClock.syncToClock(player.audioClock)
@@ -80,21 +82,23 @@ internal class AudioRenderer(
                             val mediaInfo = player.getMediaInfo()
                             if (mediaInfo != null && state in canRenderStates) {
                                 val frame = audioFrameQueue.dequeueReadable()
-                                if (frame != null) {
-                                    if (frame.serial != audioPacketQueue.getSerial()) {
+                                if (frame != null) { // Contain frame to render.
+                                    if (frame.serial != audioPacketQueue.getSerial()) { // Frame serial changed cause seeking or change files, skip render this frame.
                                         enqueueWritableFrame(frame)
                                         tMediaPlayerLog.d(TAG) { "Serial changed, skip render." }
                                         requestRender()
                                         return@synchronized
                                     }
 
-                                    if (!frame.isEof) {
-                                        if (audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) {
+                                    if (!frame.isEof) { // Not eof frame
+
+                                        if (audioTrack.enqueueBuffer(frame.nativeFrame) == OptResult.Success) { // Send frame to audio track success and add frame to waiting
                                             waitingRenderFrames.addLast(frame)
-                                        } else {
+                                        } else { // Send frame to audio track fail, maybe buffer queue is full.
                                             tMediaPlayerLog.e(TAG) { "Audio frame enqueue fail, audio track queue count: ${audioTrack.getBufferQueueCount()}" }
                                             var retryTimes = 5
                                             var retryEnqueueSuccess = false
+                                            // Retry send frame to audio track.
                                             while (retryTimes > 0) {
                                                 try {
                                                     Thread.sleep(6)
@@ -127,9 +131,10 @@ internal class AudioRenderer(
                                             this@AudioRenderer.state.set(RendererState.Playing)
                                         }
                                         requestRender()
-                                    } else {
+                                    } else { // eof frame
                                         var bufferCount = audioTrack.getBufferQueueCount()
                                         var checkTimes = 0
+                                        // Waiting audio track finish all frames.
                                         while (bufferCount > 0) {
                                             checkTimes++
                                             tMediaPlayerLog.d(TAG) { "Waiting audio track buffer finish, queueCount$bufferCount, checkTimes=$checkTimes" }
@@ -145,6 +150,7 @@ internal class AudioRenderer(
                                                 break
                                             }
                                         }
+                                        // Recycle all waiting frames.
                                         while (waitingRenderFrames.isNotEmpty()) {
                                             val b = waitingRenderFrames.pollFirst()
                                             if (b != null) {

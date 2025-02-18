@@ -6,6 +6,11 @@ import android.util.Log
 object tMediaPlayerLog {
 
     internal var logLevel: LogLevel = LogLevel.Debug
+        private set(value) {
+            synchronized(this) {
+                field = value
+            }
+        }
 
     init {
         logLevel = if (BuildConfig.DEBUG) {
