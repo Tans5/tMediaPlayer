@@ -19,7 +19,7 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
         imageData: tMediaPlayerView.Companion.ImageData,
     ): Int {
-        return if (imageData.imageRawData is tMediaPlayerView.Companion.ImageRawData.RgbaRawData) {
+        return if (imageData.imageDataType == tMediaPlayerView.Companion.ImageDataType.Rgba) {
             val renderData = ensureRenderData()
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.outputTexId)
             GLES30.glTexImage2D(
@@ -31,11 +31,11 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
                 0,
                 GLES30.GL_RGBA,
                 GLES30.GL_UNSIGNED_BYTE,
-                ByteBuffer.wrap(imageData.imageRawData.rgbaBytes)
+                ByteBuffer.wrap(imageData.rgbaBytes!!)
             )
             renderData.outputTexId
         } else {
-            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageRawData::class.java.simpleName}" }
+            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageDataType}" }
             0
         }
     }

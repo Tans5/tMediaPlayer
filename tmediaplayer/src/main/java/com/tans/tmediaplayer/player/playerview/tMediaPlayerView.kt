@@ -26,9 +26,9 @@ class tMediaPlayerView : GLSurfaceView {
 
     private var renderer: FrameRenderer? = null
 
-    private val nextRenderFrame: AtomicReference<ImageData?> by lazy {
-        AtomicReference(null)
-    }
+    private val renderData = ImageData()
+
+    private val isWritingRenderData = AtomicBoolean(false)
 
     private val scaleType: AtomicReference<ScaleType> by lazy {
         AtomicReference(ScaleType.CenterFit)
@@ -77,12 +77,15 @@ class tMediaPlayerView : GLSurfaceView {
         callback: Runnable? = null
     ) {
         requestRender(
-            ImageData(
-                imageWidth = width,
-                imageHeight = height,
-                imageRawData = ImageRawData.RgbaRawData(rgbaBytes = imageBytes),
-                callback
-            )
+            width = width,
+            height = height,
+            rgbaBytes = imageBytes,
+            yBytes = null,
+            uBytes = null,
+            vBytes = null,
+            uvBytes = null,
+            callback = callback,
+            imageDataType = ImageDataType.Rgba
         )
     }
 
@@ -95,16 +98,15 @@ class tMediaPlayerView : GLSurfaceView {
         callback: Runnable? = null
     ) {
         requestRender(
-            ImageData(
-                imageWidth = width,
-                imageHeight = height,
-                imageRawData = ImageRawData.Yuv420pRawData(
-                    yBytes = yBytes,
-                    uBytes = uBytes,
-                    vBytes = vBytes
-                ),
-                callback = callback
-            )
+            width = width,
+            height = height,
+            rgbaBytes = null,
+            yBytes = yBytes,
+            uBytes = uBytes,
+            vBytes = vBytes,
+            uvBytes = null,
+            callback = callback,
+            imageDataType = ImageDataType.Yuv420p
         )
     }
 
@@ -116,16 +118,15 @@ class tMediaPlayerView : GLSurfaceView {
         callback: Runnable? = null
     ) {
         requestRender(
-            ImageData(
-                imageWidth = width,
-                imageHeight = height,
-                imageRawData = ImageRawData.Yuv420spRawData(
-                    yBytes = yBytes,
-                    uvBytes = uvBytes,
-                    yuv420spType = Yuv420spType.Nv12
-                ),
-                callback = callback
-            )
+            width = width,
+            height = height,
+            rgbaBytes = null,
+            yBytes = yBytes,
+            uBytes = null,
+            vBytes = null,
+            uvBytes = uvBytes,
+            callback = callback,
+            imageDataType = ImageDataType.Nv12
         )
     }
 
@@ -137,26 +138,43 @@ class tMediaPlayerView : GLSurfaceView {
         callback: Runnable? = null
     ) {
         requestRender(
-            ImageData(
-                imageWidth = width,
-                imageHeight = height,
-                imageRawData = ImageRawData.Yuv420spRawData(
-                    yBytes = yBytes,
-                    uvBytes = vuBytes,
-                    yuv420spType = Yuv420spType.Nv21
-                ),
-                callback = callback
-            )
+            width = width,
+            height = height,
+            rgbaBytes = null,
+            yBytes = yBytes,
+            uBytes = null,
+            vBytes = null,
+            uvBytes = vuBytes,
+            callback = callback,
+            imageDataType = ImageDataType.Nv21
         )
     }
 
-    private fun requestRender(imageData: ImageData) {
-        val next = nextRenderFrame.get()
-        if (next == null || next.hasInvokedCallback.get()) {
-            nextRenderFrame.set(imageData)
+    private fun requestRender(
+        width: Int,
+        height: Int,
+        rgbaBytes: ByteArray?,
+        yBytes: ByteArray?,
+        uBytes: ByteArray?,
+        vBytes: ByteArray?,
+        uvBytes: ByteArray?,
+        callback: Runnable?,
+        imageDataType: ImageDataType
+    ) {
+        if (this.isAttachedToWindow && isWritingRenderData.compareAndSet(false, true)) {
+            renderData.imageWidth = width
+            renderData.imageHeight = height
+            renderData.rgbaBytes = rgbaBytes
+            renderData.yBytes = yBytes
+            renderData.uBytes = uBytes
+            renderData.vBytes = vBytes
+            renderData.uvBytes = uvBytes
+            renderData.callback = callback
+            renderData.imageDataType = imageDataType
+            isWritingRenderData.set(false)
             requestRender()
         } else {
-            imageData.callback?.run()
+            callback?.run()
         }
     }
 
@@ -206,24 +224,32 @@ class tMediaPlayerView : GLSurfaceView {
             GLES30.glViewport(0, 0, width, height)
         }
 
+        private val filterInput =  FilterImageTexture()
+        private val filterOutput = FilterImageTexture()
+        private val pointBuffer1 = Point()
+        private val pointBuffer2 = Point()
+        private val pointBuffer3 = Point()
+        private val pointBuffer4 = Point()
         override fun onDrawFrame(gl: GL10) {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
-            val imageData =  this@tMediaPlayerView.nextRenderFrame.get()
-            if (rendererData != null && screenSize != null && imageData != null) {
+            if (rendererData != null && screenSize != null && isWritingRenderData.compareAndSet(false, true)) {
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
-                val texConverter = when (imageData.imageRawData) {
-                    is ImageRawData.RgbaRawData -> rgbaTexConverter
-                    is ImageRawData.Yuv420pRawData -> yuv420pTexConverter
-                    is ImageRawData.Yuv420spRawData -> yuv420spTexConverter
+                val imageData = this@tMediaPlayerView.renderData
+                if (imageData.imageDataType == null) {
+                    isWritingRenderData.set(false)
+                    return
+                }
+                val texConverter = when (imageData.imageDataType!!) {
+                    ImageDataType.Rgba -> rgbaTexConverter
+                    ImageDataType.Yuv420p -> yuv420pTexConverter
+                    ImageDataType.Nv12, ImageDataType.Nv21 -> yuv420spTexConverter
                 }
                 val convertTextureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
 
-                val filterInput = FilterImageTexture()
                 filterInput.width = imageData.imageWidth
                 filterInput.height = imageData.imageHeight
                 filterInput.texture = convertTextureId
-                val filterOutput = FilterImageTexture()
 
                 asciiArtFilter.filter(
                     context = context,
@@ -240,37 +266,83 @@ class tMediaPlayerView : GLSurfaceView {
                 val renderRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
                 val scaleType = this@tMediaPlayerView.getScaleType()
 
-                val (textureTl, textureRb) = when (scaleType) {
+                var textureTlX = 0.0f
+                var textureTlY = 0.0f
+
+                var textureRbX = 1.0f
+                var textureRbY = 1.0f
+
+                when (scaleType) {
                     ScaleType.CenterFit -> {
-                        Point(0.0f, 0.0f) to Point(1.0f, 1.0f)
+                        // Do nothing.
                     }
                     ScaleType.CenterCrop -> {
+                        val inputTopLeftPoint = pointBuffer1
+                        inputTopLeftPoint.x = 0.0f
+                        inputTopLeftPoint.y = 0.0f
+                        val inputBottomRightPoint = pointBuffer2
+                        inputBottomRightPoint.x = 1.0f
+                        inputBottomRightPoint.y = 1.0f
+
+                        val outputTopLeftPoint = pointBuffer3
+                        val outputBottomRightPoint = pointBuffer4
+
                         centerCropTextureRect(
                             targetRatio = renderRatio / imageRatio,
-                            topLeftPoint = Point(0.0f, 0.0f),
-                            bottomRightPoint = Point(1.0f, 1.0f)
+                            inputTopLeftPoint = inputTopLeftPoint,
+                            inputBottomRightPoint = inputBottomRightPoint,
+                            outputTopLeftPoint = outputTopLeftPoint,
+                            outputBottomRightPoint = outputBottomRightPoint
                         )
+                        textureTlX = outputTopLeftPoint.x
+                        textureTlY = outputTopLeftPoint.y
+                        textureRbX = outputBottomRightPoint.x
+                        textureRbY = outputBottomRightPoint.y
                     }
                 }
 
-                val (positionTl, positionRb) = when (scaleType) {
+                var positionTlX = 0.0f
+                var positionTlY = 0.0f
+                var positionRbX = 0.0f
+                var positionRbY = 0.0f
+
+               when (scaleType) {
                     ScaleType.CenterFit -> {
+                        val inputTopLeftPoint = pointBuffer1
+                        inputTopLeftPoint.x = -1.0f * renderRatio
+                        inputTopLeftPoint.y = 1.0f
+                        val inputBottomRightPoint = pointBuffer2
+                        inputBottomRightPoint.x = 1.0f * renderRatio
+                        inputBottomRightPoint.y = -1.0f
+
+                        val outputTopLeftPoint = pointBuffer3
+                        val outputBottomRightPoint = pointBuffer4
+
                         centerCropPositionRect(
                             targetRatio = imageRatio,
-                            topLeftPoint = Point(-1.0f * renderRatio, 1.0f),
-                            bottomRightPoint = Point(1.0f * renderRatio, -1.0f)
+                            inputTopLeftPoint = inputTopLeftPoint,
+                            inputBottomRightPoint = inputBottomRightPoint,
+                            outputTopLeftPoint = outputTopLeftPoint,
+                            outputBottomRightPoint = outputBottomRightPoint
                         )
+                        positionTlX = outputTopLeftPoint.x
+                        positionTlY = outputTopLeftPoint.y
+                        positionRbX = outputBottomRightPoint.x
+                        positionRbY = outputBottomRightPoint.y
                     }
 
                     ScaleType.CenterCrop -> {
-                        Point(-1.0f * renderRatio, 1.0f) to Point(1.0f * renderRatio, -1.0f)
+                        positionTlX = -1.0f * renderRatio
+                        positionTlY = 1.0f
+                        positionRbX = 1.0f * renderRatio
+                        positionRbY = -1.0f
                     }
                 }
                 val vertex = floatArrayOf(
-                    positionTl.x, positionTl.y, 0.0f,    textureTl.x, textureTl.y,      // 左上
-                    positionRb.x, positionTl.y, 0.0f,    textureRb.x, textureTl.y,      // 右上
-                    positionRb.x, positionRb.y, 0.0f,    textureRb.x, textureRb.y,      // 右下
-                    positionTl.x, positionRb.y, 0.0f,    textureTl.x,  textureRb.y,     // 左下
+                    positionTlX, positionTlY, 0.0f,    textureTlX, textureTlY,      // 左上
+                    positionRbX, positionTlY, 0.0f,    textureRbX, textureTlY,      // 右上
+                    positionRbX, positionRbY, 0.0f,    textureRbX, textureRbY,      // 右下
+                    positionTlX, positionRbY, 0.0f,    textureTlX, textureRbY,     // 左下
                 )
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
@@ -292,9 +364,10 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
-                if (imageData.hasInvokedCallback.compareAndSet(false, true)) {
-                    imageData.callback?.run()
-                }
+
+                imageData.callback?.run()
+                imageData.reset()
+                isWritingRenderData.set(false)
             }
         }
 
@@ -309,6 +382,11 @@ class tMediaPlayerView : GLSurfaceView {
             rgbaTexConverter.recycle()
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
+            if (isWritingRenderData.compareAndSet(false, true)) {
+                renderData.callback?.run()
+                renderData.reset()
+                isWritingRenderData.set(false)
+            }
         }
 
     }
@@ -319,89 +397,124 @@ class tMediaPlayerView : GLSurfaceView {
             CenterCrop
         }
 
-        enum class Yuv420spType { Nv12, Nv21 }
-
-        sealed class ImageRawData {
-            class RgbaRawData(
-                val rgbaBytes: ByteArray
-            ) : ImageRawData()
-
-            class Yuv420pRawData(
-                val yBytes: ByteArray,
-                val uBytes: ByteArray,
-                val vBytes: ByteArray
-            ) : ImageRawData()
-
-            class Yuv420spRawData(
-                val yBytes: ByteArray,
-                val uvBytes: ByteArray,
-                val yuv420spType: Yuv420spType
-            ) : ImageRawData()
+        enum class ImageDataType {
+            Rgba,
+            Yuv420p,
+            Nv21,
+            Nv12
         }
 
-        data class ImageData(
-            val imageWidth: Int,
-            val imageHeight: Int,
-            val imageRawData: ImageRawData,
-            val callback: Runnable?,
-            val hasInvokedCallback: AtomicBoolean = AtomicBoolean(false)
-        )
+        class ImageData {
+            var imageWidth: Int = 0
+            var imageHeight: Int = 0
+            var callback: Runnable? = null
+            var rgbaBytes: ByteArray? = null
+            var yBytes: ByteArray? = null
+            var uBytes: ByteArray? = null
+            var vBytes: ByteArray? = null
+            var uvBytes: ByteArray? = null
+            var imageDataType: ImageDataType? = null
 
-        private data class Point(
-            val x: Float,
-            val y: Float
-        )
+            fun reset() {
+                imageWidth = 0
+                imageHeight = 0
+                callback = null
+                rgbaBytes = null
+                yBytes = null
+                uBytes = null
+                vBytes = null
+                uvBytes = null
+                imageDataType = null
+            }
+        }
 
-        private fun centerCropTextureRect(targetRatio: Float, topLeftPoint: Point, bottomRightPoint: Point): Pair<Point, Point> {
-            val oldRectWidth = bottomRightPoint.x - topLeftPoint.x
-            val oldRectHeight = bottomRightPoint.y - topLeftPoint.y
+        private class Point {
+            var x: Float = 0.0f
+            var y: Float = 0.0f
+        }
+
+        private fun centerCropTextureRect(
+            targetRatio: Float,
+            inputTopLeftPoint: Point,
+            inputBottomRightPoint: Point,
+            outputTopLeftPoint: Point,
+            outputBottomRightPoint: Point
+        ) {
+            val oldRectWidth = inputBottomRightPoint.x - inputTopLeftPoint.x
+            val oldRectHeight = inputBottomRightPoint.y - inputTopLeftPoint.y
             val oldRectRatio = oldRectWidth / oldRectHeight
-            return when  {
+            when  {
                 oldRectRatio - targetRatio > 0.00001 -> {
                     // 裁剪 x
                     val d = (oldRectWidth - oldRectHeight * targetRatio) / 2.0f
-                    val newTopLeftX = topLeftPoint.x + d
-                    val newBottomRightX = bottomRightPoint.x - d
-                    Point(x = newTopLeftX, y = topLeftPoint.y) to Point(x = newBottomRightX, y = bottomRightPoint.y)
+                    val newTopLeftX = inputTopLeftPoint.x + d
+                    val newBottomRightX = inputBottomRightPoint.x - d
+
+                    outputTopLeftPoint.x = newTopLeftX
+                    outputTopLeftPoint.y = inputTopLeftPoint.y
+
+                    outputBottomRightPoint.x = newBottomRightX
+                    outputBottomRightPoint.y = inputBottomRightPoint.y
                 }
 
                 targetRatio - oldRectRatio > 0.00001 -> {
                     // 裁剪 y
                     val d = (oldRectHeight - oldRectWidth / targetRatio) / 2.0f
-                    val newTopLeftY = topLeftPoint.y + d
-                    val newBottomRightY = bottomRightPoint.y - d
-                    Point(x = topLeftPoint.x, y = newTopLeftY) to Point(x = bottomRightPoint.x, y = newBottomRightY)
+                    val newTopLeftY = inputTopLeftPoint.y + d
+                    val newBottomRightY = inputBottomRightPoint.y - d
+                    outputTopLeftPoint.x = inputTopLeftPoint.x
+                    outputTopLeftPoint.y = newTopLeftY
+                    outputBottomRightPoint.x = inputBottomRightPoint.x
+                    outputBottomRightPoint.y = newBottomRightY
                 }
 
                 else -> {
-                    topLeftPoint to bottomRightPoint
+                    outputTopLeftPoint.x = inputTopLeftPoint.x
+                    outputTopLeftPoint.y = inputTopLeftPoint.y
+                    outputBottomRightPoint.x = inputBottomRightPoint.x
+                    outputBottomRightPoint.y = inputBottomRightPoint.y
                 }
             }
         }
 
-        private fun centerCropPositionRect(targetRatio: Float, topLeftPoint: Point, bottomRightPoint: Point): Pair<Point, Point> {
-            val oldRectWidth = bottomRightPoint.x - topLeftPoint.x
-            val oldRectHeight = topLeftPoint.y - bottomRightPoint.y
+        private fun centerCropPositionRect(
+            targetRatio: Float,
+            inputTopLeftPoint: Point,
+            inputBottomRightPoint: Point,
+            outputTopLeftPoint: Point,
+            outputBottomRightPoint: Point
+        ) {
+            val oldRectWidth = inputBottomRightPoint.x - inputTopLeftPoint.x
+            val oldRectHeight = inputTopLeftPoint.y - inputBottomRightPoint.y
             val oldRectRatio = oldRectWidth / oldRectHeight
-            return when  {
+            when  {
                 oldRectRatio - targetRatio > 0.00001 -> {
                     // 裁剪 x
                     val d = (oldRectWidth - oldRectHeight * targetRatio) / 2.0f
-                    val newTopLeftX = topLeftPoint.x + d
-                    val newBottomRightX = bottomRightPoint.x - d
-                    Point(x = newTopLeftX, y = topLeftPoint.y) to Point(x = newBottomRightX, y = bottomRightPoint.y)
+                    val newTopLeftX = inputTopLeftPoint.x + d
+                    val newBottomRightX = inputBottomRightPoint.x - d
+                    outputTopLeftPoint.x = newTopLeftX
+                    outputTopLeftPoint.y = inputTopLeftPoint.y
+                    outputBottomRightPoint.x = newBottomRightX
+                    outputBottomRightPoint.y = inputBottomRightPoint.y
                 }
 
                 targetRatio - oldRectRatio > 0.00001 -> {
                     // 裁剪 y
                     val d = (oldRectHeight - oldRectWidth / targetRatio) / 2.0f
-                    val newTopLeftY = topLeftPoint.y - d
-                    val newBottomRightY = bottomRightPoint.y + d
-                    Point(x = topLeftPoint.x, y = newTopLeftY) to Point(x = bottomRightPoint.x, y = newBottomRightY)
+                    val newTopLeftY = inputTopLeftPoint.y - d
+                    val newBottomRightY = inputBottomRightPoint.y + d
+                    outputTopLeftPoint.x = inputTopLeftPoint.x
+                    outputTopLeftPoint.y = newTopLeftY
+                    outputBottomRightPoint.x = inputBottomRightPoint.x
+                    outputBottomRightPoint.y = newBottomRightY
                 }
 
                 else -> {
-                    topLeftPoint to bottomRightPoint
+                    outputTopLeftPoint.x = inputTopLeftPoint.x
+                    outputTopLeftPoint.y = inputTopLeftPoint.y
+                    outputBottomRightPoint.x = inputBottomRightPoint.x
+                    outputBottomRightPoint.y = inputBottomRightPoint.y
                 }
             }
         }

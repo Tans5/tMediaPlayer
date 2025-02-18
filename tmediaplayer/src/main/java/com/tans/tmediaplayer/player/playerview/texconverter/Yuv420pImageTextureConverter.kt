@@ -25,10 +25,9 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
         imageData: tMediaPlayerView.Companion.ImageData
     ): Int {
-        return if (imageData.imageRawData is tMediaPlayerView.Companion.ImageRawData.Yuv420pRawData) {
+        return if (imageData.imageDataType == tMediaPlayerView.Companion.ImageDataType.Yuv420p) {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
-                val rawImageData = imageData.imageRawData
                 offScreenRender(
                     outputTexId = renderData.outputTexId,
                     outputTexWidth = imageData.imageWidth,
@@ -39,21 +38,21 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.yTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth, imageData.imageHeight,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.yBytes))
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.yBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "yTexture"), 0)
 
                     // u
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.uTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth / 2, imageData.imageHeight / 2,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.uBytes))
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.uBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "uTexture"), 1)
 
                     // v
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.vTexId)
                     GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth / 2, imageData.imageHeight / 2,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(rawImageData.vBytes))
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.vBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "vTexture"), 2)
 
                     GLES30.glBindVertexArray(renderData.vao)
@@ -66,7 +65,7 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
                 0
             }
         } else {
-            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageRawData::class.java.simpleName}" }
+            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageDataType}" }
             0
         }
     }
