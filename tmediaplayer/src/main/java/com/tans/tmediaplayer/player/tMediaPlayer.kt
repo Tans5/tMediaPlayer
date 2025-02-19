@@ -1,5 +1,6 @@
 package com.tans.tmediaplayer.player
 
+import android.os.SystemClock
 import android.widget.TextView
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.tMediaPlayerLog
@@ -753,13 +754,19 @@ class tMediaPlayer(
         }
     }
 
+    private var lastProgressNotifyTime = 0L
+
     private fun dispatchProgress(progress: Long, checkState: Boolean = true) {
         val state = getState()
         if (!checkState || state is tMediaPlayerState.Playing) {
             val info = getMediaInfo()
             if (info != null) {
-                callbackExecutor.execute {
-                    listener.get()?.onProgressUpdate(progress, info.duration)
+                val now = SystemClock.uptimeMillis()
+                if ((now - lastProgressNotifyTime) >= MIN_PROGRESS_NOTIFY_INTERNAL) {
+                    lastProgressNotifyTime = now
+                    callbackExecutor.execute {
+                        listener.get()?.onProgressUpdate(progress, info.duration)
+                    }
                 }
                 internalSubtitle.get()?.playerProgressUpdated(progress)
                 externalSubtitle.get()?.playerProgressUpdated(progress)
@@ -1099,6 +1106,9 @@ class tMediaPlayer(
 
     companion object {
         private const val TAG = "tMediaPlayer"
+
+        // 100 ms
+        private const val MIN_PROGRESS_NOTIFY_INTERNAL = 100L
 
         init {
             System.loadLibrary("tmediaplayer")

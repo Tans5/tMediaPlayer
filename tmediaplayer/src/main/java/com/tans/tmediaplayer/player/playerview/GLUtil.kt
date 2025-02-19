@@ -150,7 +150,7 @@ fun glGenTexture(): Int {
 
 private val offScreenRenderViewport = IntArray(4)
 private val offScreenRenderFbo = IntArray(1)
-internal fun offScreenRender(
+internal inline fun offScreenRender(
     outputTexId: Int,
     outputTexWidth: Int,
     outputTexHeight: Int,
