@@ -74,6 +74,7 @@ class tMediaPlayerView : GLSurfaceView {
         width: Int,
         height: Int,
         imageBytes: ByteArray,
+        pts: Long,
         callback: Runnable? = null
     ) {
         requestRender(
@@ -84,6 +85,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = null,
             vBytes = null,
             uvBytes = null,
+            pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Rgba
         )
@@ -95,6 +97,7 @@ class tMediaPlayerView : GLSurfaceView {
         yBytes: ByteArray,
         uBytes: ByteArray,
         vBytes: ByteArray,
+        pts: Long,
         callback: Runnable? = null
     ) {
         requestRender(
@@ -105,6 +108,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = uBytes,
             vBytes = vBytes,
             uvBytes = null,
+            pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Yuv420p
         )
@@ -115,6 +119,7 @@ class tMediaPlayerView : GLSurfaceView {
         height: Int,
         yBytes: ByteArray,
         uvBytes: ByteArray,
+        pts: Long,
         callback: Runnable? = null
     ) {
         requestRender(
@@ -125,6 +130,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = null,
             vBytes = null,
             uvBytes = uvBytes,
+            pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Nv12
         )
@@ -135,6 +141,7 @@ class tMediaPlayerView : GLSurfaceView {
         height: Int,
         yBytes: ByteArray,
         vuBytes: ByteArray,
+        pts: Long,
         callback: Runnable? = null
     ) {
         requestRender(
@@ -145,6 +152,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = null,
             vBytes = null,
             uvBytes = vuBytes,
+            pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Nv21
         )
@@ -158,10 +166,15 @@ class tMediaPlayerView : GLSurfaceView {
         uBytes: ByteArray?,
         vBytes: ByteArray?,
         uvBytes: ByteArray?,
+        pts: Long,
         callback: Runnable?,
         imageDataType: ImageDataType
     ) {
         if (this.isAttachedToWindow && isWritingRenderData.compareAndSet(false, true)) {
+            if (renderData.imageDataType != null) {
+                renderData.callback?.run()
+                tMediaPlayerLog.e(TAG) { "Drop video frame: ${renderData.pts}, because out of date." }
+            }
             renderData.imageWidth = width
             renderData.imageHeight = height
             renderData.rgbaBytes = rgbaBytes
@@ -169,11 +182,13 @@ class tMediaPlayerView : GLSurfaceView {
             renderData.uBytes = uBytes
             renderData.vBytes = vBytes
             renderData.uvBytes = uvBytes
+            renderData.pts = pts
             renderData.callback = callback
             renderData.imageDataType = imageDataType
             isWritingRenderData.set(false)
             requestRender()
         } else {
+            tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, because under rendering." }
             callback?.run()
         }
     }
@@ -387,8 +402,11 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
 
                 imageData.callback?.run()
+                tMediaPlayerLog.d(TAG) { "Rendered video frame: ${imageData.pts}" }
                 imageData.reset()
                 isWritingRenderData.set(false)
+            } else {
+                tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
             }
         }
 
@@ -434,6 +452,7 @@ class tMediaPlayerView : GLSurfaceView {
             var uBytes: ByteArray? = null
             var vBytes: ByteArray? = null
             var uvBytes: ByteArray? = null
+            var pts: Long? = null
             var imageDataType: ImageDataType? = null
 
             fun reset() {
@@ -445,6 +464,7 @@ class tMediaPlayerView : GLSurfaceView {
                 uBytes = null
                 vBytes = null
                 uvBytes = null
+                pts = null
                 imageDataType = null
             }
         }

@@ -235,7 +235,8 @@ internal class VideoRenderer(
                                     height = frame.height,
                                     yBytes = y,
                                     uBytes = u,
-                                    vBytes = v
+                                    vBytes = v,
+                                    pts = frame.pts
                                 ) {
                                     renderViewCallback()
                                 }
@@ -253,7 +254,8 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
-                                    uvBytes = uv
+                                    uvBytes = uv,
+                                    pts = frame.pts
                                 ) {
                                     renderViewCallback()
                                 }
@@ -271,7 +273,9 @@ internal class VideoRenderer(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
-                                    vuBytes = vu) {
+                                    vuBytes = vu,
+                                    pts = frame.pts
+                                    ) {
                                     renderViewCallback()
                                 }
                             } else {
@@ -286,7 +290,8 @@ internal class VideoRenderer(
                                 playerView.requestRenderRgbaFrame(
                                     width = frame.width,
                                     height = frame.height,
-                                    imageBytes = rgba
+                                    imageBytes = rgba,
+                                    pts = frame.pts
                                 ) {
                                     renderViewCallback()
                                 }

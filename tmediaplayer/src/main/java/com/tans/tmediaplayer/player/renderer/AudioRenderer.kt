@@ -40,6 +40,7 @@ internal class AudioRenderer(
                 val frame = waitingRenderFrames.pollFirst()
                 // Update clock and recycle finished frames.
                 if (frame != null) {
+                    tMediaPlayerLog.d(TAG) { "Rendered audio frame: ${frame.pts}" }
                     player.audioClock.setClock(frame.pts, frame.serial)
                     player.externalClock.syncToClock(player.audioClock)
                     enqueueWritableFrame(frame)
