@@ -302,25 +302,30 @@ class tMediaPlayer(
             tMediaPlayerState.Released -> null
         }
         return if (pauseState != null) {
-            if (dispatchNewState(new = pauseState, old = state)) {
-                tMediaPlayerLog.d(TAG) { "Request pause." }
-                pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
-                // Pause clocks
-                videoClock.pause()
-                audioClock.pause()
-                externalClock.pause()
+            if (pauseState.mediaInfo.isSeekable) {
+                if (dispatchNewState(new = pauseState, old = state)) {
+                    tMediaPlayerLog.d(TAG) { "Request pause." }
+                    pauseReadPacketNative(pauseState.mediaInfo.nativePlayer)
+                    // Pause clocks
+                    videoClock.pause()
+                    audioClock.pause()
+                    externalClock.pause()
 
-                // Pause renders
-                audioRenderer.pause()
-                videoRenderer.pause()
+                    // Pause renders
+                    audioRenderer.pause()
+                    videoRenderer.pause()
 
-                // Pause subtitle
-                internalSubtitle.get()?.pause()
-                externalSubtitle.get()?.pause()
+                    // Pause subtitle
+                    internalSubtitle.get()?.pause()
+                    externalSubtitle.get()?.pause()
 
-                OptResult.Success
+                    OptResult.Success
+                } else {
+                    tMediaPlayerLog.e(TAG) {  "Update pause state fail, currentState=${getState()}" }
+                    OptResult.Fail
+                }
             } else {
-                tMediaPlayerLog.e(TAG) {  "Update pause state fail, currentState=${getState()}" }
+                tMediaPlayerLog.e(TAG) { "Current file can't pause." }
                 OptResult.Fail
             }
         } else {
@@ -380,28 +385,33 @@ class tMediaPlayer(
             tMediaPlayerState.Released -> null
         }
         return if (stopState != null) {
-            if (dispatchNewState(new = stopState, old = state)) {
-                tMediaPlayerLog.d(TAG) { "Request stop." }
-                // Update clocks and pause them.
-                videoClock.setClock(stopState.mediaInfo.duration, videoPacketQueue.getSerial())
-                videoClock.pause()
-                audioClock.setClock(stopState.mediaInfo.duration, audioPacketQueue.getSerial())
-                audioClock.pause()
-                externalClock.setClock(stopState.mediaInfo.duration, audioPacketQueue.getSerial())
-                externalClock.pause()
+            if (stopState.mediaInfo.isSeekable) {
+                if (dispatchNewState(new = stopState, old = state)) {
+                    tMediaPlayerLog.d(TAG) { "Request stop." }
+                    // Update clocks and pause them.
+                    videoClock.setClock(stopState.mediaInfo.duration, videoPacketQueue.getSerial())
+                    videoClock.pause()
+                    audioClock.setClock(stopState.mediaInfo.duration, audioPacketQueue.getSerial())
+                    audioClock.pause()
+                    externalClock.setClock(stopState.mediaInfo.duration, audioPacketQueue.getSerial())
+                    externalClock.pause()
 
-                // Pause renderers
-                audioRenderer.pause()
-                audioRenderer.flush()
-                videoRenderer.pause()
+                    // Pause renderers
+                    audioRenderer.pause()
+                    audioRenderer.flush()
+                    videoRenderer.pause()
 
-                // Pause subtitle
-                internalSubtitle.get()?.pause()
-                externalSubtitle.get()?.pause()
-                dispatchProgress(stopState.mediaInfo.duration, false)
-                OptResult.Success
+                    // Pause subtitle
+                    internalSubtitle.get()?.pause()
+                    externalSubtitle.get()?.pause()
+                    dispatchProgress(stopState.mediaInfo.duration, false)
+                    OptResult.Success
+                } else {
+                    tMediaPlayerLog.e(TAG) { "Update stop state fail, currentState=${getState()}" }
+                    OptResult.Fail
+                }
             } else {
-                tMediaPlayerLog.e(TAG) { "Update stop state fail, currentState=${getState()}" }
+                tMediaPlayerLog.e(TAG) { "Current file can't stop." }
                 OptResult.Fail
             }
         } else {
