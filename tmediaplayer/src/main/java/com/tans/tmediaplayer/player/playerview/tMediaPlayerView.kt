@@ -230,6 +230,9 @@ class tMediaPlayerView : GLSurfaceView {
         private val pointBuffer2 = Point()
         private val pointBuffer3 = Point()
         private val pointBuffer4 = Point()
+        private val vertexArray = FloatArray(20)
+        private val vertexBuffer = vertexArray.toGlBuffer().asFloatBuffer()
+        private val matrixBuffer = newGlFloatMatrix()
         override fun onDrawFrame(gl: GL10) {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
@@ -338,27 +341,45 @@ class tMediaPlayerView : GLSurfaceView {
                         positionRbY = -1.0f
                     }
                 }
-                val vertex = floatArrayOf(
-                    positionTlX, positionTlY, 0.0f,    textureTlX, textureTlY,      // 左上
-                    positionRbX, positionTlY, 0.0f,    textureRbX, textureTlY,      // 右上
-                    positionRbX, positionRbY, 0.0f,    textureRbX, textureRbY,      // 右下
-                    positionTlX, positionRbY, 0.0f,    textureTlX, textureRbY,     // 左下
-                )
+
+                val vertex = vertexArray
+                vertex[0] = positionTlX; vertex[1] = positionTlY; vertex[2] = 0.0f;         vertex[3] = textureTlX; vertex[4] = textureTlY // 左上
+                vertex[5] = positionRbX; vertex[6] = positionTlY; vertex[7] = 0.0f;         vertex[8] = textureRbX; vertex[9] = textureTlY // 右上
+                vertex[10] = positionRbX; vertex[11] = positionRbY; vertex[12] = 0.0f;      vertex[13] = textureRbX; vertex[14] = textureRbY // 右下
+                vertex[15] = positionTlX; vertex[16] = positionRbY; vertex[17] = 0.0f;      vertex[18] = textureTlX; vertex[19] = textureRbY // 左下
+                val vertexBuffer = vertexBuffer
+                vertexBuffer.position(0)
+                vertexBuffer.put(vertex)
+                vertexBuffer.position(0)
                 GLES30.glBindVertexArray(rendererData.VAO)
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
-                GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertex.size * 4, vertex.toGlBuffer())
+                GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertex.size * 4, vertexBuffer)
 
+                fun resetMatrix(m: FloatArray) {
+                    for (i in m.indices) {
+                        val x = i / 4
+                        val y = i % 4
+                        if (x == y) {
+                            m[i] = 1.0f
+                        } else {
+                            m[i] = 0.0f
+                        }
+                    }
+                }
                 // view
-                val viewMatrix = newGlFloatMatrix()
+                val viewMatrix = matrixBuffer
+                resetMatrix(viewMatrix)
                 Matrix.scaleM(viewMatrix, 0, 1 / renderRatio, 1.0f, 1.0f)
                 GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "view"), 1, false, viewMatrix, 0)
 
                 // model
-                val modelMatrix = newGlFloatMatrix()
+                val modelMatrix = matrixBuffer
+                resetMatrix(modelMatrix)
                 GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "model"), 1, false, modelMatrix, 0)
 
                 // transform
-                val transformMatrix = newGlFloatMatrix()
+                val transformMatrix = matrixBuffer
+                resetMatrix(transformMatrix)
                 GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "transform"), 1, false, transformMatrix, 0)
 
                 GLES30.glBindVertexArray(rendererData.VAO)
