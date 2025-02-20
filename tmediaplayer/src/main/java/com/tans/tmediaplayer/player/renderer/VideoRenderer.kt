@@ -322,22 +322,25 @@ internal class VideoRenderer(
                 }
             }
 
-            fun computeTargetDelay(delay: Long): Long {
+            fun computeTargetDelay(frameDuration: Long): Long {
                 val syncType = player.getSyncType()
                 return if (syncType != SyncType.VideoMaster) {
-                    val diff = player.videoClock.getClock() - player.getMasterClock()
-                    val threshold: Long = max(min(delay, SYNC_THRESHOLD_MAX), SYNC_THRESHOLD_MIN)
-                    if (diff <= - threshold) {
-                        max(0L, delay + diff)
-                    } else if (diff >= threshold && delay >= SYNC_FRAMEDUP_THRESHOLD) {
-                        delay + diff
-                    } else if (diff >= threshold) {
-                        delay * 2L
-                    } else {
-                        delay
+                    val videoClock = player.videoClock.getClock()
+                    val masterClock = player.getMasterClock()
+                    val diff = videoClock - masterClock
+                    tMediaPlayerLog.d(TAG) { "VideoClock: $videoClock, MasterClock: $masterClock, ClockDiff: $diff, FrameDuration: $frameDuration" }
+                    val threshold: Long = max(min(frameDuration, SYNC_THRESHOLD_MAX), SYNC_THRESHOLD_MIN) // Calculate clock diff threshold, In common use frame duration.
+                    if (diff <= - threshold) { // VideoClock slow
+                        max(0L, frameDuration + diff)
+                    } else if (diff >= threshold && frameDuration >= SYNC_FRAMEDUP_THRESHOLD) { // VideoClock faster and frame duration greater than 100ms
+                        frameDuration + diff
+                    } else if (diff >= threshold) { // VideoClock faster and frame duration smaller than 100ms
+                        frameDuration * 2L
+                    } else { // Normal
+                        frameDuration
                     }
-                } else {
-                    delay
+                } else { // No sync.
+                    frameDuration
                 }
             }
         }

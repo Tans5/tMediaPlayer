@@ -5,13 +5,13 @@ import android.os.Build
 import android.view.View
 import androidx.activity.addCallback
 import androidx.fragment.app.Fragment
-import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.tans.tmediaplayer.demo.databinding.MainActivityBinding
 import com.tans.tuiutils.activity.BaseCoroutineStateActivity
 import com.tans.tuiutils.permission.permissionsRequestSuspend
 import com.tans.tuiutils.systembar.annotation.SystemBarStyle
+import com.tans.tuiutils.viewpager2.NoRecycleFragmentStateAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -50,7 +50,7 @@ class MainActivity : BaseCoroutineStateActivity<MainActivity.Companion.State>(St
             }
             val viewBinding = MainActivityBinding.bind(contentView)
 
-            viewBinding.viewPager.adapter = object : FragmentStateAdapter(this@MainActivity) {
+            viewBinding.viewPager.adapter = object : NoRecycleFragmentStateAdapter(this@MainActivity) {
                 override fun getItemCount(): Int = fragments.size
                 override fun createFragment(position: Int): Fragment = fragments[TabType.entries[position]]!!
             }
