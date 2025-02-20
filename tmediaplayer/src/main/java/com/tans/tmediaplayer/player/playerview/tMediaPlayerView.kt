@@ -26,9 +26,11 @@ class tMediaPlayerView : GLSurfaceView {
 
     private var renderer: FrameRenderer? = null
 
-    private val renderData = ImageData()
+    private val requestRenderImageData = RequestRenderImageData()
 
-    private val isWritingRenderData = AtomicBoolean(false)
+    private val lastRenderedImageData = LastRenderedImageData()
+
+    private val isWritingRenderImageData = AtomicBoolean(false)
 
     private val scaleType: AtomicReference<ScaleType> by lazy {
         AtomicReference(ScaleType.CenterFit)
@@ -170,22 +172,22 @@ class tMediaPlayerView : GLSurfaceView {
         callback: ((isRendered: Boolean) -> Unit)?,
         imageDataType: ImageDataType
     ) {
-        if (this.isAttachedToWindow && isWritingRenderData.compareAndSet(false, true)) {
-            if (renderData.imageDataType != null) {
-                renderData.callback?.invoke(false)
-                tMediaPlayerLog.e(TAG) { "Drop video frame: ${renderData.pts}, because out of date." }
+        if (this.isAttachedToWindow && isWritingRenderImageData.compareAndSet(false, true)) {
+            if (requestRenderImageData.imageDataType != null) {
+                requestRenderImageData.callback?.invoke(false)
+                tMediaPlayerLog.e(TAG) { "Drop video frame: ${requestRenderImageData.pts}, because out of date." }
             }
-            renderData.imageWidth = width
-            renderData.imageHeight = height
-            renderData.rgbaBytes = rgbaBytes
-            renderData.yBytes = yBytes
-            renderData.uBytes = uBytes
-            renderData.vBytes = vBytes
-            renderData.uvBytes = uvBytes
-            renderData.pts = pts
-            renderData.callback = callback
-            renderData.imageDataType = imageDataType
-            isWritingRenderData.set(false)
+            requestRenderImageData.imageWidth = width
+            requestRenderImageData.imageHeight = height
+            requestRenderImageData.rgbaBytes = rgbaBytes
+            requestRenderImageData.yBytes = yBytes
+            requestRenderImageData.uBytes = uBytes
+            requestRenderImageData.vBytes = vBytes
+            requestRenderImageData.uvBytes = uvBytes
+            requestRenderImageData.pts = pts
+            requestRenderImageData.callback = callback
+            requestRenderImageData.imageDataType = imageDataType
+            isWritingRenderImageData.set(false)
             requestRender()
         } else {
             callback?.invoke(false)
@@ -251,22 +253,67 @@ class tMediaPlayerView : GLSurfaceView {
         override fun onDrawFrame(gl: GL10) {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
-            if (rendererData != null && screenSize != null && isWritingRenderData.compareAndSet(false, true)) {
-                GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
-                val imageData = this@tMediaPlayerView.renderData
-                if (imageData.imageDataType == null) {
-                    isWritingRenderData.set(false)
+            if (rendererData != null && screenSize != null && isWritingRenderImageData.compareAndSet(false, true)) {
+                if (!requestRenderImageData.containRenderData() && !lastRenderedImageData.containRenderData()) {
+                    isWritingRenderImageData.set(false)
                     return
                 }
-                val texConverter = when (imageData.imageDataType!!) {
+                val imageWidth: Int
+                val imageHeight: Int
+                val rgbaBytes: ByteArray?
+                val yBytes: ByteArray?
+                val uBytes: ByteArray?
+                val vBytes: ByteArray?
+                val uvBytes: ByteArray?
+                val pts: Long?
+                val imageDataType: ImageDataType?
+
+                if (requestRenderImageData.containRenderData()) {
+                    imageWidth = requestRenderImageData.imageWidth
+                    imageHeight = requestRenderImageData.imageHeight
+                    rgbaBytes = requestRenderImageData.rgbaBytes
+                    yBytes = requestRenderImageData.yBytes
+                    uBytes = requestRenderImageData.uBytes
+                    vBytes = requestRenderImageData.vBytes
+                    uvBytes = requestRenderImageData.uvBytes
+                    pts = requestRenderImageData.pts
+                    imageDataType = requestRenderImageData.imageDataType
+                    requestRenderImageData.callback?.invoke(true)
+                    lastRenderedImageData.update(requestRenderImageData)
+                    requestRenderImageData.reset()
+                } else {
+                    imageWidth = lastRenderedImageData.imageWidth
+                    imageHeight = lastRenderedImageData.imageHeight
+                    rgbaBytes = lastRenderedImageData.rgbaBytes
+                    yBytes = lastRenderedImageData.yBytes
+                    uBytes = lastRenderedImageData.uBytes
+                    vBytes = lastRenderedImageData.vBytes
+                    uvBytes = lastRenderedImageData.uvBytes
+                    pts = lastRenderedImageData.pts
+                    imageDataType = lastRenderedImageData.imageDataType
+                }
+                isWritingRenderImageData.set(false)
+                GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+                val texConverter = when (imageDataType!!) {
                     ImageDataType.Rgba -> rgbaTexConverter
                     ImageDataType.Yuv420p -> yuv420pTexConverter
                     ImageDataType.Nv12, ImageDataType.Nv21 -> yuv420spTexConverter
                 }
-                val convertTextureId = texConverter.convertImageToTexture(context = context, surfaceSize = screenSize, imageData = imageData)
+                val convertTextureId = texConverter.convertImageToTexture(
+                    context = context,
+                    surfaceSize = screenSize,
+                    imageWidth = imageWidth,
+                    imageHeight = imageHeight,
+                    rgbaBytes = rgbaBytes,
+                    yBytes = yBytes,
+                    uBytes = uBytes,
+                    vBytes = vBytes,
+                    uvBytes = uvBytes,
+                    imageDataType = imageDataType
+                )
 
-                filterInput.width = imageData.imageWidth
-                filterInput.height = imageData.imageHeight
+                filterInput.width = imageWidth
+                filterInput.height = imageHeight
                 filterInput.texture = convertTextureId
 
                 asciiArtFilter.filter(
@@ -401,10 +448,8 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
 
-                imageData.callback?.invoke(true)
-                tMediaPlayerLog.d(TAG) { "Rendered video frame: ${imageData.pts}" }
-                imageData.reset()
-                isWritingRenderData.set(false)
+
+                tMediaPlayerLog.d(TAG) { "Rendered video frame: $pts" }
             } else {
                 tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
             }
@@ -421,16 +466,16 @@ class tMediaPlayerView : GLSurfaceView {
             rgbaTexConverter.recycle()
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
-            tryRecycleUnhandledRenderData()
+            tryRecycleUnhandledRequestImageData()
         }
 
     }
 
-    internal fun tryRecycleUnhandledRenderData() {
-        if (isWritingRenderData.compareAndSet(false, true)) {
-            renderData.callback?.invoke(false)
-            renderData.reset()
-            isWritingRenderData.set(false)
+    internal fun tryRecycleUnhandledRequestImageData() {
+        if (isWritingRenderImageData.compareAndSet(false, true)) {
+            requestRenderImageData.callback?.invoke(false)
+            requestRenderImageData.reset()
+            isWritingRenderImageData.set(false)
         }
     }
 
@@ -447,7 +492,7 @@ class tMediaPlayerView : GLSurfaceView {
             Nv12
         }
 
-        class ImageData {
+        class RequestRenderImageData {
             var imageWidth: Int = 0
             var imageHeight: Int = 0
             var callback: ((isRendered: Boolean) -> Unit)? = null
@@ -470,6 +515,39 @@ class tMediaPlayerView : GLSurfaceView {
                 uvBytes = null
                 pts = null
                 imageDataType = null
+            }
+
+            fun containRenderData(): Boolean {
+                return imageDataType != null
+            }
+        }
+
+        class LastRenderedImageData {
+
+            var imageWidth: Int = 0
+            var imageHeight: Int = 0
+            var rgbaBytes: ByteArray? = null
+            var yBytes: ByteArray? = null
+            var uBytes: ByteArray? = null
+            var vBytes: ByteArray? = null
+            var uvBytes: ByteArray? = null
+            var pts: Long? = null
+            var imageDataType: ImageDataType? = null
+
+            fun containRenderData(): Boolean {
+                return imageDataType != null
+            }
+
+            fun update(imageData: RequestRenderImageData) {
+                imageWidth = imageData.imageWidth
+                imageHeight = imageData.imageHeight
+                rgbaBytes = imageData.rgbaBytes
+                yBytes = imageData.yBytes
+                uBytes = imageData.uBytes
+                vBytes = imageData.vBytes
+                uvBytes = imageData.uvBytes
+                pts = imageData.pts
+                imageDataType = imageData.imageDataType
             }
         }
 

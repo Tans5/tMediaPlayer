@@ -5,6 +5,7 @@ import android.opengl.GLES30
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView.Companion.ImageDataType
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 
@@ -17,25 +18,32 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
     override fun convertImageToTexture(
         context: Context,
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
-        imageData: tMediaPlayerView.Companion.ImageData,
+        imageWidth: Int,
+        imageHeight: Int,
+        rgbaBytes: ByteArray?,
+        yBytes: ByteArray?,
+        uBytes: ByteArray?,
+        vBytes: ByteArray?,
+        uvBytes: ByteArray?,
+        imageDataType: ImageDataType
     ): Int {
-        return if (imageData.imageDataType == tMediaPlayerView.Companion.ImageDataType.Rgba) {
+        return if (imageDataType == tMediaPlayerView.Companion.ImageDataType.Rgba) {
             val renderData = ensureRenderData()
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.outputTexId)
             GLES30.glTexImage2D(
                 GLES30.GL_TEXTURE_2D,
                 0,
                 GLES30.GL_RGBA,
-                imageData.imageWidth,
-                imageData.imageHeight,
+                imageWidth,
+                imageHeight,
                 0,
                 GLES30.GL_RGBA,
                 GLES30.GL_UNSIGNED_BYTE,
-                ByteBuffer.wrap(imageData.rgbaBytes!!)
+                ByteBuffer.wrap(rgbaBytes!!)
             )
             renderData.outputTexId
         } else {
-            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageDataType}" }
+            tMediaPlayerLog.e(TAG) { "Wrong image type: $imageDataType" }
             0
         }
     }

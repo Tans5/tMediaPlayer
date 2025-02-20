@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
 import com.tans.tmediaplayer.player.playerview.offScreenRender
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView.Companion.ImageDataType
 import com.tans.tmediaplayer.player.playerview.toGlBuffer
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
@@ -23,34 +24,41 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
     override fun convertImageToTexture(
         context: Context,
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
-        imageData: tMediaPlayerView.Companion.ImageData
+        imageWidth: Int,
+        imageHeight: Int,
+        rgbaBytes: ByteArray?,
+        yBytes: ByteArray?,
+        uBytes: ByteArray?,
+        vBytes: ByteArray?,
+        uvBytes: ByteArray?,
+        imageDataType: ImageDataType
     ): Int {
-        return if (imageData.imageDataType == tMediaPlayerView.Companion.ImageDataType.Nv12 || imageData.imageDataType == tMediaPlayerView.Companion.ImageDataType.Nv21) {
+        return if (imageDataType == tMediaPlayerView.Companion.ImageDataType.Nv12 || imageDataType == tMediaPlayerView.Companion.ImageDataType.Nv21) {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
                 offScreenRender(
                     outputTexId = renderData.outputTexId,
-                    outputTexWidth = imageData.imageWidth,
-                    outputTexHeight = imageData.imageHeight
+                    outputTexWidth = imageWidth,
+                    outputTexHeight = imageHeight
                 ) {
                     GLES30.glUseProgram(renderData.program)
                     // y
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.yTexId)
-                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth, imageData.imageHeight,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.yBytes!!))
+                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageWidth, imageHeight,
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(yBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "yTexture"), 0)
 
                     // uv
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.uvTexId)
-                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE_ALPHA, imageData.imageWidth / 2, imageData.imageHeight / 2,
-                        0, GLES30.GL_LUMINANCE_ALPHA, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.uvBytes!!))
+                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE_ALPHA, imageWidth / 2, imageHeight / 2,
+                        0, GLES30.GL_LUMINANCE_ALPHA, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(uvBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "uvTexture"), 1)
 
                     GLES30.glUniform1i(
                         GLES30.glGetUniformLocation(renderData.program, "swapUv"),
-                        when (imageData.imageDataType) {
+                        when (imageDataType) {
                             tMediaPlayerView.Companion.ImageDataType.Nv12 -> 0
                             else -> 1
                         }
@@ -66,7 +74,7 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
                 0
             }
         } else {
-            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageDataType}" }
+            tMediaPlayerLog.e(TAG) { "Wrong image type: $imageDataType" }
             0
         }
     }

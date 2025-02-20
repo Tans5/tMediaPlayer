@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
 import com.tans.tmediaplayer.player.playerview.offScreenRender
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView.Companion.ImageDataType
 import com.tans.tmediaplayer.player.playerview.toGlBuffer
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
@@ -23,36 +24,43 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
     override fun convertImageToTexture(
         context: Context,
         surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
-        imageData: tMediaPlayerView.Companion.ImageData
+        imageWidth: Int,
+        imageHeight: Int,
+        rgbaBytes: ByteArray?,
+        yBytes: ByteArray?,
+        uBytes: ByteArray?,
+        vBytes: ByteArray?,
+        uvBytes: ByteArray?,
+        imageDataType: ImageDataType
     ): Int {
-        return if (imageData.imageDataType == tMediaPlayerView.Companion.ImageDataType.Yuv420p) {
+        return if (imageDataType == tMediaPlayerView.Companion.ImageDataType.Yuv420p) {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
                 offScreenRender(
                     outputTexId = renderData.outputTexId,
-                    outputTexWidth = imageData.imageWidth,
-                    outputTexHeight = imageData.imageHeight
+                    outputTexWidth = imageWidth,
+                    outputTexHeight = imageHeight
                 ) {
                     GLES30.glUseProgram(renderData.program)
                     // y
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.yTexId)
-                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth, imageData.imageHeight,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.yBytes!!))
+                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageWidth, imageHeight,
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(yBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "yTexture"), 0)
 
                     // u
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.uTexId)
-                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth / 2, imageData.imageHeight / 2,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.uBytes!!))
+                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageWidth / 2, imageHeight / 2,
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(uBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "uTexture"), 1)
 
                     // v
                     GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
                     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.vTexId)
-                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageData.imageWidth / 2, imageData.imageHeight / 2,
-                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(imageData.vBytes!!))
+                    GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_LUMINANCE, imageWidth / 2, imageHeight / 2,
+                        0, GLES30.GL_LUMINANCE, GLES30.GL_UNSIGNED_BYTE, ByteBuffer.wrap(vBytes!!))
                     GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "vTexture"), 2)
 
                     GLES30.glBindVertexArray(renderData.vao)
@@ -65,7 +73,7 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
                 0
             }
         } else {
-            tMediaPlayerLog.e(TAG) { "Wrong image type: ${imageData.imageDataType}" }
+            tMediaPlayerLog.e(TAG) { "Wrong image type: $imageDataType" }
             0
         }
     }

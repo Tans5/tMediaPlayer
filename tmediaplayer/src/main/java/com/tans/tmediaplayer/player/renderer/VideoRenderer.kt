@@ -406,7 +406,7 @@ internal class VideoRenderer(
             val state = getState()
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
-                this.playerView.get()?.tryRecycleUnhandledRenderData()
+                this.playerView.get()?.tryRecycleUnhandledRequestImageData()
                 this.playerView.set(null)
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
