@@ -75,7 +75,7 @@ class tMediaPlayerView : GLSurfaceView {
         height: Int,
         imageBytes: ByteArray,
         pts: Long,
-        callback: Runnable? = null
+        callback: ((isRendered: Boolean) -> Unit)?,
     ) {
         requestRender(
             width = width,
@@ -98,7 +98,7 @@ class tMediaPlayerView : GLSurfaceView {
         uBytes: ByteArray,
         vBytes: ByteArray,
         pts: Long,
-        callback: Runnable? = null
+        callback: ((isRendered: Boolean) -> Unit)?,
     ) {
         requestRender(
             width = width,
@@ -120,7 +120,7 @@ class tMediaPlayerView : GLSurfaceView {
         yBytes: ByteArray,
         uvBytes: ByteArray,
         pts: Long,
-        callback: Runnable? = null
+        callback: ((isRendered: Boolean) -> Unit)?,
     ) {
         requestRender(
             width = width,
@@ -142,7 +142,7 @@ class tMediaPlayerView : GLSurfaceView {
         yBytes: ByteArray,
         vuBytes: ByteArray,
         pts: Long,
-        callback: Runnable? = null
+        callback: ((isRendered: Boolean) -> Unit)?,
     ) {
         requestRender(
             width = width,
@@ -167,12 +167,12 @@ class tMediaPlayerView : GLSurfaceView {
         vBytes: ByteArray?,
         uvBytes: ByteArray?,
         pts: Long,
-        callback: Runnable?,
+        callback: ((isRendered: Boolean) -> Unit)?,
         imageDataType: ImageDataType
     ) {
         if (this.isAttachedToWindow && isWritingRenderData.compareAndSet(false, true)) {
             if (renderData.imageDataType != null) {
-                renderData.callback?.run()
+                renderData.callback?.invoke(false)
                 tMediaPlayerLog.e(TAG) { "Drop video frame: ${renderData.pts}, because out of date." }
             }
             renderData.imageWidth = width
@@ -188,8 +188,8 @@ class tMediaPlayerView : GLSurfaceView {
             isWritingRenderData.set(false)
             requestRender()
         } else {
+            callback?.invoke(false)
             tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, because under rendering." }
-            callback?.run()
         }
     }
 
@@ -401,7 +401,7 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
 
-                imageData.callback?.run()
+                imageData.callback?.invoke(true)
                 tMediaPlayerLog.d(TAG) { "Rendered video frame: ${imageData.pts}" }
                 imageData.reset()
                 isWritingRenderData.set(false)
@@ -421,13 +421,17 @@ class tMediaPlayerView : GLSurfaceView {
             rgbaTexConverter.recycle()
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
-            if (isWritingRenderData.compareAndSet(false, true)) {
-                renderData.callback?.run()
-                renderData.reset()
-                isWritingRenderData.set(false)
-            }
+            tryRecycleUnhandledRenderData()
         }
 
+    }
+
+    internal fun tryRecycleUnhandledRenderData() {
+        if (isWritingRenderData.compareAndSet(false, true)) {
+            renderData.callback?.invoke(false)
+            renderData.reset()
+            isWritingRenderData.set(false)
+        }
     }
 
     companion object {
@@ -446,7 +450,7 @@ class tMediaPlayerView : GLSurfaceView {
         class ImageData {
             var imageWidth: Int = 0
             var imageHeight: Int = 0
-            var callback: Runnable? = null
+            var callback: ((isRendered: Boolean) -> Unit)? = null
             var rgbaBytes: ByteArray? = null
             var yBytes: ByteArray? = null
             var uBytes: ByteArray? = null

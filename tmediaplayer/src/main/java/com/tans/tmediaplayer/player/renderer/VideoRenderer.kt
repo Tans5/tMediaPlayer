@@ -10,14 +10,12 @@ import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
 import com.tans.tmediaplayer.player.model.SyncType
-import com.tans.tmediaplayer.player.model.VIDEO_EOF_MAX_CHECK_TIMES
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
-import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
@@ -53,14 +51,10 @@ internal class VideoRenderer(
 
     private val renderForce: AtomicBoolean = AtomicBoolean(false)
 
-    private val waitingRenderFrames: LinkedBlockingDeque<VideoFrame> by lazy {
-        LinkedBlockingDeque()
-    }
-
     private val videoRendererHandler: Handler by lazy {
         object : Handler(videoRendererThread.looper) {
 
-            val lastRenderFrame: LastRenderFrame = LastRenderFrame()
+            val lastRenderedFrame: LastRenderedFrame = LastRenderedFrame()
             var frameTimer: Long = 0
 
             override fun handleMessage(msg: Message) {
@@ -98,7 +92,6 @@ internal class VideoRenderer(
                                     val frame = videoFrameQueue.peekReadable()
                                     if (frame != null) { // Has a frame to render
                                         if (frame.serial != videoPacketQueue.getSerial()) { // Frame serial changed cause seeking or change files, skip render this frame.
-                                            lastRenderFrame.update(frame)
                                             val frameToCheck = videoFrameQueue.dequeueReadable()
                                             if (frameToCheck === frame) {
                                                 enqueueWriteableFrame(frame)
@@ -116,11 +109,17 @@ internal class VideoRenderer(
                                             if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                                 this@VideoRenderer.state.set(RendererState.Playing)
                                             }
-                                            if (frame.serial != lastRenderFrame.serial) {
+                                            if (frame.serial != lastRenderedFrame.serial) {
                                                 tMediaPlayerLog.d(TAG) { "Serial changed, reset frame timer." }
                                                 frameTimer = SystemClock.uptimeMillis()
                                             }
-                                            val lastDuration = frameDuration(lastRenderFrame, frame)
+                                            val lastDuration = frameDuration(
+                                                currentSerial = lastRenderedFrame.serial,
+                                                currentPts = lastRenderedFrame.pts,
+                                                currentDuration = lastRenderedFrame.duration,
+                                                nextSerial = frame.serial,
+                                                nextPts = frame.pts,
+                                            )
                                             val delay = computeTargetDelay(lastDuration)
                                             val time = SystemClock.uptimeMillis()
                                             if (time < frameTimer + delay) {  // Need wait to render.
@@ -141,30 +140,11 @@ internal class VideoRenderer(
                                                 }
                                                 return@synchronized
                                             }
-                                            lastRenderFrame.update(frame)
+
                                             frameTimer += delay
                                             if (delay > 0 && time - frameTimer > SYNC_THRESHOLD_MAX) {
                                                 tMediaPlayerLog.e(TAG) { "Behind time ${time - frameTimer}ms reset frame timer." }
                                                 frameTimer = time
-                                            }
-                                            player.videoClock.setClock(frame.pts, frame.serial)
-                                            player.externalClock.syncToClock(player.videoClock)
-
-                                            val nextFrame = videoFrameQueue.peekReadable()
-                                            if (nextFrame != null && !nextFrame.isEof) { // Drop out of data frames.
-                                                val duration = frameDuration(lastRenderFrame, nextFrame)
-                                                if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
-                                                    tMediaPlayerLog.e(TAG) { "Drop next frame: ${nextFrame.pts}" }
-                                                    val nextFrameToCheck = videoFrameQueue.dequeueReadable()
-                                                    if (nextFrameToCheck === nextFrame) {
-                                                        enqueueWriteableFrame(nextFrame)
-                                                    } else {
-                                                        if (nextFrameToCheck != null) {
-                                                            enqueueWriteableFrame(nextFrameToCheck)
-                                                        }
-                                                        tMediaPlayerLog.e(TAG) { "Wrong render frame: $nextFrame" }
-                                                    }
-                                                }
                                             }
 
                                             renderVideoFrame(frame) // render frame
@@ -172,31 +152,6 @@ internal class VideoRenderer(
                                         } else { // Eof frame
                                             val frameToCheck = videoFrameQueue.dequeueReadable()
                                             if (frameToCheck === frame) {
-                                                var checkTimes = 0
-                                                // Waiting all frames finish rendering.
-                                                while (waitingRenderFrames.isNotEmpty()) {
-                                                    checkTimes++
-                                                    tMediaPlayerLog.d(TAG) { "Waiting video finish, bufferCount=${waitingRenderFrames.size}, checkTimes=$checkTimes" }
-                                                    try {
-                                                        Thread.sleep(10)
-                                                    } catch (e: Throwable) {
-                                                        tMediaPlayerLog.e(
-                                                            tag = TAG,
-                                                            msgGetter = { "Sleep error: ${e.message}" },
-                                                            errorGetter = { e })
-                                                        break
-                                                    }
-                                                    if (checkTimes >= VIDEO_EOF_MAX_CHECK_TIMES) {
-                                                        tMediaPlayerLog.e(TAG) { "Waiting video renderer max times $VIDEO_EOF_MAX_CHECK_TIMES, bufferCount=${waitingRenderFrames.size}" }
-                                                        break
-                                                    }
-                                                }
-                                                while (waitingRenderFrames.isNotEmpty()) { // Recycle waiting frames force
-                                                    val b = waitingRenderFrames.pollFirst()
-                                                    if (b != null) {
-                                                        enqueueWriteableFrame(b)
-                                                    }
-                                                }
                                                 this@VideoRenderer.state.set(RendererState.Eof)
                                                 enqueueWriteableFrame(frame)
                                                 tMediaPlayerLog.d(TAG) { "Render video frame eof." }
@@ -216,12 +171,59 @@ internal class VideoRenderer(
                                 }
                             }
                         }
+
+                        RendererHandlerMsg.Rendered.ordinal -> {
+                            val renderedFrame = msg.obj as? LastRenderedFrame
+                            if (renderedFrame != null) {
+                                lastRenderedFrame.serial = renderedFrame.serial
+                                lastRenderedFrame.pts = renderedFrame.pts
+                                lastRenderedFrame.duration = renderedFrame.duration
+                                player.videoClock.setClock(renderedFrame.pts, renderedFrame.serial)
+                                player.externalClock.syncToClock(player.videoClock)
+
+                                val time = SystemClock.uptimeMillis()
+                                val nextFrame = videoFrameQueue.peekReadable()
+                                if (nextFrame != null && !nextFrame.isEof) { // Drop out of data frames.
+                                    val duration = frameDuration(
+                                        currentSerial = lastRenderedFrame.serial,
+                                        currentPts = lastRenderedFrame.pts,
+                                        currentDuration = lastRenderedFrame.duration,
+                                        nextSerial = nextFrame.serial,
+                                        nextPts = nextFrame.pts
+                                    )
+                                    if (player.getSyncType() != SyncType.VideoMaster && time > frameTimer + duration) {
+                                        tMediaPlayerLog.e(TAG) { "Drop next frame: ${nextFrame.pts}" }
+                                        val nextFrameToCheck = videoFrameQueue.dequeueReadable()
+                                        if (nextFrameToCheck === nextFrame) {
+                                            enqueueWriteableFrame(nextFrame)
+                                        } else {
+                                            if (nextFrameToCheck != null) {
+                                                enqueueWriteableFrame(nextFrameToCheck)
+                                            }
+                                            tMediaPlayerLog.e(TAG) { "Wrong render frame: $nextFrame" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
 
+            val renderedFrame: LastRenderedFrame = LastRenderedFrame() // For Message use.
             fun renderVideoFrame(frame: VideoFrame) {
                 val playerView = this@VideoRenderer.playerView.get()
+                val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
+                    if (isRendered) {
+                        val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
+                        renderedFrame.serial = frame.serial
+                        renderedFrame.pts = frame.pts
+                        renderedFrame.duration = frame.duration
+                        msg.obj = renderedFrame
+                        sendMessage(msg)
+                    }
+                    enqueueWriteableFrame(frame)
+                }
                 if (playerView != null) {
                     when (frame.imageType) {
                         ImageRawType.Yuv420p -> {
@@ -229,91 +231,89 @@ internal class VideoRenderer(
                             val u = frame.uBuffer
                             val v = frame.vBuffer
                             if (y != null && u != null && v != null) {
-                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderYuv420pFrame(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
                                     uBytes = u,
                                     vBytes = v,
-                                    pts = frame.pts
-                                ) {
-                                    renderViewCallback()
-                                }
+                                    pts = frame.pts,
+                                    callback = renderCallback
+                                )
                             } else {
                                 tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                enqueueWriteableFrame(frame)
+                                renderCallback(false)
                             }
                         }
                         ImageRawType.Nv12 -> {
                             val y = frame.yBuffer
                             val uv = frame.uvBuffer
                             if (y != null && uv != null) {
-                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderNv12Frame(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
                                     uvBytes = uv,
-                                    pts = frame.pts
-                                ) {
-                                    renderViewCallback()
-                                }
+                                    pts = frame.pts,
+                                    callback = renderCallback
+                                )
                             } else {
                                 tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                enqueueWriteableFrame(frame)
+                                renderCallback(false)
                             }
                         }
                         ImageRawType.Nv21 -> {
                             val y = frame.yBuffer
                             val vu = frame.uvBuffer
                             if (y != null && vu != null) {
-                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderNv21Frame(
                                     width = frame.width,
                                     height = frame.height,
                                     yBytes = y,
                                     vuBytes = vu,
-                                    pts = frame.pts
-                                    ) {
-                                    renderViewCallback()
-                                }
+                                    pts = frame.pts,
+                                    callback = renderCallback
+                                )
                             } else {
                                 tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                enqueueWriteableFrame(frame)
+                                renderCallback(false)
                             }
                         }
                         ImageRawType.Rgba -> {
                             val rgba = frame.rgbaBuffer
                             if (rgba != null) {
-                                waitingRenderFrames.addLast(frame)
                                 playerView.requestRenderRgbaFrame(
                                     width = frame.width,
                                     height = frame.height,
                                     imageBytes = rgba,
-                                    pts = frame.pts
-                                ) {
-                                    renderViewCallback()
-                                }
+                                    pts = frame.pts,
+                                    callback = renderCallback
+                                )
                             } else {
                                 tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                enqueueWriteableFrame(frame)
+                                renderCallback(false)
                             }
                         }
                         ImageRawType.Unknown -> {
-                            enqueueWriteableFrame(frame)
+                            renderCallback(false)
                         }
                     }
                 } else {
-                    enqueueWriteableFrame(frame)
+                    renderCallback(false)
                 }
             }
 
-            fun frameDuration(current: LastRenderFrame, next: VideoFrame): Long {
-                return if (current.serial == next.serial) {
-                    val duration = next.pts - current.pts
+            fun frameDuration(
+                currentSerial: Int,
+                currentPts: Long,
+                currentDuration: Long,
+                nextSerial: Int,
+                nextPts: Long,
+            ): Long {
+                return if (currentSerial == nextSerial) {
+                    val duration = nextPts - currentPts
                     if (duration <= 0) {
-                        current.duration
+                        currentDuration
                     } else {
                         duration
                     }
@@ -406,13 +406,8 @@ internal class VideoRenderer(
             val state = getState()
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
+                this.playerView.get()?.tryRecycleUnhandledRenderData()
                 this.playerView.set(null)
-                while (waitingRenderFrames.isNotEmpty()) {
-                    val b = waitingRenderFrames.pollFirst()
-                    if (b != null) {
-                        videoFrameQueue.enqueueWritable(b)
-                    }
-                }
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
                 tMediaPlayerLog.d(TAG) { "Video renderer released." }
@@ -443,28 +438,13 @@ internal class VideoRenderer(
         player.writeableVideoFrameReady()
     }
 
-    private fun renderViewCallback() {
-        renderCallbackExecutor.execute {
-            val f = waitingRenderFrames.pollFirst()
-            if (f != null) {
-                enqueueWriteableFrame(f)
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "VideoRenderer"
 
-       private class LastRenderFrame {
+       private class LastRenderedFrame {
            var pts: Long = 0
            var serial: Int = -1
            var duration: Long = 0
-
-           fun update(frame: VideoFrame) {
-               pts = frame.pts
-               serial = frame.serial
-               duration = frame.duration
-           }
        }
     }
 }

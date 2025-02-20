@@ -35,17 +35,7 @@ internal class AudioRenderer(
             outputSampleBitDepth = outputSampleBitDepth,
             bufferQueueSize = bufferQueueSize
         ) {
-            // Audio track render success callback
-            renderCallbackExecutor.execute {
-                val frame = waitingRenderFrames.pollFirst()
-                // Update clock and recycle finished frames.
-                if (frame != null) {
-                    tMediaPlayerLog.d(TAG) { "Rendered audio frame: ${frame.pts}" }
-                    player.audioClock.setClock(frame.pts, frame.serial)
-                    player.externalClock.syncToClock(player.audioClock)
-                    enqueueWritableFrame(frame)
-                }
-            }
+            audioRendererHandler.sendEmptyMessage(RendererHandlerMsg.Rendered.ordinal)
         }
     }
 
@@ -170,6 +160,17 @@ internal class AudioRenderer(
                                 }
                             } else {
                                 tMediaPlayerLog.e(TAG) { "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo" }
+                            }
+                        }
+
+                        RendererHandlerMsg.Rendered.ordinal -> {
+                            val frame = waitingRenderFrames.pollFirst()
+                            // Update clock and recycle finished frames.
+                            if (frame != null) {
+                                tMediaPlayerLog.d(TAG) { "Rendered audio frame: ${frame.pts}" }
+                                player.audioClock.setClock(frame.pts, frame.serial)
+                                player.externalClock.syncToClock(player.audioClock)
+                                enqueueWritableFrame(frame)
                             }
                         }
                     }
