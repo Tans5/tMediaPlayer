@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
 import com.tans.tmediaplayer.player.model.SyncType
+import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
@@ -152,6 +153,11 @@ internal class VideoRenderer(
                                         } else { // Eof frame
                                             val frameToCheck = videoFrameQueue.dequeueReadable()
                                             if (frameToCheck === frame) {
+                                                try { // Waiting all frames finish rendering.
+                                                    Thread.sleep(max(VIDEO_FRAME_QUEUE_SIZE * lastRenderedFrame.duration, 10))
+                                                } catch (e: Throwable) {
+                                                    tMediaPlayerLog.e(TAG, { "Waiting all frame finish rendering error: ${e.message}" }, { e })
+                                                }
                                                 this@VideoRenderer.state.set(RendererState.Eof)
                                                 enqueueWriteableFrame(frame)
                                                 tMediaPlayerLog.d(TAG) { "Render video frame eof." }

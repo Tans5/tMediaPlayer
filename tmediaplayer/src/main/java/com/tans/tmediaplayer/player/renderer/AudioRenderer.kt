@@ -5,7 +5,6 @@ import android.os.HandlerThread
 import android.os.Message
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.audiotrack.tMediaAudioTrack
-import com.tans.tmediaplayer.player.model.AUDIO_EOF_MAX_CHECK_TIMES
 import com.tans.tmediaplayer.player.model.AUDIO_TRACK_QUEUE_SIZE
 import com.tans.tmediaplayer.player.model.AudioChannel
 import com.tans.tmediaplayer.player.model.AudioSampleBitDepth
@@ -18,6 +17,7 @@ import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
 
 internal class AudioRenderer(
     outputChannel: AudioChannel,
@@ -62,6 +62,8 @@ internal class AudioRenderer(
 
     private val audioRendererHandler: Handler by lazy {
         object : Handler(audioRendererThread.looper) {
+
+            private val lastRenderedFrame = LastRenderedFrame()
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -126,18 +128,19 @@ internal class AudioRenderer(
                                         var bufferCount = audioTrack.getBufferQueueCount()
                                         var checkTimes = 0
                                         // Waiting audio track finish all frames.
+                                        val maxCheckTimes = bufferCount
                                         while (bufferCount > 0) {
                                             checkTimes++
                                             tMediaPlayerLog.d(TAG) { "Waiting audio track buffer finish, queueCount$bufferCount, checkTimes=$checkTimes" }
                                             try {
-                                                Thread.sleep(6)
+                                                Thread.sleep(max(lastRenderedFrame.duration, 6))
                                             } catch (e: Throwable) {
                                                 tMediaPlayerLog.e(tag = TAG, msgGetter = { "Sleep error: ${e.message}" }, errorGetter = { e })
                                                 break
                                             }
                                             bufferCount = audioTrack.getBufferQueueCount()
-                                            if (checkTimes >= AUDIO_EOF_MAX_CHECK_TIMES) {
-                                                tMediaPlayerLog.e(TAG) { "Waiting audio track max times $AUDIO_EOF_MAX_CHECK_TIMES, bufferCount=$bufferCount" }
+                                            if (checkTimes >= maxCheckTimes) {
+                                                tMediaPlayerLog.e(TAG) { "Waiting audio track max times $maxCheckTimes, bufferCount=$bufferCount" }
                                                 break
                                             }
                                         }
@@ -164,13 +167,25 @@ internal class AudioRenderer(
                         }
 
                         RendererHandlerMsg.Rendered.ordinal -> {
-                            val frame = waitingRenderFrames.pollFirst()
+                            val audioTrackBufferCount = audioTrack.getBufferQueueCount()
+                            val waitingBufferCount = waitingRenderFrames.size
+                            val frame: AudioFrame? = waitingRenderFrames.pollFirst()
                             // Update clock and recycle finished frames.
                             if (frame != null) {
-                                tMediaPlayerLog.d(TAG) { "Rendered audio frame: ${frame.pts}" }
-                                player.audioClock.setClock(frame.pts, frame.serial)
+                                val fixedPts = if (lastRenderedFrame.serial == frame.serial) {
+                                    lastRenderedFrame.pts + lastRenderedFrame.duration
+                                } else {
+                                    frame.pts
+                                }
+                                lastRenderedFrame.serial = frame.serial
+                                lastRenderedFrame.pts = frame.pts
+                                lastRenderedFrame.duration = frame.duration
+                                tMediaPlayerLog.d(TAG) { "Rendered audio frame: fixedPts=$fixedPts, originPts=${frame.pts}, audioTrackBufferCount=$audioTrackBufferCount, waitingBufferCount=$waitingBufferCount" }
+                                player.audioClock.setClock(fixedPts, frame.serial)
                                 player.externalClock.syncToClock(player.audioClock)
                                 enqueueWritableFrame(frame)
+                            } else {
+                                tMediaPlayerLog.e(TAG) { "No waiting audio buffer, audioTrackBufferCount=$audioTrackBufferCount, waitingBufferCount=$waitingBufferCount" }
                             }
                         }
                     }
@@ -282,6 +297,13 @@ internal class AudioRenderer(
     }
 
     companion object {
+
+        private class LastRenderedFrame {
+            var pts: Long = 0
+            var serial: Int = -1
+            var duration: Long = 0
+        }
+
         private const val TAG = "AudioRenderer"
     }
 
