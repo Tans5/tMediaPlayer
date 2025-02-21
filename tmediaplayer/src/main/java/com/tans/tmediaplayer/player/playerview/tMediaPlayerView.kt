@@ -289,7 +289,6 @@ class tMediaPlayerView : GLSurfaceView {
                     pts = lastRenderedImageData.pts
                     imageDataType = lastRenderedImageData.imageDataType
                 }
-                isWritingRenderImageData.set(false)
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
                 val texConverter = when (imageDataType!!) {
                     ImageDataType.Rgba -> rgbaTexConverter
@@ -450,6 +449,7 @@ class tMediaPlayerView : GLSurfaceView {
                     lastRenderedImageData.update(requestRenderImageData)
                     requestRenderImageData.reset()
                 }
+                isWritingRenderImageData.set(false)
 
                 tMediaPlayerLog.d(TAG) { "Rendered video frame: $pts" }
             } else {
