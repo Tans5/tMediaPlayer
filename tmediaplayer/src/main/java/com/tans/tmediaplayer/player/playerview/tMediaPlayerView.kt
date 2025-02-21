@@ -278,9 +278,6 @@ class tMediaPlayerView : GLSurfaceView {
                     uvBytes = requestRenderImageData.uvBytes
                     pts = requestRenderImageData.pts
                     imageDataType = requestRenderImageData.imageDataType
-                    requestRenderImageData.callback?.invoke(true)
-                    lastRenderedImageData.update(requestRenderImageData)
-                    requestRenderImageData.reset()
                 } else {
                     imageWidth = lastRenderedImageData.imageWidth
                     imageHeight = lastRenderedImageData.imageHeight
@@ -448,6 +445,11 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
 
+                if (requestRenderImageData.containRenderData()) {
+                    requestRenderImageData.callback?.invoke(true)
+                    lastRenderedImageData.update(requestRenderImageData)
+                    requestRenderImageData.reset()
+                }
 
                 tMediaPlayerLog.d(TAG) { "Rendered video frame: $pts" }
             } else {
