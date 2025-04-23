@@ -57,7 +57,7 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.annotaion)
 }
 
 val publishProperties = Properties()

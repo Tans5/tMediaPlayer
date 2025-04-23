@@ -83,6 +83,9 @@ dependencies {
     implementation(libs.coroutines.android)
 
     implementation(libs.tuiutils)
+    implementation(libs.tapm.core)
+    implementation(libs.tapm.autoinit)
+    implementation(libs.tapm.log)
 
     implementation(libs.glide)
     ksp(libs.glide.codegen.ksp)

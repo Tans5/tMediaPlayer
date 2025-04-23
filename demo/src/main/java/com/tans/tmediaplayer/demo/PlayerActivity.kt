@@ -36,7 +36,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
         tMediaPlayer(
             audioOutputSampleRate = AudioSampleRate.Rate96000,
             audioOutputSampleBitDepth = AudioSampleBitDepth.ThreeTwoBits,
-            enableVideoHardwareDecoder = true
+            enableVideoHardwareDecoder = false
         )
     }
 

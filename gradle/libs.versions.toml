@@ -1,20 +1,22 @@
 [versions]
-agp = "8.7.3"
+agp = "8.9.2"
 kotlin = "2.0.21"
 googleKsp = "2.0.21-1.0.26"
-coreKtx = "1.15.0"
+coreKtx = "1.16.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.7.0"
 material = "1.12.0"
-activity = "1.10.0"
-constraintlayout = "2.2.0"
+activity = "1.10.1"
+constraintlayout = "2.2.1"
 corouines = "1.10.1"
-tuiutils = "1.1.0"
+tuiutils = "1.1.1"
+tapm = "1.0.0"
 glide = "4.16.0"
 swiperefreshlayout = "1.1.0"
-tmediaplayer = "1.5.0"
+tmediaplayer = "1.5.4"
+androidx-annotaion = "1.9.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,6 +36,11 @@ glide-codegen-kapt = { group = "com.github.bumptech.glide", name = "compiler", v
 glide-codegen-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
 androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name="swiperefreshlayout",  version.ref="swiperefreshlayout"}
 tmediaplayer = { group = "io.github.tans5", name = "tmediaplayer", version.ref = "tmediaplayer" }
+androidx-annotaion = { group = "androidx.annotation", name = "annotation", version.ref = "androidx-annotaion" }
+tapm-core = { group = "io.github.tans5", name= "tapm-core", version.ref = "tapm" }
+tapm-autoinit = { group = "io.github.tans5", name= "tapm-autoinit", version.ref = "tapm" }
+tapm-log = { group = "io.github.tans5", name= "tapm-log", version.ref = "tapm" }
+tapm-breakpad = { group = "io.github.tans5", name= "tapm-breakpad", version.ref = "tapm" }
 
 
 [plugins]
