@@ -29,7 +29,7 @@ class MyApp : Application() {
                 // MainThreadLag
                 .addMonitor(MainThreadLagMonitor())
                 // MemoryUsage
-                // .addMonitor(MemoryUsageMonitor())
+                .addMonitor(MemoryUsageMonitor())
         }
     }
 
