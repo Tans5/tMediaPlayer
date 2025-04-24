@@ -15,7 +15,7 @@ android {
         minSdk = properties["ANDROID_MIN_SDK"].toString().toInt()
         version = properties["VERSION_NAME"].toString()
 
-        setProperty("archivesBaseName", "tmediaplayer-${properties["VERSION_NAME"].toString()}")
+        setProperty("archivesBaseName", "${project.name}-${properties["VERSION_NAME"].toString()}")
 
         buildConfigField("String", "VERSION", "\"${properties["VERSION_NAME"].toString()}\"")
 
@@ -60,26 +60,23 @@ dependencies {
     implementation(libs.androidx.annotaion)
 }
 
-val publishProperties = Properties()
-publishProperties.load(File(projectDir, "publish.properties").inputStream())
-
 publishing {
     repositories {
         maven {
             name = "MavenCentralRelease"
             credentials {
-                username = publishProperties.getProperty("MAVEN_USERNAME")
-                password = publishProperties.getProperty("MAVEN_PASSWORD")
+                username = properties["MAVEN_USERNAME"].toString()
+                password = properties["MAVEN_PASSWORD"].toString()
             }
-            url = uri(publishProperties.getProperty("RELEASE_REPOSITORY_URL"))
+            url = uri(properties["RELEASE_REPOSITORY_URL"].toString())
         }
         maven {
             name = "MavenCentralSnapshot"
             credentials {
-                username = publishProperties.getProperty("MAVEN_USERNAME")
-                password = publishProperties.getProperty("MAVEN_PASSWORD")
+                username = properties["MAVEN_USERNAME"].toString()
+                password = properties["MAVEN_PASSWORD"].toString()
             }
-            url = uri(publishProperties.getProperty("SNAPSHOT_REPOSITORY_URL"))
+            url = uri(properties["SNAPSHOT_REPOSITORY_URL"].toString())
         }
         maven {
             name = "MavenLocal"
@@ -90,9 +87,9 @@ publishing {
     publications {
         val defaultPublication = this.create("Default", MavenPublication::class.java)
         with(defaultPublication) {
-            groupId = publishProperties.getProperty("GROUP_ID")
-            artifactId = publishProperties.getProperty("ARTIFACT_ID")
-            version = publishProperties.getProperty("VERSION_NAME")
+            groupId = properties["GROUP_ID"].toString()
+            artifactId = project.name
+            version = properties["VERSION_NAME"].toString()
 
             afterEvaluate {
                 artifact(tasks.getByName("bundleReleaseAar"))

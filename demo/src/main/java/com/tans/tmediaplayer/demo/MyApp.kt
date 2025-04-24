@@ -36,6 +36,6 @@ class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AutoApplySystemBarAnnotation.init(this)
-        tMediaPlayerLog.logLevel = tMediaPlayerLog.LogLevel.Error
+        // tMediaPlayerLog.logLevel = tMediaPlayerLog.LogLevel.Error
     }
 }
