@@ -36,11 +36,11 @@ android {
         }
     }
 
-    packaging {
-        jniLibs {
-            keepDebugSymbols += listOf("*/arm64-v8a/*.so", "*/armeabi-v7a/*.so", "*/x86/*.so", "*/x86_64/*.so")
-        }
-    }
+//    packaging {
+//        jniLibs {
+//            keepDebugSymbols += listOf("*/arm64-v8a/*.so", "*/armeabi-v7a/*.so", "*/x86/*.so", "*/x86_64/*.so")
+//        }
+//    }
 
     buildTypes {
         debug {
@@ -70,8 +70,8 @@ android {
             enable = true
         }
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        jvmToolchain(11)
     }
 }
 
