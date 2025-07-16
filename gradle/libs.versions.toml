@@ -12,10 +12,10 @@ activity = "1.10.1"
 constraintlayout = "2.2.1"
 corouines = "1.10.2"
 tuiutils = "1.1.1"
-tapm = "1.0.2"
+tapm = "1.0.3"
 glide = "4.16.0"
 swiperefreshlayout = "1.1.0"
-tmediaplayer = "1.5.6"
+tmediaplayer = "1.5.7"
 androidx-annotaion = "1.9.1"
 
 [libraries]
