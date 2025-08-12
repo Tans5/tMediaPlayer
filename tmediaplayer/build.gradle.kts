@@ -51,12 +51,6 @@ android {
 
     ndkVersion = properties["NDK_VERSION"].toString()
 
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
-
     buildFeatures {
         buildConfig = true
     }
