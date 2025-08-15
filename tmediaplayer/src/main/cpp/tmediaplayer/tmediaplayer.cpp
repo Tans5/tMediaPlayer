@@ -2,6 +2,7 @@
 // Created by pengcheng.tan on 2024/5/27.
 //
 #include "tmediaplayer.h"
+#include "libavutil/hwcontext_mediacodec.h"
 
 
 AVPixelFormat hw_pix_fmt_i = AV_PIX_FMT_NONE;
@@ -150,7 +151,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
     } else {
         isRealTime = false;
     }
-    int fmt_flags = format_ctx->iformat->flags;
 
     if (format_ctx->start_time != AV_NOPTS_VALUE) {
         startTime = (int64_t) (((double) format_ctx->start_time) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
@@ -332,6 +332,12 @@ tMediaOptResult tMediaPlayerContext::prepare(
                                 if (result >= 0) {
                                     video_decoder_ctx->get_format = get_hw_format;
                                     video_decoder_ctx->hw_device_ctx = av_buffer_ref(hardware_ctx);
+                                    // TODO: Set hw surface.
+//                                    auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
+//                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
+//                                    mediaCodecCtx->create_window = 1;
+//                                    result = av_hwdevice_ctx_init(hardware_ctx);
+//                                    LOGD("HW init result: %d", result);
                                     result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
                                     if (result >= 0) {
                                         LOGD("Open %s video hw decoder ctx success.", hwCodecName);
@@ -339,7 +345,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
                                     } else {
                                         avcodec_free_context(&video_decoder_ctx);
                                         video_decoder_ctx = nullptr;
-                                        LOGE("Open %s video hw decoder ctx fail.", hwCodecName);
+                                        LOGE("Open %s video hw decoder ctx fail: %d", hwCodecName, result);
                                     }
                                 } else {
                                     avcodec_free_context(&video_decoder_ctx);
@@ -748,7 +754,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
                     nullptr,
                     nullptr);
             if (video_sws_ctx == nullptr) {
-                LOGE("Decode video fail, sws ctx create fail.");
+                LOGE("Decode video fail, sws ctx create fail: %d, %d, %d, %d", video_frame->format == AV_PIX_FMT_MEDIACODEC, video_frame->linesize[0], video_frame->linesize[1], video_frame->linesize[2]);
                 return OptFail;
             }
         }
