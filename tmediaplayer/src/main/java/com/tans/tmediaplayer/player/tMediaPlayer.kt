@@ -200,6 +200,7 @@ class tMediaPlayer(
                     packetReader.requestAttachment()
                     audioDecoder.requestDecode()
                     videoDecoder.requestDecode()
+                    videoDecoder.requestSetSurfaceToPlayer()
 
                     // Renderers
                     audioRenderer.flush()
@@ -491,6 +492,7 @@ class tMediaPlayer(
 
     override fun attachPlayerView(view: tMediaPlayerView?) {
         videoRenderer.attachPlayerView(view)
+        videoDecoder.attachPlayerView(view)
     }
 
     override fun attachSubtitleView(view: TextView?) {

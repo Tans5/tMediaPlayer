@@ -4,14 +4,17 @@ import android.content.Context
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
+import android.os.SystemClock
 import android.util.AttributeSet
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
+import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
 import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420spImageTextureConverter
+import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig
@@ -24,7 +27,7 @@ class tMediaPlayerView : GLSurfaceView {
 
     constructor(context: Context, attrs: AttributeSet?): super(context, attrs)
 
-    private var renderer: FrameRenderer? = null
+    private val renderer: FrameRenderer = FrameRenderer()
 
     private val requestRenderImageData = RequestRenderImageData()
 
@@ -52,9 +55,15 @@ class tMediaPlayerView : GLSurfaceView {
         AsciiArtImageFilter()
     }
 
+    private var isDetachedFromWindow: Boolean = false
+
+    private val renderListeners: LinkedBlockingDeque<RenderListener> by lazy {
+        LinkedBlockingDeque()
+    }
+
     init {
         setEGLContextClientVersion(3)
-        setRenderer(FrameRenderer().apply { this@tMediaPlayerView.renderer = this })
+        setRenderer(renderer)
         renderMode = RENDERMODE_WHEN_DIRTY
     }
 
@@ -195,10 +204,35 @@ class tMediaPlayerView : GLSurfaceView {
         }
     }
 
+    @Synchronized
+    internal fun addRenderListener(l: RenderListener) {
+        if (!isDetachedFromWindow) {
+            val hwTexture = renderer.hwTextures
+            if (hwTexture != null) {
+                l.onSurfaceCreated(hwTexture)
+            }
+            renderListeners.add(l)
+        } else {
+            l.onSurfaceDestroyed()
+        }
+    }
+
+    @Synchronized
+    internal fun removeRenderListener(l: RenderListener) {
+        renderListeners.remove(l)
+    }
+
+    @Synchronized
     override fun onDetachedFromWindow() {
+        if (!isDetachedFromWindow) {
+            renderer.recycle()
+            for (l in renderListeners) {
+                l.onSurfaceDestroyed()
+            }
+            renderListeners.clear()
+            isDetachedFromWindow = true
+        }
         super.onDetachedFromWindow()
-        renderer?.recycle()
-        renderer = null
     }
 
     private inner class FrameRenderer : Renderer {
@@ -206,6 +240,8 @@ class tMediaPlayerView : GLSurfaceView {
         private var sizeCache: SurfaceSizeCache? = null
 
         private var glRendererData: GLRendererData? = null
+
+        var hwTextures: HWTextures? = null
 
         override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
             val glVersion = gl.glGetString(GLES30.GL_VERSION)
@@ -234,6 +270,20 @@ class tMediaPlayerView : GLSurfaceView {
                     VBO = VBO
                 )
             }
+            synchronized(this@tMediaPlayerView) {
+                hwTextures?.oesTextureSurface?.release()
+                val hwTextures = HWTextures(
+                    createUptimeMillis = SystemClock.uptimeMillis(),
+                    oesTextureSurface = createNewOesTextureSurface(),
+                    bufferTextures = IntArray(VIDEO_FRAME_QUEUE_SIZE) {
+                        glGenTexture()
+                    }
+                )
+                for (l in renderListeners) {
+                    l.onSurfaceCreated(hwTextures)
+                }
+                this.hwTextures = hwTextures
+            }
         }
 
         override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
@@ -251,6 +301,9 @@ class tMediaPlayerView : GLSurfaceView {
         private val vertexBuffer = vertexArray.toGlBuffer().asFloatBuffer()
         private val matrixBuffer = newGlFloatMatrix()
         override fun onDrawFrame(gl: GL10) {
+            for (l in renderListeners) {
+                l.onPreDrawFrame()
+            }
             val rendererData = this.glRendererData
             val screenSize = sizeCache
             if (rendererData != null && screenSize != null && isWritingRenderImageData.compareAndSet(false, true)) {
@@ -455,6 +508,9 @@ class tMediaPlayerView : GLSurfaceView {
             } else {
                 tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
             }
+            for (l in renderListeners) {
+                l.onPostDrawFrame()
+            }
         }
 
 
@@ -469,6 +525,10 @@ class tMediaPlayerView : GLSurfaceView {
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
             tryRecycleUnhandledRequestImageData()
+            synchronized(this@tMediaPlayerView) {
+                hwTextures?.oesTextureSurface?.release()
+                hwTextures = null
+            }
         }
 
     }
@@ -655,6 +715,25 @@ class tMediaPlayerView : GLSurfaceView {
             val width: Int,
             val height: Int
         )
+
+        internal interface RenderListener {
+
+            fun onSurfaceCreated(hwTextures: HWTextures) {
+
+            }
+
+            fun onPreDrawFrame() {
+
+            }
+
+            fun onPostDrawFrame() {
+
+            }
+
+            fun onSurfaceDestroyed() {
+
+            }
+        }
 
         private const val TAG = "tMediaPlayerView"
     }

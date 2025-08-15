@@ -1,11 +1,13 @@
 package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
+import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import com.tans.tmediaplayer.tMediaPlayerLog
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
+import kotlin.IntArray
 
 private const val TAG = "GLUtil"
 
@@ -132,30 +134,31 @@ internal fun newGlIntBuffer(): IntBuffer {
     }
 }
 
-private val glGenFrameBufferBuffer = newGlIntBuffer()
 internal fun glGenFrameBuffer(): Int {
+    val glGenFrameBufferBuffer = newGlIntBuffer()
     glGenFrameBufferBuffer.position(0)
     GLES30.glGenFramebuffers(1, glGenFrameBufferBuffer)
     glGenFrameBufferBuffer.position(0)
     return glGenFrameBufferBuffer.get()
 }
 
-private val glGenTextureBuffer = newGlIntBuffer()
 fun glGenTexture(): Int {
+    val glGenTextureBuffer = newGlIntBuffer()
     glGenTextureBuffer.position(0)
     GLES30.glGenTextures(1, glGenTextureBuffer)
     glGenTextureBuffer.position(0)
     return glGenTextureBuffer.get()
 }
 
-private val offScreenRenderViewport = IntArray(4)
-private val offScreenRenderFbo = IntArray(1)
 internal inline fun offScreenRender(
     outputTexId: Int,
     outputTexWidth: Int,
     outputTexHeight: Int,
     render: () -> Unit
 ) {
+
+    val offScreenRenderViewport = IntArray(4)
+    val offScreenRenderFbo = IntArray(1)
 
     // 生成帧缓冲
     val fbo = glGenFrameBuffer()
@@ -230,20 +233,32 @@ internal fun glGenTextureAndSetDefaultParams(): Int {
 }
 
 
-private val glGenBuffersBuffer = newGlIntBuffer()
 internal fun glGenBuffers(): Int {
-    val buffer = glGenBuffersBuffer
+    val buffer = newGlIntBuffer()
     buffer.position(0)
     GLES30.glGenBuffers(1, buffer)
     buffer.position(0)
     return buffer.get()
 }
 
-private val glGenVertexArraysBuffer = newGlIntBuffer()
 internal fun glGenVertexArrays(): Int {
-    val buffer = glGenVertexArraysBuffer
+    val buffer = newGlIntBuffer()
     buffer.position(0)
     GLES30.glGenVertexArrays(1, buffer)
     buffer.position(0)
     return buffer.get()
+}
+
+internal fun createNewOesTextureSurface(): OesTextureSurface {
+    val textureId = glGenTexture()
+    GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
+    GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+        GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
+    GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+        GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
+    GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+        GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
+    GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+        GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
+    return OesTextureSurface(textureId)
 }

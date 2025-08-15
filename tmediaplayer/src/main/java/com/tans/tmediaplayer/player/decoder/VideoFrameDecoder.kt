@@ -7,6 +7,8 @@ import android.os.SystemClock
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
+import com.tans.tmediaplayer.player.playerview.HWTextures
+import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
@@ -33,6 +35,32 @@ internal class VideoFrameDecoder(
                 isLooperPrepared.set(true)
             }
         }.apply { start() }
+    }
+
+    private val playerView: AtomicReference<tMediaPlayerView?> by lazy {
+        AtomicReference()
+    }
+
+    private val hwTextures: AtomicReference<HWTextures?> by lazy {
+        AtomicReference()
+    }
+
+    private val renderListener: tMediaPlayerView.Companion.RenderListener by lazy {
+        object : tMediaPlayerView.Companion.RenderListener {
+            override fun onSurfaceCreated(hwTextures: HWTextures) {
+                this@VideoFrameDecoder.hwTextures.set(hwTextures)
+                requestSetSurfaceToPlayer()
+            }
+
+            override fun onPreDrawFrame() {
+                // TODO:
+            }
+
+            override fun onSurfaceDestroyed() {
+                this@VideoFrameDecoder.hwTextures.set(null)
+                requestSetSurfaceToPlayer()
+            }
+        }
     }
 
     private val activeStates = arrayOf(
@@ -183,6 +211,18 @@ internal class VideoFrameDecoder(
         } else {
             tMediaPlayerLog.d(TAG) { "Skip handle writable frame ready, because of state: $state" }
         }
+    }
+
+    fun attachPlayerView(view: tMediaPlayerView?) {
+        val previous = this.playerView.get()
+        if (this.playerView.compareAndSet(previous, view)) {
+            previous?.removeRenderListener(renderListener)
+            view?.addRenderListener(renderListener)
+        }
+    }
+
+    fun requestSetSurfaceToPlayer() {
+        // TODO:
     }
 
     fun release() {
