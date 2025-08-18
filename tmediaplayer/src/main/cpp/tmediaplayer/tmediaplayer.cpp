@@ -47,6 +47,22 @@ static void readMetadata(AVDictionary *src, Metadata *dst) {
     }
 }
 
+static void releaseMetadata(Metadata *src) {
+    for (int i = 0; i < src->metadataCount; i ++) {
+        char *key = src->metadata[i * 2];
+        char *value = src->metadata[i * 2 + 1];
+        free(key);
+        free(value);
+        src->metadata[i * 2] = nullptr;
+        src->metadata[i * 2 + 1] = nullptr;
+    }
+    src->metadataCount = 0;
+    if (src->metadata != nullptr) {
+        free(src->metadata);
+    }
+    src->metadata = nullptr;
+}
+
 /**
  * Do not support bitmap subtitle.
  * @param s
@@ -70,6 +86,308 @@ static int decode_interrupt_cb(void *ctx)
     return player_ctx->interruptReadPkt;
 }
 
+static tMediaOptResult prepareVideoDecoder(AVStream *videoStream, bool isRequestHw, jobject hwSurface, VideoDecoder* videoDecoder) {
+    auto codecParams = videoStream->codecpar;
+
+    int result = 0;
+    //region Hardware Decoder
+    if (isRequestHw) {
+        // Find android hardware codec.
+        bool isFindHwDecoder = true;
+        const char * hwCodecName;
+        switch (codecParams->codec_id) {
+            case AV_CODEC_ID_H264:
+                hwCodecName = "h264_mediacodec";
+                break;
+            case AV_CODEC_ID_HEVC:
+                hwCodecName = "hevc_mediacodec";
+                break;
+            case AV_CODEC_ID_AV1:
+                hwCodecName = "av1_mediacodec";
+                break;
+            case AV_CODEC_ID_VP8:
+                hwCodecName = "vp8_mediacodec";
+                break;
+            case AV_CODEC_ID_VP9:
+                hwCodecName = "vp9_mediacodec";
+                break;
+            default:
+                isFindHwDecoder = false;
+                break;
+        }
+        if (isFindHwDecoder) {
+            AVHWDeviceType hwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
+            if (hwDeviceType == AV_HWDEVICE_TYPE_NONE) {
+                while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {}
+            }
+            const AVCodec *hwDecoder = avcodec_find_decoder_by_name(hwCodecName);
+            if (hwDecoder) {
+                // find pixel format.
+                for (int i = 0; ; ++i) {
+                    const AVCodecHWConfig *config = avcodec_get_hw_config(hwDecoder, i);
+                    if (!config) {
+                        break;
+                    }
+                    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == hwDeviceType) {
+                        hw_pix_fmt_i = config->pix_fmt;
+                        break;
+                    }
+                }
+                if (hw_pix_fmt_i != AV_PIX_FMT_NONE) {
+                    videoDecoder->video_decoder = hwDecoder;
+                    result = av_hwdevice_ctx_create(&videoDecoder->hardware_ctx, hwDeviceType, nullptr,
+                                                    nullptr, 0);
+                    if (result >= 0) {
+                        LOGD("Set up %s hw device ctx.", hwCodecName);
+                        videoDecoder->video_decoder_ctx = avcodec_alloc_context3(hwDecoder);
+                        if (videoDecoder->video_decoder_ctx) {
+                            result = avcodec_parameters_to_context(videoDecoder->video_decoder_ctx, codecParams);
+                            if (result >= 0) {
+                                videoDecoder->video_decoder_ctx->get_format = get_hw_format;
+                                videoDecoder->video_decoder_ctx->hw_device_ctx = av_buffer_ref(videoDecoder->hardware_ctx);
+                                if (hwSurface != nullptr) {
+                                    auto deviceCtx = (AVHWDeviceContext *) videoDecoder->hardware_ctx->data;
+                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
+                                    mediaCodecCtx->surface = hwSurface;
+                                    result = av_hwdevice_ctx_init(videoDecoder->hardware_ctx);
+                                    LOGD("HW init result: %d", result);
+                                }
+                                result = avcodec_open2(videoDecoder->video_decoder_ctx, hwDecoder, nullptr);
+                                if (result >= 0) {
+                                    LOGD("Open %s video hw decoder ctx success.", hwCodecName);
+                                    goto decoder_open_success;
+                                } else {
+                                    avcodec_free_context(&videoDecoder->video_decoder_ctx);
+                                    videoDecoder->video_decoder_ctx = nullptr;
+                                    LOGE("Open %s video hw decoder ctx fail: %d", hwCodecName, result);
+                                }
+                            } else {
+                                avcodec_free_context(&videoDecoder->video_decoder_ctx);
+                                videoDecoder->video_decoder_ctx = nullptr;
+                                LOGE("Attach video params to %s hw ctx fail: %d", hwCodecName, result);
+                            }
+                        } else {
+                            LOGE("Create %s hw video decoder ctx fail.", hwCodecName);
+                        }
+                    } else {
+                        LOGE("Create %s hw device ctx fail: %d", hwCodecName, result);
+                    }
+                } else {
+                    LOGE("Don't find %s hw decoder pix format", hwCodecName);
+                }
+            } else {
+                LOGE("Don't find hw decoder: %s", hwCodecName);
+            }
+        }
+    }
+    //endregion
+
+    //region Software Decoder
+    videoDecoder->video_decoder = avcodec_find_decoder(codecParams->codec_id);
+    if (!videoDecoder->video_decoder) {
+        LOGE("Didn't find sw video decoder, codec_id=%d", codecParams->codec_id);
+        return OptFail;
+    }
+    videoDecoder->video_decoder_ctx = avcodec_alloc_context3(videoDecoder->video_decoder);
+    if (!videoDecoder->video_decoder_ctx) {
+        LOGE("Create sw video decoder ctx fail.");
+        return OptFail;
+    }
+    result = avcodec_parameters_to_context(videoDecoder->video_decoder_ctx, codecParams);
+    if (result < 0) {
+        LOGE("Attach video params to sw decoder ctx fail: %d", result);
+        return OptFail;
+    }
+    result = avcodec_open2(videoDecoder->video_decoder_ctx, videoDecoder->video_decoder, nullptr);
+    if (result < 0) {
+        LOGE("Open video sw decoder ctx fail: %d", result);
+        return OptFail;
+    } else {
+        LOGD("Open video sw decoder ctx success.");
+    }
+    // endregion
+
+    decoder_open_success:
+    videoDecoder->video_pixel_format = videoDecoder->video_decoder_ctx->pix_fmt;
+    const char *codecName = nullptr;
+    if (videoDecoder->video_decoder->long_name) {
+        codecName = videoDecoder->video_decoder->long_name;
+    } else {
+        codecName = videoDecoder->video_decoder->name;
+    }
+    size_t codecNameLen = 0;
+    if (codecName) {
+        codecNameLen = strlen(codecName);
+    }
+    videoDecoder->videoDecoderName = static_cast<char *>(malloc((codecNameLen + 1) * sizeof(char)));
+    if (codecName) {
+        memcpy(videoDecoder->videoDecoderName, codecName, codecNameLen);
+    }
+    videoDecoder->videoDecoderName[codecNameLen] = '\0';
+    LOGD("Prepare video decoder success: %s", videoDecoder->videoDecoderName);
+    videoDecoder->video_frame = av_frame_alloc();
+    videoDecoder->video_pkt = av_packet_alloc();
+    return OptSuccess;
+}
+
+static void releaseVideoDecoder(VideoDecoder *videoDecoder) {
+    if (videoDecoder->video_frame != nullptr) {
+        av_frame_unref(videoDecoder->video_frame);
+        av_frame_free(&videoDecoder->video_frame);
+        videoDecoder->video_frame = nullptr;
+    }
+    if (videoDecoder->video_pkt != nullptr) {
+        av_packet_unref(videoDecoder->video_pkt);
+        av_packet_free(&videoDecoder->video_pkt);
+        videoDecoder->video_pkt = nullptr;
+    }
+    if (videoDecoder->video_sws_ctx != nullptr) {
+        sws_freeContext(videoDecoder->video_sws_ctx);
+        videoDecoder->video_sws_ctx = nullptr;
+    }
+    if (videoDecoder->videoDecoderName != nullptr) {
+        free(videoDecoder->videoDecoderName);
+        videoDecoder->videoDecoderName = nullptr;
+    }
+    if (videoDecoder->video_decoder_ctx != nullptr) {
+        avcodec_free_context(&videoDecoder->video_decoder_ctx);
+        videoDecoder->video_decoder_ctx = nullptr;
+    }
+    if (videoDecoder->hardware_ctx != nullptr) {
+        av_buffer_unref(&videoDecoder->hardware_ctx);
+        videoDecoder->hardware_ctx = nullptr;
+    }
+}
+
+static tMediaOptResult prepareAudioDecoder(
+        AVStream *audioStream,
+        int target_audio_channels,
+        int target_audio_sample_rate,
+        int target_audio_sample_bit_depth,
+        AudioDecoder *audioDecoder) {
+
+    int result = 0;
+
+    // audio channels
+    if (target_audio_channels == 1) {
+        audioDecoder->audio_output_channels = 1;
+        audioDecoder->audio_output_ch_layout = AV_CHANNEL_LAYOUT_MONO;
+    } else {
+        audioDecoder->audio_output_channels = 2;
+        audioDecoder->audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    }
+
+    // audio sample rate.
+    switch (target_audio_sample_rate) {
+        case 48000: {
+            audioDecoder->audio_output_sample_rate = 48000;
+            break;
+        }
+        case 96000: {
+            audioDecoder->audio_output_sample_rate = 96000;
+            break;
+        }
+        case 192000: {
+            audioDecoder->audio_output_sample_rate = 192000;
+            break;
+        }
+        default: {
+            audioDecoder->audio_output_sample_rate = 44100;
+        }
+    }
+
+    // audio output sample depth
+    switch (target_audio_sample_bit_depth) {
+        case 16: {
+            audioDecoder->audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
+            break;
+        }
+        case 32: {
+            audioDecoder->audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
+            break;
+        }
+        default: {
+            audioDecoder->audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
+        }
+    }
+
+    auto params = audioStream->codecpar;
+    audioDecoder->audio_decoder = avcodec_find_decoder(params->codec_id);
+    if (! audioDecoder->audio_decoder) {
+        LOGE("Didn't find audio decoder, codec_id=%d", params->codec_id);
+        return OptFail;
+    }
+    audioDecoder->audio_decoder_ctx = avcodec_alloc_context3(audioDecoder->audio_decoder);
+    if (!audioDecoder->audio_decoder_ctx) {
+        LOGE("Create audio decoder ctx fail");
+        return OptFail;
+    }
+    result = avcodec_parameters_to_context(audioDecoder->audio_decoder_ctx, params);
+    if (result < 0) {
+        LOGE("Attach params to audio ctx fail: %d", result);
+        return OptFail;
+    }
+    result = avcodec_open2(audioDecoder->audio_decoder_ctx, audioDecoder->audio_decoder, nullptr);
+    if (result < 0) {
+        LOGE("Open audio ctx fail: %d", result);
+        return OptFail;
+    }
+    audioDecoder->audio_swr_ctx = swr_alloc();
+
+    swr_alloc_set_opts2(&audioDecoder->audio_swr_ctx, &audioDecoder->audio_output_ch_layout, audioDecoder->audio_output_sample_fmt,audioDecoder->audio_output_sample_rate,
+                        &audioDecoder->audio_decoder_ctx->ch_layout, audioDecoder->audio_decoder_ctx->sample_fmt, audioDecoder->audio_decoder_ctx->sample_rate,
+                        0,nullptr);
+    result = swr_init(audioDecoder->audio_swr_ctx);
+    if (result < 0) {
+        LOGE("Init swr ctx fail: %d", result);
+        return OptFail;
+    }
+    const char *codecName = nullptr;
+    if (audioDecoder->audio_decoder->long_name) {
+        codecName = audioDecoder->audio_decoder->long_name;
+    } else {
+        codecName = audioDecoder->audio_decoder->name;
+    }
+    size_t codecNameLen = 0;
+    if (codecName) {
+        codecNameLen = strlen(codecName);
+    }
+    audioDecoder->audioDecoderName = static_cast<char *>(malloc((codecNameLen + 1) * sizeof(char)));
+    if (codecName) {
+        memcpy(audioDecoder->audioDecoderName, codecName, codecNameLen);
+    }
+    audioDecoder->audioDecoderName[codecNameLen] = '\0';
+    LOGD("Prepare audio decoder success: %s", codecName);
+    audioDecoder->audio_pkt = av_packet_alloc();
+    audioDecoder->audio_frame = av_frame_alloc();
+    return OptSuccess;
+}
+
+static void releaseAudioDecoder(AudioDecoder *audioDecoder) {
+    if (audioDecoder->audio_frame != nullptr) {
+        av_frame_unref(audioDecoder->audio_frame);
+        av_frame_free(&audioDecoder->audio_frame);
+        audioDecoder->audio_frame = nullptr;
+    }
+    if (audioDecoder->audio_pkt != nullptr) {
+        av_packet_unref(audioDecoder->audio_pkt);
+        av_packet_free(&audioDecoder->audio_pkt);
+        audioDecoder->audio_pkt = nullptr;
+    }
+    if (audioDecoder->audioDecoderName != nullptr) {
+        free(audioDecoder->audioDecoderName);
+        audioDecoder->audioDecoderName = nullptr;
+    }
+    if (audioDecoder->audio_swr_ctx != nullptr) {
+        swr_free(&audioDecoder->audio_swr_ctx);
+        audioDecoder->audio_swr_ctx = nullptr;
+    }
+    if (audioDecoder->audio_decoder_ctx != nullptr) {
+        avcodec_free_context(&audioDecoder->audio_decoder_ctx);
+        audioDecoder->audio_decoder_ctx = nullptr;
+    }
+}
+
 tMediaOptResult tMediaPlayerContext::prepare(
         const char *media_file_p,
         bool is_request_hw,
@@ -90,49 +408,6 @@ tMediaOptResult tMediaPlayerContext::prepare(
     if (result < 0) {
         LOGE("Avformat open file fail: %d", result);
         return OptFail;
-    }
-
-    // audio channels
-    if (target_audio_channels == 1) {
-        audio_output_channels = 1;
-        audio_output_ch_layout = AV_CHANNEL_LAYOUT_MONO;
-    } else {
-        audio_output_channels = 2;
-        audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
-    }
-
-    // audio sample rate.
-    switch (target_audio_sample_rate) {
-        case 48000: {
-            audio_output_sample_rate = 48000;
-            break;
-        }
-        case 96000: {
-            audio_output_sample_rate = 96000;
-            break;
-        }
-        case 192000: {
-            audio_output_sample_rate = 192000;
-            break;
-        }
-        default: {
-            audio_output_sample_rate = 44100;
-        }
-    }
-
-    // audio output sample depth
-    switch (target_audio_sample_bit_depth) {
-        case 16: {
-            audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
-            break;
-        }
-        case 32: {
-            audio_output_sample_fmt = AV_SAMPLE_FMT_S32;
-            break;
-        }
-        default: {
-            audio_output_sample_fmt = AV_SAMPLE_FMT_U8;
-        }
     }
 
     // Find stream info.
@@ -276,151 +551,18 @@ tMediaOptResult tMediaPlayerContext::prepare(
             this->video_fps = av_q2d(frameRate);
         }
         this->video_codec_id = params->codec_id;
-
-        //region Hardware Decoder
-        if (is_request_hw) {
-            // Find android hardware codec.
-            bool isFindHwDecoder = true;
-            const char * hwCodecName;
-            switch (params->codec_id) {
-                case AV_CODEC_ID_H264:
-                    hwCodecName = "h264_mediacodec";
-                    break;
-                case AV_CODEC_ID_HEVC:
-                    hwCodecName = "hevc_mediacodec";
-                    break;
-                case AV_CODEC_ID_AV1:
-                    hwCodecName = "av1_mediacodec";
-                    break;
-                case AV_CODEC_ID_VP8:
-                    hwCodecName = "vp8_mediacodec";
-                    break;
-                case AV_CODEC_ID_VP9:
-                    hwCodecName = "vp9_mediacodec";
-                    break;
-                default:
-                    isFindHwDecoder = false;
-                    break;
-            }
-            if (isFindHwDecoder) {
-                AVHWDeviceType hwDeviceType = av_hwdevice_find_type_by_name("mediacodec");
-                if (hwDeviceType == AV_HWDEVICE_TYPE_NONE) {
-                    while ((hwDeviceType = av_hwdevice_iterate_types(hwDeviceType)) != AV_HWDEVICE_TYPE_NONE) {}
-                }
-                const AVCodec *hwDecoder = avcodec_find_decoder_by_name(hwCodecName);
-                if (hwDecoder) {
-                    // find pixel format.
-                    for (int i = 0; ; ++i) {
-                        const AVCodecHWConfig *config = avcodec_get_hw_config(hwDecoder, i);
-                        if (!config) {
-                            break;
-                        }
-                        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == hwDeviceType) {
-                            hw_pix_fmt_i = config->pix_fmt;
-                            break;
-                        }
-                    }
-                    if (hw_pix_fmt_i != AV_PIX_FMT_NONE) {
-                        this->video_decoder = hwDecoder;
-                        result = av_hwdevice_ctx_create(&hardware_ctx, hwDeviceType, nullptr,
-                                                        nullptr, 0);
-                        if (result >= 0) {
-                            LOGD("Set up %s hw device ctx.", hwCodecName);
-                            this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
-                            if (video_decoder_ctx) {
-                                result = avcodec_parameters_to_context(video_decoder_ctx, params);
-                                if (result >= 0) {
-                                    video_decoder_ctx->get_format = get_hw_format;
-                                    video_decoder_ctx->hw_device_ctx = av_buffer_ref(hardware_ctx);
-                                    auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
-                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
-                                    mediaCodecCtx->create_window = 1;
-                                    result = av_hwdevice_ctx_init(hardware_ctx);
-                                    LOGD("HW init result: %d", result);
-                                    result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
-                                    if (result >= 0) {
-                                        LOGD("Open %s video hw decoder ctx success.", hwCodecName);
-                                        goto decoder_open_success;
-                                    } else {
-                                        avcodec_free_context(&video_decoder_ctx);
-                                        video_decoder_ctx = nullptr;
-                                        LOGE("Open %s video hw decoder ctx fail: %d", hwCodecName, result);
-                                    }
-                                } else {
-                                    avcodec_free_context(&video_decoder_ctx);
-                                    video_decoder_ctx = nullptr;
-                                    LOGE("Attach video params to %s hw ctx fail: %d", hwCodecName, result);
-                                }
-                            } else {
-                                LOGE("Create %s hw video decoder ctx fail.", hwCodecName);
-                            }
-                        } else {
-                            LOGE("Create %s hw device ctx fail: %d", hwCodecName, result);
-                        }
-                    } else {
-                        LOGE("Don't find %s hw decoder pix format", hwCodecName);
-                    }
-                } else {
-                    LOGE("Don't find hw decoder: %s", hwCodecName);
-                }
-            }
-        }
-        //endregion
-
-        //region Software Decoder
-        this->video_decoder = avcodec_find_decoder(params->codec_id);
-        if (video_decoder == nullptr) {
-            LOGE("Didn't find sw video decoder, codec_id=%d", params->codec_id);
-            return OptFail;
-        }
-        this->video_decoder_ctx = avcodec_alloc_context3(video_decoder);
-        if (!video_decoder_ctx) {
-            LOGE("Create sw video decoder ctx fail.");
-            return OptFail;
-        }
-        result = avcodec_parameters_to_context(video_decoder_ctx, params);
-        if (result < 0) {
-            LOGE("Attach video params to sw decoder ctx fail: %d", result);
-            return OptFail;
-        }
-        result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
-        if (result < 0) {
-            LOGE("Open video sw decoder ctx fail: %d", result);
-            return OptFail;
-        } else {
-            LOGD("Open video sw decoder ctx success.");
-        }
-        // endregion
-
-        // // set decode pixel size half
-        // video_decoder_ctx->lowres = 1;
-        // // set decode thread count
-        // video_decoder_ctx->thread_count = 1;
-        decoder_open_success:
-        this->video_pixel_format = video_decoder_ctx->pix_fmt;
-        const char *codecName = nullptr;
-        if (video_decoder->long_name) {
-            codecName = video_decoder->long_name;
-        } else {
-            codecName = video_decoder->name;
-        }
-        size_t codecNameLen = 0;
-        if (codecName) {
-            codecNameLen = strlen(codecName);
-        }
-        if (videoDecoderName != nullptr) {
-            free(videoDecoderName);
-        }
-        videoDecoderName = static_cast<char *>(malloc((codecNameLen + 1) * sizeof(char)));
-        if (codecName) {
-            memcpy(videoDecoderName, codecName, codecNameLen);
-        }
-        videoDecoderName[codecNameLen] = '\0';
         videoMetaData = new Metadata;
         readMetadata(video_stream->metadata, videoMetaData);
-        LOGD("Prepare video decoder success: %s", videoDecoderName);
-        this->video_frame = av_frame_alloc();
-        this->video_pkt = av_packet_alloc();
+
+        auto decoder = new VideoDecoder;
+        if (prepareVideoDecoder(video_stream, is_request_hw, nullptr, decoder) == OptSuccess) {
+            this->videoDecoder = decoder;
+        } else {
+            releaseVideoDecoder(decoder);
+            free(decoder);
+            this->videoDecoder = nullptr;
+        }
+
     }
 
     // Audio
@@ -429,66 +571,29 @@ tMediaOptResult tMediaPlayerContext::prepare(
         this->audio_codec_id = params->codec_id;
         this->audio_bits_per_raw_sample = params->bits_per_raw_sample;
         this->audio_bitrate = (int) params->bit_rate;
-        this->audio_decoder = avcodec_find_decoder(params->codec_id);
-        if (!audio_decoder) {
-            LOGE("Didn't find audio decoder, codec_id=%d", params->codec_id);
-            return OptFail;
-        }
-        this->audio_decoder_ctx = avcodec_alloc_context3(audio_decoder);
-        if (!audio_decoder_ctx) {
-            LOGE("Create audio decoder ctx fail");
-            return OptFail;
-        }
-        result = avcodec_parameters_to_context(audio_decoder_ctx, params);
-        if (result < 0) {
-            LOGE("Attach params to audio ctx fail: %d", result);
-            return OptFail;
-        }
-        result = avcodec_open2(audio_decoder_ctx, audio_decoder, nullptr);
-        if (result < 0) {
-            LOGE("Open audio ctx fail: %d", result);
-            return OptFail;
-        }
-        this->audio_channels = audio_decoder_ctx->ch_layout.nb_channels;
-        this->audio_per_sample_bytes = av_get_bytes_per_sample(audio_decoder_ctx->sample_fmt);
-        this->audio_sample_format = audio_decoder_ctx->sample_fmt;
-        this->audio_simple_rate = audio_decoder_ctx->sample_rate;
-        this->audio_swr_ctx = swr_alloc();
-
-        swr_alloc_set_opts2(&audio_swr_ctx, &audio_output_ch_layout, audio_output_sample_fmt,audio_output_sample_rate,
-                            &audio_decoder_ctx->ch_layout, audio_decoder_ctx->sample_fmt, audio_decoder_ctx->sample_rate,
-                            0,nullptr);
-        result = swr_init(audio_swr_ctx);
-        if (result < 0) {
-            LOGE("Init swr ctx fail: %d", result);
-            return OptFail;
-        }
-        const char *codecName = nullptr;
-        if (audio_decoder->long_name) {
-            codecName = audio_decoder->long_name;
-        } else {
-            codecName = audio_decoder->name;
-        }
-        size_t codecNameLen = 0;
-        if (codecName) {
-            codecNameLen = strlen(codecName);
-        }
-        if (audioDecoderName != nullptr) {
-            free(audioDecoderName);
-        }
-        audioDecoderName = static_cast<char *>(malloc((codecNameLen + 1) * sizeof(char)));
-        if (codecName) {
-            memcpy(audioDecoderName, codecName, codecNameLen);
-        }
-        audioDecoderName[codecNameLen] = '\0';
+        this->audio_channels = params->ch_layout.nb_channels;
+        this->audio_simple_rate = params->sample_rate;
+        this->audio_sample_format = static_cast<AVSampleFormat>(params->format);
+        this->audio_per_sample_bytes = av_get_bytes_per_sample(this->audio_sample_format);
         audioMetadata = new Metadata;
         readMetadata(audio_stream->metadata, audioMetadata);
-        LOGD("Prepare audio decoder success: %s", codecName);
-        this->audio_frame = av_frame_alloc();
-        this->audio_pkt = av_packet_alloc();
+
+        auto decoder = new AudioDecoder;
+        if (prepareAudioDecoder(audio_stream, target_audio_channels, target_audio_sample_rate, target_audio_sample_bit_depth, decoder) == OptSuccess) {
+            this->audioDecoder = decoder;
+        } else {
+            releaseAudioDecoder(decoder);
+            free(decoder);
+            this->audioDecoder = nullptr;
+        }
     }
 
-    // decode need buffers.
+    if (this->videoDecoder == nullptr && this->audioDecoder == nullptr) {
+        LOGE("Prepare decoder fail.");
+        return OptFail;
+    }
+
+    // decode need buffer.
     this->pkt = av_packet_alloc();
 
     return OptSuccess;
@@ -592,344 +697,353 @@ tMediaDecodeResult decode(AVCodecContext *codec_ctx, AVFrame* frame, AVPacket *p
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeVideo(AVPacket *targetPkt) const {
-    if (targetPkt != nullptr) {
-        av_packet_move_ref(video_pkt, targetPkt);
+    if (videoDecoder != nullptr) {
+        if (targetPkt != nullptr) {
+            av_packet_move_ref(videoDecoder->video_pkt, targetPkt);
+        }
+        return decode(videoDecoder->video_decoder_ctx, videoDecoder->video_frame, videoDecoder->video_pkt);
+    } else {
+        LOGE("Decode video fail, decoder is null.");
+        return DecodeFail;
     }
-    return decode(video_decoder_ctx, video_frame, video_pkt);
 }
 
 void tMediaPlayerContext::flushVideoCodecBuffer() const {
-    avcodec_flush_buffers(video_decoder_ctx);
+    if (videoDecoder != nullptr) {
+        avcodec_flush_buffers(videoDecoder->video_decoder_ctx);
+    }
 }
 
 tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBuffer *videoBuffer) {
-    int w = video_frame->width;
-    int h = video_frame->height;
-    auto format = video_frame->format;
+    if (videoDecoder != nullptr) {
+        auto video_frame = videoDecoder->video_frame;
+        int w = video_frame->width;
+        int h = video_frame->height;
+        auto format = video_frame->format;
 //    auto colorRange = frame->color_range;
 //    auto colorPrimaries = frame->color_primaries;
 //    auto colorSpace = frame->colorspace;
-    if (format == AV_PIX_FMT_YUV420P) {
-        if (w % YUV_ALIGN_SIZE == 0) {
+        if (format == AV_PIX_FMT_YUV420P) {
+            if (w % YUV_ALIGN_SIZE == 0) {
+                videoBuffer->width = w;
+            } else {
+                videoBuffer->width = w + (YUV_ALIGN_SIZE - (w % YUV_ALIGN_SIZE));
+            }
+            videoBuffer->height = h;
+            int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, videoBuffer->width, videoBuffer->height, 1);
+            int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, videoBuffer->width, videoBuffer->height, 1);
+            int uSize = (yuvSize - ySize) / 2;
+            int vSize = uSize;
+
+            // alloc Y buffer if need.
+            if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
+                if (videoBuffer->yBuffer != nullptr) {
+                    free(videoBuffer->yBuffer);
+                }
+                videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+                videoBuffer->yBufferSize = ySize;
+            }
+
+            // alloc U buffer if need.
+            if (videoBuffer->uBufferSize < uSize || videoBuffer->uBuffer == nullptr) {
+                if (videoBuffer->uBuffer != nullptr) {
+                    free(videoBuffer->uBuffer);
+                }
+                videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
+                videoBuffer->uBufferSize = uSize;
+            }
+
+            // // alloc V buffer if need.
+            if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
+                if (videoBuffer->vBuffer != nullptr) {
+                    free(videoBuffer->vBuffer);
+                }
+                videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
+                videoBuffer->vBufferSize = vSize;
+            }
+            uint8_t *yBuffer = videoBuffer->yBuffer;
+            uint8_t *uBuffer = videoBuffer->uBuffer;
+            uint8_t *vBuffer = videoBuffer->vBuffer;
+            int lineSize[AV_NUM_DATA_POINTERS];
+            av_image_fill_linesizes(lineSize, AV_PIX_FMT_YUV420P, videoBuffer->width);
+            // Copy yuv data to video frame.
+            av_image_copy_plane(yBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
+            av_image_copy_plane(uBuffer, lineSize[1], video_frame->data[1], video_frame->linesize[1], lineSize[1], h / 2);
+            av_image_copy_plane(vBuffer, lineSize[2], video_frame->data[2], video_frame->linesize[2], lineSize[2], h / 2);
+            videoBuffer->yContentSize = ySize;
+            videoBuffer->uContentSize = uSize;
+            videoBuffer->vContentSize = vSize;
+            videoBuffer->type = Yuv420p;
+        } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21)) {
+            if (w % YUV_ALIGN_SIZE == 0) {
+                videoBuffer->width = w;
+            } else {
+                videoBuffer->width = w + (YUV_ALIGN_SIZE - (w % YUV_ALIGN_SIZE));
+            }
+            videoBuffer->height = h;
+            int yuvSize;
+            if (format == AV_PIX_FMT_NV12) {
+                yuvSize = av_image_get_buffer_size(AV_PIX_FMT_NV12, videoBuffer->width, videoBuffer->height, 1);
+            } else {
+                yuvSize = av_image_get_buffer_size(AV_PIX_FMT_NV21, videoBuffer->width, videoBuffer->height, 1);
+            }
+            int ySize =  av_image_get_buffer_size(AV_PIX_FMT_GRAY8, videoBuffer->width, videoBuffer->height, 1);
+            int uvSize = yuvSize - ySize;
+            // alloc Y buffer if need.
+            if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
+                if (videoBuffer->yBuffer != nullptr) {
+                    free(videoBuffer->yBuffer);
+                }
+                videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+                videoBuffer->yBufferSize = ySize;
+            }
+
+            // alloc UV buffer if need.
+            if (videoBuffer->uvBufferSize < uvSize || videoBuffer->uvBuffer == nullptr) {
+                if (videoBuffer->uvBuffer != nullptr) {
+                    free(videoBuffer->uvBuffer);
+                }
+                videoBuffer->uvBuffer = static_cast<uint8_t *>(av_malloc(uvSize * sizeof(uint8_t)));
+                videoBuffer->uvBufferSize = uvSize;
+            }
+            uint8_t *yBuffer = videoBuffer->yBuffer;
+            uint8_t *uvBuffer = videoBuffer->uvBuffer;
+            int lineSize[AV_NUM_DATA_POINTERS];
+            if (format == AV_PIX_FMT_NV12) {
+                av_image_fill_linesizes(lineSize, AV_PIX_FMT_NV12, videoBuffer->width);
+            } else {
+                av_image_fill_linesizes(lineSize, AV_PIX_FMT_NV21, videoBuffer->width);
+            }
+            // Copy Y buffer.
+            av_image_copy_plane(yBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
+            // Copy UV buffer.
+            av_image_copy_plane(uvBuffer, lineSize[1], video_frame->data[1], video_frame->linesize[1], lineSize[1], h / 2);
+            videoBuffer->yContentSize = ySize;
+            videoBuffer->uvContentSize = uvSize;
+            if (video_frame->format == AV_PIX_FMT_NV12) {
+                videoBuffer->type = Nv12;
+            } else {
+                videoBuffer->type = Nv21;
+            }
+        } else if (format == AV_PIX_FMT_RGBA) {
             videoBuffer->width = w;
-        } else {
-            videoBuffer->width = w + (YUV_ALIGN_SIZE - (w % YUV_ALIGN_SIZE));
-        }
-        videoBuffer->height = h;
-        int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, videoBuffer->width, videoBuffer->height, 1);
-        int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, videoBuffer->width, videoBuffer->height, 1);
-        int uSize = (yuvSize - ySize) / 2;
-        int vSize = uSize;
-
-        // alloc Y buffer if need.
-        if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
-            if (videoBuffer->yBuffer != nullptr) {
-                free(videoBuffer->yBuffer);
+            videoBuffer->height = h;
+            int rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
+            // alloc rgba data if need.
+            if (videoBuffer->rgbaBufferSize < rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
+                if (videoBuffer->rgbaBuffer != nullptr) {
+                    free(videoBuffer->rgbaBuffer);
+                }
+                videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaSize * sizeof(uint8_t)));
+                videoBuffer->rgbaBufferSize = rgbaSize;
             }
-            videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
-            videoBuffer->yBufferSize = ySize;
-        }
-
-        // alloc U buffer if need.
-        if (videoBuffer->uBufferSize < uSize || videoBuffer->uBuffer == nullptr) {
-            if (videoBuffer->uBuffer != nullptr) {
-                free(videoBuffer->uBuffer);
-            }
-            videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
-            videoBuffer->uBufferSize = uSize;
-        }
-
-        // // alloc V buffer if need.
-        if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
-            if (videoBuffer->vBuffer != nullptr) {
-                free(videoBuffer->vBuffer);
-            }
-            videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
-            videoBuffer->vBufferSize = vSize;
-        }
-        uint8_t *yBuffer = videoBuffer->yBuffer;
-        uint8_t *uBuffer = videoBuffer->uBuffer;
-        uint8_t *vBuffer = videoBuffer->vBuffer;
-        int lineSize[AV_NUM_DATA_POINTERS];
-        av_image_fill_linesizes(lineSize, AV_PIX_FMT_YUV420P, videoBuffer->width);
-        // Copy yuv data to video frame.
-        av_image_copy_plane(yBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
-        av_image_copy_plane(uBuffer, lineSize[1], video_frame->data[1], video_frame->linesize[1], lineSize[1], h / 2);
-        av_image_copy_plane(vBuffer, lineSize[2], video_frame->data[2], video_frame->linesize[2], lineSize[2], h / 2);
-        videoBuffer->yContentSize = ySize;
-        videoBuffer->uContentSize = uSize;
-        videoBuffer->vContentSize = vSize;
-        videoBuffer->type = Yuv420p;
-    } else if ((format == AV_PIX_FMT_NV12 || format == AV_PIX_FMT_NV21)) {
-        if (w % YUV_ALIGN_SIZE == 0) {
+            uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
+            int lineSize[AV_NUM_DATA_POINTERS];
+            av_image_fill_linesizes(lineSize, AV_PIX_FMT_RGBA, videoBuffer->width);
+            av_image_copy_plane(rgbaBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
+            // Copy RGBA data.
+            // copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
+            videoBuffer->rgbaContentSize = rgbaSize;
+            videoBuffer->type = Rgba;
+        } else if (hw_pix_fmt_i != AV_PIX_FMT_NONE && format == hw_pix_fmt_i) {
             videoBuffer->width = w;
+            videoBuffer->height = h;
+            videoBuffer->type = HwSurface;
         } else {
-            videoBuffer->width = w + (YUV_ALIGN_SIZE - (w % YUV_ALIGN_SIZE));
-        }
-        videoBuffer->height = h;
-        int yuvSize;
-        if (format == AV_PIX_FMT_NV12) {
-            yuvSize = av_image_get_buffer_size(AV_PIX_FMT_NV12, videoBuffer->width, videoBuffer->height, 1);
-        } else {
-            yuvSize = av_image_get_buffer_size(AV_PIX_FMT_NV21, videoBuffer->width, videoBuffer->height, 1);
-        }
-        int ySize =  av_image_get_buffer_size(AV_PIX_FMT_GRAY8, videoBuffer->width, videoBuffer->height, 1);
-        int uvSize = yuvSize - ySize;
-        // alloc Y buffer if need.
-        if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
-            if (videoBuffer->yBuffer != nullptr) {
-                free(videoBuffer->yBuffer);
-            }
-            videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
-            videoBuffer->yBufferSize = ySize;
-        }
-
-        // alloc UV buffer if need.
-        if (videoBuffer->uvBufferSize < uvSize || videoBuffer->uvBuffer == nullptr) {
-            if (videoBuffer->uvBuffer != nullptr) {
-                free(videoBuffer->uvBuffer);
-            }
-            videoBuffer->uvBuffer = static_cast<uint8_t *>(av_malloc(uvSize * sizeof(uint8_t)));
-            videoBuffer->uvBufferSize = uvSize;
-        }
-        uint8_t *yBuffer = videoBuffer->yBuffer;
-        uint8_t *uvBuffer = videoBuffer->uvBuffer;
-        int lineSize[AV_NUM_DATA_POINTERS];
-        if (format == AV_PIX_FMT_NV12) {
-            av_image_fill_linesizes(lineSize, AV_PIX_FMT_NV12, videoBuffer->width);
-        } else {
-            av_image_fill_linesizes(lineSize, AV_PIX_FMT_NV21, videoBuffer->width);
-        }
-        // Copy Y buffer.
-        av_image_copy_plane(yBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
-        // Copy UV buffer.
-        av_image_copy_plane(uvBuffer, lineSize[1], video_frame->data[1], video_frame->linesize[1], lineSize[1], h / 2);
-        videoBuffer->yContentSize = ySize;
-        videoBuffer->uvContentSize = uvSize;
-        if (video_frame->format == AV_PIX_FMT_NV12) {
-            videoBuffer->type = Nv12;
-        } else {
-            videoBuffer->type = Nv21;
-        }
-    } else if (format == AV_PIX_FMT_RGBA) {
-        videoBuffer->width = w;
-        videoBuffer->height = h;
-        int rgbaSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
-        // alloc rgba data if need.
-        if (videoBuffer->rgbaBufferSize < rgbaSize || videoBuffer->rgbaBuffer == nullptr) {
-            if (videoBuffer->rgbaBuffer != nullptr) {
-                free(videoBuffer->rgbaBuffer);
-            }
-            videoBuffer->rgbaBuffer = static_cast<uint8_t *>(av_malloc(rgbaSize * sizeof(uint8_t)));
-            videoBuffer->rgbaBufferSize = rgbaSize;
-        }
-        uint8_t *rgbaBuffer = videoBuffer->rgbaBuffer;
-        int lineSize[AV_NUM_DATA_POINTERS];
-        av_image_fill_linesizes(lineSize, AV_PIX_FMT_RGBA, videoBuffer->width);
-        av_image_copy_plane(rgbaBuffer, lineSize[0], video_frame->data[0], video_frame->linesize[0], lineSize[0], h);
-        // Copy RGBA data.
-        // copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
-        videoBuffer->rgbaContentSize = rgbaSize;
-        videoBuffer->type = Rgba;
-    } else if (hw_pix_fmt_i != AV_PIX_FMT_NONE && format == hw_pix_fmt_i) {
-        videoBuffer->width = w;
-        videoBuffer->height = h;
-        videoBuffer->type = HwSurface;
-    } else {
-        // Others format need to convert to Yuv420p.
-        if (w != video_width ||
-            h != video_height ||
-            video_sws_ctx == nullptr) {
-            LOGD("Decode video change rgbaSize, recreate sws ctx.");
-            if (video_sws_ctx != nullptr) {
-                sws_freeContext(video_sws_ctx);
+            // Others format need to convert to Yuv420p.
+            if (w != video_width ||
+                h != video_height ||
+                videoDecoder->video_sws_ctx == nullptr) {
+                LOGD("Decode video change rgbaSize, recreate sws ctx.");
+                if (videoDecoder->video_sws_ctx != nullptr) {
+                    sws_freeContext(videoDecoder->video_sws_ctx);
+                }
+                videoDecoder->video_sws_ctx = sws_getContext(
+                        w,
+                        h,
+                        (AVPixelFormat) video_frame->format,
+                        w,
+                        h,
+                        AV_PIX_FMT_YUV420P,
+                        SWS_BICUBIC,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+                if (videoDecoder->video_sws_ctx == nullptr) {
+                    LOGE("Decode video fail, sws ctx create fail: %d, %d, %d, %d", video_frame->format == AV_PIX_FMT_MEDIACODEC, video_frame->linesize[0], video_frame->linesize[1], video_frame->linesize[2]);
+                    return OptFail;
+                }
             }
 
-            this->video_sws_ctx = sws_getContext(
-                    w,
-                    h,
-                    (AVPixelFormat) video_frame->format,
-                    w,
-                    h,
-                    AV_PIX_FMT_YUV420P,
-                    SWS_BICUBIC,
-                    nullptr,
-                    nullptr,
-                    nullptr);
-            if (video_sws_ctx == nullptr) {
-                LOGE("Decode video fail, sws ctx create fail: %d, %d, %d, %d", video_frame->format == AV_PIX_FMT_MEDIACODEC, video_frame->linesize[0], video_frame->linesize[1], video_frame->linesize[2]);
+            if (w % YUV_ALIGN_SIZE == 0) {
+                videoBuffer->width = w;
+            } else {
+                videoBuffer->width = w + (YUV_ALIGN_SIZE - (w % YUV_ALIGN_SIZE));
+            }
+            videoBuffer->height = h;
+            int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, videoBuffer->width, videoBuffer->height, 1);
+            int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, videoBuffer->width, videoBuffer->height, 1);
+            int uSize = (yuvSize - ySize) / 2;
+            int vSize = uSize;
+
+            // alloc Y buffer if need.
+            if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
+                if (videoBuffer->yBuffer != nullptr) {
+                    free(videoBuffer->yBuffer);
+                }
+                videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
+                videoBuffer->yBufferSize = ySize;
+            }
+
+            // alloc U buffer if need.
+            if (videoBuffer->uBufferSize < uSize || videoBuffer->uBuffer == nullptr) {
+                if (videoBuffer->uBuffer != nullptr) {
+                    free(videoBuffer->uBuffer);
+                }
+                videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
+                videoBuffer->uBufferSize = uSize;
+            }
+
+            // // alloc V buffer if need.
+            if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
+                if (videoBuffer->vBuffer != nullptr) {
+                    free(videoBuffer->vBuffer);
+                }
+                videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
+                videoBuffer->vBufferSize = vSize;
+            }
+
+            uint8_t *data[AV_NUM_DATA_POINTERS] = {videoBuffer->yBuffer, videoBuffer->uBuffer, videoBuffer->vBuffer};
+            int lineSize[AV_NUM_DATA_POINTERS];
+            av_image_fill_linesizes(lineSize, AV_PIX_FMT_YUV420P, videoBuffer->width);
+            // Convert to yuv420p.
+            int result = sws_scale(videoDecoder->video_sws_ctx, video_frame->data, video_frame->linesize, 0, video_frame->height, data, lineSize);
+            if (result < 0) {
+                videoBuffer->type = UnknownImgType;
+                // Convert fail.
+                LOGE("Decode video sws scale fail: %d", result);
                 return OptFail;
             }
+            videoBuffer->yContentSize = ySize;
+            videoBuffer->uContentSize = uSize;
+            videoBuffer->vContentSize = vSize;
+            videoBuffer->type = Yuv420p;
         }
-
-        if (w % YUV_ALIGN_SIZE == 0) {
-            videoBuffer->width = w;
+        auto time_base = video_stream->time_base;
+        if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
+            videoBuffer->pts = (int64_t) ((double)video_frame->pts * av_q2d(time_base) * 1000.0);
         } else {
-            videoBuffer->width = w + (YUV_ALIGN_SIZE - (w % YUV_ALIGN_SIZE));
+            videoBuffer->pts = 0L;
         }
-        videoBuffer->height = h;
-        int yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, videoBuffer->width, videoBuffer->height, 1);
-        int ySize = av_image_get_buffer_size(AV_PIX_FMT_GRAY8, videoBuffer->width, videoBuffer->height, 1);
-        int uSize = (yuvSize - ySize) / 2;
-        int vSize = uSize;
-
-        // alloc Y buffer if need.
-        if (videoBuffer->yBufferSize < ySize || videoBuffer->yBuffer == nullptr) {
-            if (videoBuffer->yBuffer != nullptr) {
-                free(videoBuffer->yBuffer);
-            }
-            videoBuffer->yBuffer = static_cast<uint8_t *>(av_malloc(ySize * sizeof(uint8_t)));
-            videoBuffer->yBufferSize = ySize;
+        if (time_base.den > 0) {
+            videoBuffer->duration = (int64_t) ((double)video_frame->duration * av_q2d(time_base) * 1000.0);
+        } else {
+            videoBuffer->duration = 0L;
         }
-
-        // alloc U buffer if need.
-        if (videoBuffer->uBufferSize < uSize || videoBuffer->uBuffer == nullptr) {
-            if (videoBuffer->uBuffer != nullptr) {
-                free(videoBuffer->uBuffer);
-            }
-            videoBuffer->uBuffer = static_cast<uint8_t *>(av_malloc(uSize * sizeof(uint8_t)));
-            videoBuffer->uBufferSize = uSize;
+        if (w != video_width || h != video_height) {
+            video_width = w;
+            video_height = h;
         }
-
-        // // alloc V buffer if need.
-        if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
-            if (videoBuffer->vBuffer != nullptr) {
-                free(videoBuffer->vBuffer);
-            }
-            videoBuffer->vBuffer = static_cast<uint8_t *>(av_malloc(vSize * sizeof(uint8_t)));
-            videoBuffer->vBufferSize = vSize;
-        }
-
-        uint8_t *data[AV_NUM_DATA_POINTERS] = {videoBuffer->yBuffer, videoBuffer->uBuffer, videoBuffer->vBuffer};
-        int lineSize[AV_NUM_DATA_POINTERS];
-        av_image_fill_linesizes(lineSize, AV_PIX_FMT_YUV420P, videoBuffer->width);
-        // Convert to yuv420p.
-        int result = sws_scale(video_sws_ctx, video_frame->data, video_frame->linesize, 0, video_frame->height, data, lineSize);
-        if (result < 0) {
-            videoBuffer->type = UnknownImgType;
-            // Convert fail.
-            LOGE("Decode video sws scale fail: %d", result);
-            return OptFail;
-        }
-        videoBuffer->yContentSize = ySize;
-        videoBuffer->uContentSize = uSize;
-        videoBuffer->vContentSize = vSize;
-        videoBuffer->type = Yuv420p;
-    }
-    auto time_base = video_stream->time_base;
-    if (time_base.den > 0 && video_frame->pts != AV_NOPTS_VALUE) {
-        videoBuffer->pts = (int64_t) ((double)video_frame->pts * av_q2d(time_base) * 1000.0);
+        av_frame_unref(video_frame);
+        return OptSuccess;
     } else {
-        videoBuffer->pts = 0L;
+        return OptFail;
     }
-    if (time_base.den > 0) {
-        videoBuffer->duration = (int64_t) ((double)video_frame->duration * av_q2d(time_base) * 1000.0);
-    } else {
-        videoBuffer->duration = 0L;
-    }
-    if (w != video_width || h != video_height) {
-        video_width = w;
-        video_height = h;
-    }
-    av_frame_unref(video_frame);
-    return OptSuccess;
 }
 
 tMediaDecodeResult tMediaPlayerContext::decodeAudio(AVPacket *targetPkt) const {
-    if (targetPkt != nullptr) {
-        av_packet_move_ref(audio_pkt, targetPkt);
+    if (audioDecoder != nullptr) {
+        if (targetPkt != nullptr) {
+            av_packet_move_ref(audioDecoder->audio_pkt, targetPkt);
+        }
+        return decode(audioDecoder->audio_decoder_ctx, audioDecoder->audio_frame, audioDecoder->audio_pkt);
+    } else {
+        LOGE("Decode audio fail, decoder is null.");
+        return DecodeFail;
     }
-    return decode(audio_decoder_ctx, audio_frame, audio_pkt);
 }
 
 void tMediaPlayerContext::flushAudioCodecBuffer() const {
-    avcodec_flush_buffers(audio_decoder_ctx);
+    if (audioDecoder != nullptr) {
+        avcodec_flush_buffers(audioDecoder->audio_decoder_ctx);
+    }
 }
 
 tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBuffer *audioBuffer) const {
-    int in_nb_samples = audio_frame->nb_samples;
+    if (audioDecoder != nullptr) {
+        auto audio_frame = audioDecoder->audio_frame;
+        int in_nb_samples = audio_frame->nb_samples;
 
-    // Get current output frame contains sample bufferSize per channel.
-    int out_nb_samples = (int) av_rescale_rnd( swr_get_delay(audio_swr_ctx, audio_frame->sample_rate) + in_nb_samples, audio_output_sample_rate, audio_decoder_ctx->sample_rate, AV_ROUND_UP); // swr_get_out_samples(swr_ctx, in_nb_samples);
+        // Get current output frame contains sample bufferSize per channel.
+        int out_nb_samples = (int) av_rescale_rnd( swr_get_delay(audioDecoder->audio_swr_ctx, audio_frame->sample_rate) + in_nb_samples, audioDecoder->audio_output_sample_rate, audioDecoder->audio_decoder_ctx->sample_rate, AV_ROUND_UP); // swr_get_out_samples(swr_ctx, in_nb_samples);
 
-    if (out_nb_samples <= 0) {
-        LOGE("Get out put nb samples fail: %d", out_nb_samples);
-        return OptFail;
-    }
-    // Get current output audio frame need buffer bufferSize.
-    int lineSize = 0;
-    int out_audio_buffer_size = av_samples_get_buffer_size(&lineSize, audio_output_channels, out_nb_samples, audio_output_sample_fmt, 1);
-    // Alloc pcm buffer if need.
-    if (audioBuffer->bufferSize < out_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
-        int in_audio_buffer_size = av_samples_get_buffer_size(audio_frame->linesize, audio_channels, in_nb_samples, audio_decoder_ctx->sample_fmt, 1);
-        LOGD("Decode audio change bufferSize, outBufferSize=%d, need bufferSize=%d, inBufferSize=%d", audioBuffer->bufferSize, out_audio_buffer_size, in_audio_buffer_size);
-        if (audioBuffer->pcmBuffer != nullptr) {
-            free(audioBuffer->pcmBuffer);
+        if (out_nb_samples <= 0) {
+            LOGE("Get out put nb samples fail: %d", out_nb_samples);
+            return OptFail;
         }
-        audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(out_audio_buffer_size));
-        audioBuffer->bufferSize = out_audio_buffer_size;
-    }
-    // Convert to target output pcm format data.
-    int real_out_nb_samples = swr_convert(audio_swr_ctx, &(audioBuffer->pcmBuffer), out_nb_samples, (const uint8_t **)(audio_frame->data), in_nb_samples);
-    if (real_out_nb_samples < 0) {
-        LOGE("Decode audio swr convert fail: %d", real_out_nb_samples);
+        // Get current output audio frame need buffer bufferSize.
+        int lineSize = 0;
+        int out_audio_buffer_size = av_samples_get_buffer_size(&lineSize, audioDecoder->audio_output_channels, out_nb_samples, audioDecoder->audio_output_sample_fmt, 1);
+        // Alloc pcm buffer if need.
+        if (audioBuffer->bufferSize < out_audio_buffer_size || audioBuffer->pcmBuffer == nullptr) {
+            int in_audio_buffer_size = av_samples_get_buffer_size(audio_frame->linesize, audio_channels, in_nb_samples, audioDecoder->audio_decoder_ctx->sample_fmt, 1);
+            LOGD("Decode audio change bufferSize, outBufferSize=%d, need bufferSize=%d, inBufferSize=%d", audioBuffer->bufferSize, out_audio_buffer_size, in_audio_buffer_size);
+            if (audioBuffer->pcmBuffer != nullptr) {
+                free(audioBuffer->pcmBuffer);
+            }
+            audioBuffer->pcmBuffer = static_cast<uint8_t *>(malloc(out_audio_buffer_size));
+            audioBuffer->bufferSize = out_audio_buffer_size;
+        }
+        // Convert to target output pcm format data.
+        int real_out_nb_samples = swr_convert(audioDecoder->audio_swr_ctx, &(audioBuffer->pcmBuffer), out_nb_samples, (const uint8_t **)(audio_frame->data), in_nb_samples);
+        if (real_out_nb_samples < 0) {
+            LOGE("Decode audio swr convert fail: %d", real_out_nb_samples);
+            return OptFail;
+        }
+        auto time_base = audio_stream->time_base;
+        if (time_base.den > 0 && audio_frame->pts != AV_NOPTS_VALUE) {
+            audioBuffer->pts = (int64_t) ((double)audio_frame->pts * av_q2d(time_base) * 1000.0);
+        } else {
+            audioBuffer->pts = 0L;
+        }
+        if (time_base.den > 0) {
+            audioBuffer->duration = (int64_t) ((double)audio_frame->duration * av_q2d(time_base) * 1000.0);
+        } else {
+            audioBuffer->duration = 0L;
+        }
+        int contentBufferSize = av_samples_get_buffer_size(&lineSize, audioDecoder->audio_output_channels, real_out_nb_samples, audioDecoder->audio_output_sample_fmt, 1);
+        audioBuffer->contentSize = lineSize;
+        if (contentBufferSize != lineSize) {
+            LOGE("output lineSize=%d, contentBufferSize=%d", lineSize, contentBufferSize);
+        }
+        av_frame_unref(audio_frame);
+        return OptSuccess;
+    } else {
         return OptFail;
     }
-    auto time_base = audio_stream->time_base;
-    if (time_base.den > 0 && audio_frame->pts != AV_NOPTS_VALUE) {
-        audioBuffer->pts = (int64_t) ((double)audio_frame->pts * av_q2d(time_base) * 1000.0);
-    } else {
-        audioBuffer->pts = 0L;
-    }
-    if (time_base.den > 0) {
-        audioBuffer->duration = (int64_t) ((double)audio_frame->duration * av_q2d(time_base) * 1000.0);
-    } else {
-        audioBuffer->duration = 0L;
-    }
-    int contentBufferSize = av_samples_get_buffer_size(&lineSize, audio_output_channels, real_out_nb_samples, audio_output_sample_fmt, 1);
-    audioBuffer->contentSize = lineSize;
-    if (contentBufferSize != lineSize) {
-        LOGE("output lineSize=%d, contentBufferSize=%d", lineSize, contentBufferSize);
-    }
-    av_frame_unref(audio_frame);
-    return OptSuccess;
 }
 
 tMediaOptResult tMediaPlayerContext::setHwSurface(jobject surface) const {
-    if (hardware_ctx != nullptr) {
-        auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
-        auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
-        mediaCodecCtx->surface = surface;
-        mediaCodecCtx->native_window = nullptr;
-        mediaCodecCtx->create_window = 0;
-        int result = av_hwdevice_ctx_init(hardware_ctx);
-        if (result == 0) {
-            LOGD("Set hw surface success.");
-            return OptSuccess;
-        } else {
-            LOGE("Set hw surface fail: %d", result);
-            return OptFail;
-        }
-    } else {
-        LOGE("Set hw surface fail, do not support hw decoder.");
-        return OptFail;
-    }
-}
-
-void releaseMetadata(Metadata *src) {
-    for (int i = 0; i < src->metadataCount; i ++) {
-        char *key = src->metadata[i * 2];
-        char *value = src->metadata[i * 2 + 1];
-        free(key);
-        free(value);
-        src->metadata[i * 2] = nullptr;
-        src->metadata[i * 2 + 1] = nullptr;
-    }
-    src->metadataCount = 0;
-    if (src->metadata != nullptr) {
-        free(src->metadata);
-    }
-    src->metadata = nullptr;
+    // TODO:
+//    if (hardware_ctx != nullptr) {
+//        auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
+//        auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
+//        mediaCodecCtx->surface = surface;
+//        mediaCodecCtx->native_window = nullptr;
+//        mediaCodecCtx->create_window = 0;
+//        int result = av_hwdevice_ctx_init(hardware_ctx);
+//        if (result == 0) {
+//            LOGD("Set hw surface success.");
+//            return OptSuccess;
+//        } else {
+//            LOGE("Set hw surface fail: %d", result);
+//            return OptFail;
+//        }
+//    } else {
+//        LOGE("Set hw surface fail, do not support hw decoder.");
+//        return OptFail;
+//    }
+    return OptFail;
 }
 
 void tMediaPlayerContext::requestInterruptReadPkt() {
@@ -961,66 +1075,28 @@ void tMediaPlayerContext::release() {
         containerName = nullptr;
     }
 
-    // Video Release.
-    if (video_decoder_ctx != nullptr) {
-        avcodec_free_context(&video_decoder_ctx);
-        video_decoder_ctx = nullptr;
-    }
-    if (hardware_ctx != nullptr) {
-        av_buffer_unref(&hardware_ctx);
-        hardware_ctx = nullptr;
-    }
-    if (video_sws_ctx != nullptr) {
-        sws_freeContext(video_sws_ctx);
-        video_sws_ctx = nullptr;
-    }
-    if (video_frame != nullptr) {
-        av_frame_unref(video_frame);
-        av_frame_free(&video_frame);
-        video_frame = nullptr;
-    }
-    if (video_pkt != nullptr) {
-        av_packet_unref(video_pkt);
-        av_packet_free(&video_pkt);
-        video_pkt = nullptr;
-    }
-    if (videoDecoderName != nullptr) {
-        free(videoDecoderName);
-        videoDecoderName = nullptr;
-    }
+    // Video Release
     if (videoMetaData != nullptr) {
         releaseMetadata(videoMetaData);
         free(videoMetaData);
         videoMetaData = nullptr;
     }
+    if (videoDecoder != nullptr) {
+        releaseVideoDecoder(videoDecoder);
+        free(videoDecoder);
+        videoDecoder = nullptr;
+    }
 
     // Audio free.
-    if (audio_decoder_ctx != nullptr) {
-        avcodec_free_context(&audio_decoder_ctx);
-        audio_decoder_ctx = nullptr;
-    }
-    if (audio_swr_ctx != nullptr) {
-        swr_free(&audio_swr_ctx);
-        audio_swr_ctx = nullptr;
-    }
-    if (audio_frame != nullptr) {
-        av_frame_unref(audio_frame);
-        av_frame_free(&audio_frame);
-        audio_frame = nullptr;
-    }
-    if (audio_pkt != nullptr) {
-        av_packet_unref(audio_pkt);
-        av_packet_free(&audio_pkt);
-        audio_pkt = nullptr;
-    }
-    if (audioDecoderName != nullptr) {
-        free(audioDecoderName);
-        audioDecoderName = nullptr;
-    }
     if (audioMetadata != nullptr) {
         releaseMetadata(audioMetadata);
         free(audioMetadata);
         audioMetadata = nullptr;
+    }
+    if (audioDecoder != nullptr) {
+        releaseAudioDecoder(audioDecoder);
+        free(audioDecoder);
+        audioDecoder = nullptr;
     }
 
     // Subtitle free

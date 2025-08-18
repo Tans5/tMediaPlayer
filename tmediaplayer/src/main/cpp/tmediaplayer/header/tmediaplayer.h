@@ -95,18 +95,43 @@ typedef struct SubtitleStream {
     Metadata streamMetadata;
 } SubtitleStream;
 
+typedef struct VideoDecoder {
+    const AVCodec *video_decoder = nullptr;
+    char *videoDecoderName = nullptr;
+    AVBufferRef *hardware_ctx = nullptr;
+    AVCodecContext *video_decoder_ctx = nullptr;
+    SwsContext * video_sws_ctx = nullptr;
+    AVPixelFormat video_pixel_format = AV_PIX_FMT_NONE;
+    AVPacket *video_pkt = nullptr;
+    AVFrame *video_frame = nullptr;
+} VideoDecoder;
+
+typedef struct AudioDecoder {
+    const AVCodec *audio_decoder = nullptr;
+    char *audioDecoderName = nullptr;
+    AVCodecContext *audio_decoder_ctx = nullptr;
+    SwrContext *audio_swr_ctx = nullptr;
+    int32_t audio_output_sample_rate = 48000;
+    AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
+    AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    int32_t audio_output_channels = 2;
+    AVPacket *audio_pkt = nullptr;
+    AVFrame *audio_frame = nullptr;
+} AudioDecoder;
+
 typedef struct tMediaPlayerContext {
     /**
      * Format
      */
     AVFormatContext *format_ctx = nullptr;
-    AVPacket *pkt = nullptr;
     bool isRealTime = false;
     bool interruptReadPkt = false;
     int64_t startTime = -1L;
     int64_t duration = -1L;
     char *containerName = nullptr;
     Metadata *fileMetadata = nullptr;
+    // buffer
+    AVPacket *pkt = nullptr;
 
     /**
      * Java
@@ -116,48 +141,38 @@ typedef struct tMediaPlayerContext {
     /**
      * Video
      */
+     // Video Stream
     AVStream *video_stream = nullptr;
-    AVBufferRef *hardware_ctx = nullptr;
-    const AVCodec *video_decoder = nullptr;
-    char *videoDecoderName = nullptr;
-    SwsContext * video_sws_ctx = nullptr;
+    // Video info
     int32_t video_width = 0;
     int32_t video_height = 0;
     int32_t video_bits_per_raw_sample = 0;
-    AVPixelFormat video_pixel_format = AV_PIX_FMT_NONE;
     int32_t video_bitrate = 0;
     double video_fps = 0.0;
     int64_t video_duration = 0;
-    bool videoIsAttachPic = false;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
-    AVCodecContext *video_decoder_ctx = nullptr;
-    AVFrame *video_frame = nullptr;
-    AVPacket *video_pkt = nullptr;
+    bool videoIsAttachPic = false;
     Metadata *videoMetaData = nullptr;
+    // Video decoder
+    VideoDecoder *videoDecoder = nullptr;
 
     /**
      * Audio
      */
+     // Audio stream
     AVStream *audio_stream = nullptr;
-    const AVCodec *audio_decoder = nullptr;
-    char *audioDecoderName = nullptr;
-    AVCodecContext *audio_decoder_ctx = nullptr;
-    SwrContext *audio_swr_ctx = nullptr;
+    // Audio info
     int32_t audio_channels = 0;
     int32_t audio_bits_per_raw_sample = 0;
     AVSampleFormat audio_sample_format = AV_SAMPLE_FMT_NONE;
+    AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
     int32_t audio_bitrate = 0;
     int32_t audio_per_sample_bytes = 0;
     int32_t audio_simple_rate = 0;
     int64_t audio_duration = 0;
-    int32_t audio_output_sample_rate = 48000;
-    AVSampleFormat audio_output_sample_fmt = AV_SAMPLE_FMT_S16;
-    AVChannelLayout audio_output_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
-    int32_t audio_output_channels = 2;
-    AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
-    AVFrame *audio_frame = nullptr;
-    AVPacket *audio_pkt = nullptr;
     Metadata *audioMetadata = nullptr;
+    // Audio decoder
+    AudioDecoder *audioDecoder = nullptr;
 
     /**
      * Subtitle

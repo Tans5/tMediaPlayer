@@ -204,7 +204,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_containVideoStreamNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    return player->video_decoder_ctx != nullptr;
+    return player->videoDecoder != nullptr;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -213,7 +213,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_containAudioStreamNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    return player->audio_decoder_ctx != nullptr;
+    return player->audioDecoder != nullptr;
 }
 
 jobjectArray readMetadata(JNIEnv *env, Metadata *src) {
@@ -324,7 +324,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoPixelFmtNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    return player->video_pixel_format;
+    return player->videoDecoder->video_pixel_format;
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
@@ -360,7 +360,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDecoderNameNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto decoderName = env->NewStringUTF(player->videoDecoderName);
+    auto decoderName = env->NewStringUTF(player->videoDecoder->videoDecoderName);
     return decoderName;
 }
 
@@ -453,7 +453,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_audioDecoderNameNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    auto decoderName = env->NewStringUTF(player->audioDecoderName);
+    auto decoderName = env->NewStringUTF(player->audioDecoder->audioDecoderName);
     return decoderName;
 }
 
