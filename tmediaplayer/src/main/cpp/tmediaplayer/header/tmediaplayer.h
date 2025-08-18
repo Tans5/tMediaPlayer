@@ -155,6 +155,7 @@ typedef struct tMediaPlayerContext {
     Metadata *videoMetaData = nullptr;
     // Video decoder
     VideoDecoder *videoDecoder = nullptr;
+    bool requestHwVideoDecoder = false;
 
     /**
      * Audio
@@ -209,7 +210,7 @@ typedef struct tMediaPlayerContext {
 
     void flushAudioCodecBuffer() const;
 
-    tMediaOptResult setHwSurface(jobject surface) const;
+    tMediaOptResult setHwSurface(jobject surface);
 
     void requestInterruptReadPkt();
 

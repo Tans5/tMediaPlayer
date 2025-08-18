@@ -555,6 +555,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         readMetadata(video_stream->metadata, videoMetaData);
 
         auto decoder = new VideoDecoder;
+        this->requestHwVideoDecoder = is_request_hw;
         if (prepareVideoDecoder(video_stream, is_request_hw, nullptr, decoder) == OptSuccess) {
             this->videoDecoder = decoder;
         } else {
@@ -1023,27 +1024,23 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     }
 }
 
-tMediaOptResult tMediaPlayerContext::setHwSurface(jobject surface) const {
-    // TODO:
-//    if (hardware_ctx != nullptr) {
-//        auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
-//        auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
-//        mediaCodecCtx->surface = surface;
-//        mediaCodecCtx->native_window = nullptr;
-//        mediaCodecCtx->create_window = 0;
-//        int result = av_hwdevice_ctx_init(hardware_ctx);
-//        if (result == 0) {
-//            LOGD("Set hw surface success.");
-//            return OptSuccess;
-//        } else {
-//            LOGE("Set hw surface fail: %d", result);
-//            return OptFail;
-//        }
-//    } else {
-//        LOGE("Set hw surface fail, do not support hw decoder.");
-//        return OptFail;
-//    }
-    return OptFail;
+tMediaOptResult tMediaPlayerContext::setHwSurface(jobject surface) {
+    if (requestHwVideoDecoder) {
+        if (this->videoDecoder != nullptr) {
+            releaseVideoDecoder(this->videoDecoder);
+        } else {
+            this->videoDecoder = new VideoDecoder;
+        }
+        auto ret = prepareVideoDecoder(video_stream, true, surface, videoDecoder);
+        if (ret == OptFail) {
+            releaseVideoDecoder(videoDecoder);
+            free(videoDecoder);
+            videoDecoder = nullptr;
+        }
+        return ret;
+    } else {
+        return OptFail;
+    }
 }
 
 void tMediaPlayerContext::requestInterruptReadPkt() {

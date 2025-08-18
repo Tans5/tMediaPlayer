@@ -15,6 +15,7 @@ internal fun Int.toImageRawType(): ImageRawType {
         ImageRawType.Nv12.ordinal -> ImageRawType.Nv12
         ImageRawType.Nv21.ordinal -> ImageRawType.Nv21
         ImageRawType.Rgba.ordinal -> ImageRawType.Rgba
+        ImageRawType.HwSurface.ordinal -> ImageRawType.HwSurface
         else -> ImageRawType.Unknown
     }
 }

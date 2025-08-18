@@ -133,6 +133,7 @@ internal class VideoFrameDecoder(
                                                             videoFrame = frame
                                                             val type = player.getVideoFrameTypeNativeInternal(frame.nativeFrame)
                                                             if (type == ImageRawType.HwSurface) {
+                                                                tMediaPlayerLog.d(TAG) { "Receive hw frame." }
                                                                 // TODO: handle hw surface.
                                                                 videoFrameQueue.enqueueWritable(frame)
                                                             } else {

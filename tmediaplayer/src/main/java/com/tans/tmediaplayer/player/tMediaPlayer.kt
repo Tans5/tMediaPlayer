@@ -201,7 +201,7 @@ class tMediaPlayer(
                     packetReader.requestAttachment()
                     audioDecoder.requestDecode()
                     videoDecoder.requestDecode()
-                    videoDecoder.requestSetHwSurface()
+//                    videoDecoder.requestSetHwSurface()
 
                     // Renderers
                     audioRenderer.flush()
