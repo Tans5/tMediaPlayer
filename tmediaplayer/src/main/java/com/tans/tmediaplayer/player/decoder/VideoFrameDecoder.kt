@@ -53,10 +53,6 @@ internal class VideoFrameDecoder(
                 requestSetHwSurface()
             }
 
-            override fun onPreDrawFrame() {
-                // TODO:
-            }
-
             override fun onSurfaceDestroyed() {
                 this@VideoFrameDecoder.hwTextures.set(null)
                 requestSetHwSurface()
@@ -133,9 +129,29 @@ internal class VideoFrameDecoder(
                                                             videoFrame = frame
                                                             val type = player.getVideoFrameTypeNativeInternal(frame.nativeFrame)
                                                             if (type == ImageRawType.HwSurface) {
-                                                                tMediaPlayerLog.d(TAG) { "Receive hw frame." }
-                                                                // TODO: handle hw surface.
-                                                                videoFrameQueue.enqueueWritable(frame)
+                                                                val playerView = playerView.get()
+                                                                if (playerView != null) {
+                                                                    playerView.queueEvent {
+                                                                        val hwTextures = hwTextures.get()
+                                                                        if (hwTextures != null) {
+                                                                            try {
+                                                                                hwTextures.oesTextureSurface.surfaceTexture.updateTexImage()
+                                                                                tMediaPlayerLog.d(TAG) { "Update hw oes texture." }
+                                                                                // TODO: handle hw surface.
+                                                                                videoFrameQueue.enqueueWritable(frame)
+                                                                            } catch (e: Throwable) {
+                                                                                tMediaPlayerLog.e(TAG) { "Update hw surface fail: ${e.message}" }
+                                                                                videoFrameQueue.enqueueWritable(frame)
+                                                                            }
+                                                                        } else {
+                                                                            tMediaPlayerLog.e(TAG) { "Can handle hw surface data, hw textures is null." }
+                                                                            videoFrameQueue.enqueueWritable(frame)
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
+                                                                    videoFrameQueue.enqueueWritable(frame)
+                                                                }
                                                             } else {
                                                                 videoFrameQueue.enqueueReadable(frame)
                                                                 player.readableVideoFrameReady()
