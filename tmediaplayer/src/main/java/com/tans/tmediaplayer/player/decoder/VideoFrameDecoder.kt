@@ -6,6 +6,7 @@ import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
+import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.playerview.HWTextures
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
@@ -49,7 +50,7 @@ internal class VideoFrameDecoder(
         object : tMediaPlayerView.Companion.RenderListener {
             override fun onSurfaceCreated(hwTextures: HWTextures) {
                 this@VideoFrameDecoder.hwTextures.set(hwTextures)
-                requestSetSurfaceToPlayer()
+                requestSetHwSurface()
             }
 
             override fun onPreDrawFrame() {
@@ -58,7 +59,7 @@ internal class VideoFrameDecoder(
 
             override fun onSurfaceDestroyed() {
                 this@VideoFrameDecoder.hwTextures.set(null)
-                requestSetSurfaceToPlayer()
+                requestSetHwSurface()
             }
         }
     }
@@ -130,8 +131,14 @@ internal class VideoFrameDecoder(
                                                             )
                                                         if (moveResult == OptResult.Success) {
                                                             videoFrame = frame
-                                                            videoFrameQueue.enqueueReadable(frame)
-                                                            player.readableVideoFrameReady()
+                                                            val type = player.getVideoFrameTypeNativeInternal(frame.nativeFrame)
+                                                            if (type == ImageRawType.HwSurface) {
+                                                                // TODO: handle hw surface.
+                                                                videoFrameQueue.enqueueWritable(frame)
+                                                            } else {
+                                                                videoFrameQueue.enqueueReadable(frame)
+                                                                player.readableVideoFrameReady()
+                                                            }
                                                         } else {
                                                             videoFrameQueue.enqueueWritable(frame)
                                                             tMediaPlayerLog.e(TAG) { "Move video frame fail." }
@@ -168,6 +175,12 @@ internal class VideoFrameDecoder(
                                     tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                     this@VideoFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }
+                            }
+
+                            DecoderHandlerMsg.RequestSetHwSurface.ordinal -> {
+                                val surface = hwTextures.get()?.oesTextureSurface?.surface
+                                val ret = player.setHwSurfaceInternal(nativePlayer, surface)
+                                tMediaPlayerLog.d(TAG) { "Set hw surface ret: $ret" }
                             }
                         }
                     }
@@ -217,12 +230,22 @@ internal class VideoFrameDecoder(
         val previous = this.playerView.get()
         if (this.playerView.compareAndSet(previous, view)) {
             previous?.removeRenderListener(renderListener)
+            hwTextures.set(null)
             view?.addRenderListener(renderListener)
+            if (previous != view && view == null) {
+                requestSetHwSurface()
+            }
         }
     }
 
-    fun requestSetSurfaceToPlayer() {
-        // TODO:
+    fun requestSetHwSurface() {
+        val state = getState()
+        if (state in activeStates) {
+            videoDecoderHandler.removeMessages(DecoderHandlerMsg.RequestSetHwSurface.ordinal)
+            videoDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestSetHwSurface.ordinal)
+        } else {
+            tMediaPlayerLog.e(TAG) { "Request decode fail, wrong state: $state" }
+        }
     }
 
     fun release() {
@@ -232,6 +255,8 @@ internal class VideoFrameDecoder(
                 state.set(DecoderState.Released)
                 videoDecoderThread.quit()
                 videoDecoderThread.quitSafely()
+                playerView.set(null)
+                hwTextures.set(null)
                 tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }

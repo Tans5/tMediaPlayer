@@ -27,6 +27,7 @@ enum ImageRawType {
     Nv12,
     Nv21,
     Rgba,
+    HwSurface,
     UnknownImgType
 };
 
@@ -192,6 +193,8 @@ typedef struct tMediaPlayerContext {
     tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer) const;
 
     void flushAudioCodecBuffer() const;
+
+    tMediaOptResult setHwSurface(jobject surface) const;
 
     void requestInterruptReadPkt();
 

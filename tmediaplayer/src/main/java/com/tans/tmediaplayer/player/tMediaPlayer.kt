@@ -1,6 +1,7 @@
 package com.tans.tmediaplayer.player
 
 import android.os.SystemClock
+import android.view.Surface
 import android.widget.TextView
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.tMediaPlayerLog
@@ -200,7 +201,7 @@ class tMediaPlayer(
                     packetReader.requestAttachment()
                     audioDecoder.requestDecode()
                     videoDecoder.requestDecode()
-                    videoDecoder.requestSetSurfaceToPlayer()
+                    videoDecoder.requestSetHwSurface()
 
                     // Renderers
                     audioRenderer.flush()
@@ -929,6 +930,10 @@ class tMediaPlayer(
     }
 
     private external fun moveDecodedAudioFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
+
+    internal fun setHwSurfaceInternal(nativePlayer: Long, surface: Surface?): OptResult = setHwSurfaceNative(nativePlayer, surface).toOptResult()
+
+    private external fun setHwSurfaceNative(nativePlayer: Long, surface: Surface?): Int
 
     private external fun interruptPacketReadNative(nativePlayer: Long)
 

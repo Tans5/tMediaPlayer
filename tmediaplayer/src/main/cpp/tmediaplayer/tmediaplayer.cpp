@@ -332,12 +332,11 @@ tMediaOptResult tMediaPlayerContext::prepare(
                                 if (result >= 0) {
                                     video_decoder_ctx->get_format = get_hw_format;
                                     video_decoder_ctx->hw_device_ctx = av_buffer_ref(hardware_ctx);
-                                    // TODO: Set hw surface.
-//                                    auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
-//                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
-//                                    mediaCodecCtx->create_window = 1;
-//                                    result = av_hwdevice_ctx_init(hardware_ctx);
-//                                    LOGD("HW init result: %d", result);
+                                    auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
+                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
+                                    mediaCodecCtx->create_window = 1;
+                                    result = av_hwdevice_ctx_init(hardware_ctx);
+                                    LOGD("HW init result: %d", result);
                                     result = avcodec_open2(video_decoder_ctx, video_decoder, nullptr);
                                     if (result >= 0) {
                                         LOGD("Open %s video hw decoder ctx success.", hwCodecName);
@@ -732,6 +731,10 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         // copyFrameData(rgbaBuffer, frame->data[0], w, h, frame->linesize[0], 4);
         videoBuffer->rgbaContentSize = rgbaSize;
         videoBuffer->type = Rgba;
+    } else if (hw_pix_fmt_i != AV_PIX_FMT_NONE && format == hw_pix_fmt_i) {
+        videoBuffer->width = w;
+        videoBuffer->height = h;
+        videoBuffer->type = HwSurface;
     } else {
         // Others format need to convert to Yuv420p.
         if (w != video_width ||
@@ -890,6 +893,27 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     }
     av_frame_unref(audio_frame);
     return OptSuccess;
+}
+
+tMediaOptResult tMediaPlayerContext::setHwSurface(jobject surface) const {
+    if (hardware_ctx != nullptr) {
+        auto deviceCtx = (AVHWDeviceContext *) hardware_ctx->data;
+        auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
+        mediaCodecCtx->surface = surface;
+        mediaCodecCtx->native_window = nullptr;
+        mediaCodecCtx->create_window = 0;
+        int result = av_hwdevice_ctx_init(hardware_ctx);
+        if (result == 0) {
+            LOGD("Set hw surface success.");
+            return OptSuccess;
+        } else {
+            LOGE("Set hw surface fail: %d", result);
+            return OptFail;
+        }
+    } else {
+        LOGE("Set hw surface fail, do not support hw decoder.");
+        return OptFail;
+    }
 }
 
 void releaseMetadata(Metadata *src) {

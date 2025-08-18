@@ -300,6 +300,10 @@ internal class VideoRenderer(
                                 renderCallback(false)
                             }
                         }
+                        ImageRawType.HwSurface -> {
+                            // TODO: Handle eos texture.
+                            renderCallback(false)
+                        }
                         ImageRawType.Unknown -> {
                             renderCallback(false)
                         }

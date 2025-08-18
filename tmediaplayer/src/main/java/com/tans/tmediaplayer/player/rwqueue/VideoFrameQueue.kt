@@ -85,6 +85,9 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
                     }
                     player.getVideoFrameRgbaBytesNativeInternal(b.nativeFrame, b.rgbaBuffer!!)
                 }
+                ImageRawType.HwSurface -> {
+
+                }
                 ImageRawType.Unknown -> {
 
                 }

@@ -157,6 +157,16 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_moveDecodedAudioFrameToBufferNati
     return player->moveDecodedAudioFrameToBuffer(audioBuffer);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_setHwSurfaceNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player,
+        jobject surface) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->setHwSurface(surface);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_interruptPacketReadNative(
         JNIEnv * env,

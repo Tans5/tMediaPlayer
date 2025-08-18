@@ -5,6 +5,7 @@ internal enum class ImageRawType {
     Nv12,
     Nv21,
     Rgba,
+    HwSurface,
     Unknown
 }
 
