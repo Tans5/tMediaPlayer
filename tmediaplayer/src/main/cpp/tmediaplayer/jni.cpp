@@ -163,11 +163,15 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_setHwSurfaceNative(
         jobject j_player,
         jlong native_player,
         jobject surface) {
-    auto s = env->NewLocalRef(surface);
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    int ret = player->setHwSurface(s);
-    env->DeleteLocalRef(s);
-    return ret;
+    if (surface != nullptr) {
+        auto s = env->NewLocalRef(surface);
+        int ret = player->setHwSurface(s);
+        env->DeleteLocalRef(s);
+        return ret;
+    } else {
+        return player->setHwSurface(nullptr);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
