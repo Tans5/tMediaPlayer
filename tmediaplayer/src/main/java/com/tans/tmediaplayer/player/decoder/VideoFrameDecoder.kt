@@ -129,6 +129,9 @@ internal class VideoFrameDecoder(
                                                             videoFrame = frame
                                                             val type = player.getVideoFrameTypeNativeInternal(frame.nativeFrame)
                                                             if (type == ImageRawType.HwSurface) {
+                                                                frame.imageType = ImageRawType.HwSurface
+                                                                frame.width = player.getVideoWidthNativeInternal(frame.nativeFrame)
+                                                                frame.height = player.getVideoHeightNativeInternal(frame.nativeFrame)
                                                                 val playerView = playerView.get()
                                                                 if (playerView != null) {
                                                                     playerView.queueEvent {
@@ -137,6 +140,14 @@ internal class VideoFrameDecoder(
                                                                             try {
                                                                                 hwTextures.oesTextureSurface.surfaceTexture.updateTexImage()
                                                                                 tMediaPlayerLog.d(TAG) { "Update hw oes texture." }
+//                                                                                val isSuccess = playerView.oesTexture2Texture2D(
+//                                                                                    surfaceTexture = hwTextures.oesTextureSurface.surfaceTexture,
+//                                                                                    oesTexture = hwTextures.oesTextureSurface.textureId,
+//                                                                                    texture2D = hwTextures.bufferTextures[0],
+//                                                                                    width = frame.width,
+//                                                                                    height = frame.height
+//                                                                                )
+//                                                                                tMediaPlayerLog.d(TAG) { "Oes texture to texture 2d result: $isSuccess, ${SystemClock.uptimeMillis()}" }
                                                                                 // TODO: handle hw surface.
                                                                                 videoFrameQueue.enqueueWritable(frame)
                                                                             } catch (e: Throwable) {

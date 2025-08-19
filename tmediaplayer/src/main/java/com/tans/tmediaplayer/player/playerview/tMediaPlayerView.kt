@@ -1,6 +1,8 @@
 package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
+import android.graphics.SurfaceTexture
+import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
@@ -513,6 +515,58 @@ class tMediaPlayerView : GLSurfaceView {
             }
         }
 
+        var oesGlRenderData: OESGLRenderData? = null
+
+        fun oesTexture2Texture2D(surfaceTexture: SurfaceTexture, oesTexture: Int, texture2D: Int, width: Int, height: Int): Boolean {
+            var isSuccess = true
+            offScreenRender(texture2D, width, height) {
+                val renderData = oesGlRenderData.let {
+                    if (it != null) {
+                        it
+                    } else {
+                        val program = compileShaderProgram(context, R.raw.t_media_player_oes_vert, R.raw.t_media_player_oes_frag)
+                        if (program == null) {
+                            isSuccess = false
+                            return@offScreenRender
+                        }
+                        val VAO = glGenVertexArrays()
+                        val VBO = glGenBuffers()
+                        val vertices = floatArrayOf(
+                            // 顶点(position 0)   // 纹理坐标(position 1)
+                            -1.0f, 1.0f,        0.0f, 1.0f,    // 左上角
+                            1.0f, 1.0f,         1.0f, 1.0f,   // 右上角
+                            1.0f, -1.0f,        1.0f, 0.0f,   // 右下角
+                            -1.0f, -1.0f,       0.0f, 0.0f,   // 左下角
+                        )
+                        GLES30.glBindVertexArray(VAO)
+                        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, VBO)
+                        GLES30.glVertexAttribPointer(0, 2, GLES30.GL_FLOAT, false, 16, 0)
+                        GLES30.glEnableVertexAttribArray(0)
+                        GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 16, 8)
+                        GLES30.glEnableVertexAttribArray(1)
+                        GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertices.toGlBuffer(),
+                            GLES30.GL_STATIC_DRAW)
+                        val r = OESGLRenderData(
+                            program = program,
+                            VAO = VAO,
+                            VBO = VBO
+                        )
+                        oesGlRenderData = r
+                        r
+                    }
+                }
+                GLES30.glUseProgram(renderData.program)
+                surfaceTexture.getTransformMatrix(renderData.transformMat)
+                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(renderData.program, "transform"), 1, false, renderData.transformMat, 0)
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTexture)
+
+                GLES30.glBindVertexArray(renderData.VAO)
+                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.VBO)
+                GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
+            }
+            return isSuccess
+        }
 
         fun recycle() {
             sizeCache = null
@@ -521,6 +575,11 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glDeleteBuffers(1, intArrayOf(data.VBO), 0)
             }
             glRendererData = null
+            val oesData = oesGlRenderData
+            if (oesData != null) {
+                GLES30.glDeleteBuffers(1, intArrayOf(oesData.VBO), 0)
+            }
+            oesGlRenderData = null
             rgbaTexConverter.recycle()
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
@@ -530,7 +589,10 @@ class tMediaPlayerView : GLSurfaceView {
                 hwTextures = null
             }
         }
+    }
 
+    internal fun oesTexture2Texture2D(surfaceTexture: SurfaceTexture, oesTexture: Int, texture2D: Int, width: Int, height: Int): Boolean {
+        return renderer.oesTexture2Texture2D(surfaceTexture = surfaceTexture, oesTexture = oesTexture, texture2D = texture2D, width = width, height = height)
     }
 
     internal fun tryRecycleUnhandledRequestImageData() {
@@ -709,6 +771,35 @@ class tMediaPlayerView : GLSurfaceView {
             val VAO: Int,
             val VBO: Int,
         )
+
+        private data class OESGLRenderData(
+            val program: Int,
+            val VAO: Int,
+            val VBO: Int,
+            val transformMat: FloatArray = FloatArray(16)
+        ) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as OESGLRenderData
+
+                if (program != other.program) return false
+                if (VAO != other.VAO) return false
+                if (VBO != other.VBO) return false
+                if (!transformMat.contentEquals(other.transformMat)) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = program
+                result = 31 * result + VAO
+                result = 31 * result + VBO
+                result = 31 * result + transformMat.contentHashCode()
+                return result
+            }
+        }
 
         data class SurfaceSizeCache(
             val gl: GL10,
