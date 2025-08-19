@@ -9,6 +9,8 @@
 #include <jni.h>
 
 extern "C" {
+#include <android/native_window_jni.h>
+#include <android/native_window.h>
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
 #include "libswscale/swscale.h"
@@ -100,6 +102,7 @@ typedef struct VideoDecoder {
     char *videoDecoderName = nullptr;
     AVBufferRef *hardware_ctx = nullptr;
     AVCodecContext *video_decoder_ctx = nullptr;
+    ANativeWindow *hw_native_window = nullptr;
     SwsContext * video_sws_ctx = nullptr;
     AVPixelFormat video_pixel_format = AV_PIX_FMT_NONE;
     AVPacket *video_pkt = nullptr;

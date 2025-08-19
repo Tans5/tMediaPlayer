@@ -1,6 +1,7 @@
 package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import com.tans.tmediaplayer.tMediaPlayerLog
@@ -200,12 +201,12 @@ internal inline fun offScreenRender(
     GLES30.glFinish()
 //
 //    val imageBytes = ByteArray(outputTexWidth * outputTexHeight * 4)
-//    GLES31.glBindTexture(GLES31.GL_TEXTURE_2D, outputTexId)
-//    GLES31.glReadPixels(
+//    GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, outputTexId)
+//    GLES30.glReadPixels(
 //        0, 0,
 //        outputTexWidth, outputTexHeight,
-//        GLES31.GL_RGBA,
-//        GLES31.GL_UNSIGNED_BYTE,
+//        GLES30.GL_RGBA,
+//        GLES30.GL_UNSIGNED_BYTE,
 //        ByteBuffer.wrap(imageBytes)
 //    )
 //    val b = Bitmap.createBitmap(outputTexWidth, outputTexHeight, Bitmap.Config.ARGB_8888)

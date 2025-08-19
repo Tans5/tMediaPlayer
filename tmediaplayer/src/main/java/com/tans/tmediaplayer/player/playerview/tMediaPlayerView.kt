@@ -559,6 +559,7 @@ class tMediaPlayerView : GLSurfaceView {
                 surfaceTexture.getTransformMatrix(renderData.transformMat)
                 GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(renderData.program, "transform"), 1, false, renderData.transformMat, 0)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+//                GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "oesTex"), oesTexture)
                 GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTexture)
 
                 GLES30.glBindVertexArray(renderData.VAO)

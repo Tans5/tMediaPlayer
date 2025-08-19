@@ -17,7 +17,7 @@ internal class VideoFrame(val nativeFrame: Long) {
     var isEof: Boolean = false
 
     override fun toString(): String {
-        return "[pts=$pts,duration=${duration},serial=${serial},isEof=${isEof},imageType=$imageType]"
+        return "[pts=$pts,duration=${duration},serial=${serial},isEof=${isEof},imageType=$imageType,with=$width,height=$height]"
     }
 
     override fun hashCode(): Int {

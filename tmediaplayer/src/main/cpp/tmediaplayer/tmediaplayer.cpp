@@ -86,7 +86,7 @@ static int decode_interrupt_cb(void *ctx)
     return player_ctx->interruptReadPkt;
 }
 
-static tMediaOptResult prepareVideoDecoder(AVStream *videoStream, bool isRequestHw, jobject hwSurface, VideoDecoder* videoDecoder) {
+static tMediaOptResult prepareVideoDecoder(JNIEnv * jniEnv, AVStream *videoStream, bool isRequestHw, jobject hwSurface, VideoDecoder* videoDecoder) {
     auto codecParams = videoStream->codecpar;
 
     int result = 0;
@@ -146,9 +146,12 @@ static tMediaOptResult prepareVideoDecoder(AVStream *videoStream, bool isRequest
                                 videoDecoder->video_decoder_ctx->get_format = get_hw_format;
                                 videoDecoder->video_decoder_ctx->hw_device_ctx = av_buffer_ref(videoDecoder->hardware_ctx);
                                 if (hwSurface != nullptr) {
+                                    auto window = ANativeWindow_fromSurface(jniEnv, hwSurface);
+                                    videoDecoder->hw_native_window = window;
                                     auto deviceCtx = (AVHWDeviceContext *) videoDecoder->hardware_ctx->data;
                                     auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
                                     mediaCodecCtx->surface = hwSurface;
+                                    mediaCodecCtx->native_window = window;
                                     result = av_hwdevice_ctx_init(videoDecoder->hardware_ctx);
                                     LOGD("HW init result: %d", result);
                                 }
@@ -252,6 +255,10 @@ static void releaseVideoDecoder(VideoDecoder *videoDecoder) {
     if (videoDecoder->video_decoder_ctx != nullptr) {
         avcodec_free_context(&videoDecoder->video_decoder_ctx);
         videoDecoder->video_decoder_ctx = nullptr;
+    }
+    if (videoDecoder->hw_native_window != nullptr) {
+        ANativeWindow_release(videoDecoder->hw_native_window);
+        videoDecoder->hw_native_window = nullptr;
     }
     if (videoDecoder->hardware_ctx != nullptr) {
         av_buffer_unref(&videoDecoder->hardware_ctx);
@@ -556,7 +563,9 @@ tMediaOptResult tMediaPlayerContext::prepare(
 
         auto decoder = new VideoDecoder;
         this->requestHwVideoDecoder = is_request_hw;
-        if (prepareVideoDecoder(video_stream, is_request_hw, nullptr, decoder) == OptSuccess) {
+        JNIEnv *jniEnv = nullptr;
+        jvm->GetEnv(reinterpret_cast<void **>(&jniEnv), JNI_VERSION_1_6);
+        if (prepareVideoDecoder(jniEnv, video_stream, is_request_hw, nullptr, decoder) == OptSuccess) {
             this->videoDecoder = decoder;
         } else {
             releaseVideoDecoder(decoder);
@@ -1031,7 +1040,9 @@ tMediaOptResult tMediaPlayerContext::setHwSurface(jobject surface) {
         } else {
             this->videoDecoder = new VideoDecoder;
         }
-        auto ret = prepareVideoDecoder(video_stream, true, surface, videoDecoder);
+        JNIEnv *jniEnv = nullptr;
+        jvm->GetEnv(reinterpret_cast<void **>(&jniEnv), JNI_VERSION_1_6);
+        auto ret = prepareVideoDecoder(jniEnv, video_stream, true, surface, videoDecoder);
         if (ret == OptFail) {
             releaseVideoDecoder(videoDecoder);
             free(videoDecoder);

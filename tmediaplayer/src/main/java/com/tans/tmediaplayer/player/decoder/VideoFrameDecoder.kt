@@ -138,8 +138,9 @@ internal class VideoFrameDecoder(
                                                                         val hwTextures = hwTextures.get()
                                                                         if (hwTextures != null) {
                                                                             try {
+                                                                                val start = SystemClock.uptimeMillis()
+                                                                                tMediaPlayerLog.d(TAG) { "Oes start" }
                                                                                 hwTextures.oesTextureSurface.surfaceTexture.updateTexImage()
-                                                                                tMediaPlayerLog.d(TAG) { "Update hw oes texture." }
 //                                                                                val isSuccess = playerView.oesTexture2Texture2D(
 //                                                                                    surfaceTexture = hwTextures.oesTextureSurface.surfaceTexture,
 //                                                                                    oesTexture = hwTextures.oesTextureSurface.textureId,
@@ -147,9 +148,10 @@ internal class VideoFrameDecoder(
 //                                                                                    width = frame.width,
 //                                                                                    height = frame.height
 //                                                                                )
-//                                                                                tMediaPlayerLog.d(TAG) { "Oes texture to texture 2d result: $isSuccess, ${SystemClock.uptimeMillis()}" }
                                                                                 // TODO: handle hw surface.
                                                                                 videoFrameQueue.enqueueWritable(frame)
+                                                                                val end = SystemClock.uptimeMillis()
+                                                                                tMediaPlayerLog.d(TAG) { "Oes end ${end - start}ms" }
                                                                             } catch (e: Throwable) {
                                                                                 tMediaPlayerLog.e(TAG) { "Update hw surface fail: ${e.message}" }
                                                                                 videoFrameQueue.enqueueWritable(frame)
@@ -158,6 +160,7 @@ internal class VideoFrameDecoder(
                                                                             tMediaPlayerLog.e(TAG) { "Can handle hw surface data, hw textures is null." }
                                                                             videoFrameQueue.enqueueWritable(frame)
                                                                         }
+                                                                        requestDecode()
                                                                     }
                                                                 } else {
                                                                     tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
