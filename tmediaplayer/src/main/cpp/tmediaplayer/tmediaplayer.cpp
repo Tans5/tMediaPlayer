@@ -146,14 +146,17 @@ static tMediaOptResult prepareVideoDecoder(JNIEnv * jniEnv, AVStream *videoStrea
                                 videoDecoder->video_decoder_ctx->get_format = get_hw_format;
                                 videoDecoder->video_decoder_ctx->hw_device_ctx = av_buffer_ref(videoDecoder->hardware_ctx);
                                 if (hwSurface != nullptr) {
-                                    auto window = ANativeWindow_fromSurface(jniEnv, hwSurface);
-                                    videoDecoder->hw_native_window = window;
-                                    auto deviceCtx = (AVHWDeviceContext *) videoDecoder->hardware_ctx->data;
-                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
-                                    mediaCodecCtx->surface = hwSurface;
-                                    mediaCodecCtx->native_window = window;
-                                    result = av_hwdevice_ctx_init(videoDecoder->hardware_ctx);
-                                    LOGD("HW init result: %d", result);
+                                    videoDecoder->media_codec_ctx = av_mediacodec_alloc_context();
+                                    result = av_mediacodec_default_init(videoDecoder->video_decoder_ctx, videoDecoder->media_codec_ctx, hwSurface);
+                                    LOGD("MediaCodec context init: %d", result);
+//                                    auto window = ANativeWindow_fromSurface(jniEnv, hwSurface);
+//                                    videoDecoder->hw_native_window = window;
+//                                    auto deviceCtx = (AVHWDeviceContext *) videoDecoder->hardware_ctx->data;
+//                                    auto mediaCodecCtx = (AVMediaCodecDeviceContext *) deviceCtx->hwctx;
+//                                    mediaCodecCtx->surface = hwSurface;
+//                                    mediaCodecCtx->native_window = window;
+//                                    result = av_hwdevice_ctx_init(videoDecoder->hardware_ctx);
+//                                    LOGD("HW init result: %d", result);
                                 }
                                 result = avcodec_open2(videoDecoder->video_decoder_ctx, hwDecoder, nullptr);
                                 if (result >= 0) {
@@ -253,6 +256,10 @@ static void releaseVideoDecoder(VideoDecoder *videoDecoder) {
         videoDecoder->videoDecoderName = nullptr;
     }
     if (videoDecoder->video_decoder_ctx != nullptr) {
+        if (videoDecoder->media_codec_ctx != nullptr) {
+            av_mediacodec_default_free(videoDecoder->video_decoder_ctx);
+            videoDecoder->media_codec_ctx = nullptr;
+        }
         avcodec_free_context(&videoDecoder->video_decoder_ctx);
         videoDecoder->video_decoder_ctx = nullptr;
     }

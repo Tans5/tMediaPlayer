@@ -141,13 +141,13 @@ internal class VideoFrameDecoder(
                                                                                 val start = SystemClock.uptimeMillis()
                                                                                 tMediaPlayerLog.d(TAG) { "Oes start" }
                                                                                 hwTextures.oesTextureSurface.surfaceTexture.updateTexImage()
-//                                                                                val isSuccess = playerView.oesTexture2Texture2D(
-//                                                                                    surfaceTexture = hwTextures.oesTextureSurface.surfaceTexture,
-//                                                                                    oesTexture = hwTextures.oesTextureSurface.textureId,
-//                                                                                    texture2D = hwTextures.bufferTextures[0],
-//                                                                                    width = frame.width,
-//                                                                                    height = frame.height
-//                                                                                )
+                                                                                val isSuccess = playerView.oesTexture2Texture2D(
+                                                                                    surfaceTexture = hwTextures.oesTextureSurface.surfaceTexture,
+                                                                                    oesTexture = hwTextures.oesTextureSurface.textureId,
+                                                                                    texture2D = hwTextures.bufferTextures[0],
+                                                                                    width = frame.width,
+                                                                                    height = frame.height
+                                                                                )
                                                                                 // TODO: handle hw surface.
                                                                                 videoFrameQueue.enqueueWritable(frame)
                                                                                 val end = SystemClock.uptimeMillis()

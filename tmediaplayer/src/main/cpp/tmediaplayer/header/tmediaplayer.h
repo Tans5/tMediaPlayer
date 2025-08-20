@@ -16,6 +16,7 @@ extern "C" {
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
 #include "libswresample/swresample.h"
+#include "libavcodec/mediacodec.h"
 }
 
 #define LOG_TAG "tMediaPlayerNative"
@@ -102,6 +103,7 @@ typedef struct VideoDecoder {
     char *videoDecoderName = nullptr;
     AVBufferRef *hardware_ctx = nullptr;
     AVCodecContext *video_decoder_ctx = nullptr;
+    AVMediaCodecContext *media_codec_ctx = nullptr;
     ANativeWindow *hw_native_window = nullptr;
     SwsContext * video_sws_ctx = nullptr;
     AVPixelFormat video_pixel_format = AV_PIX_FMT_NONE;

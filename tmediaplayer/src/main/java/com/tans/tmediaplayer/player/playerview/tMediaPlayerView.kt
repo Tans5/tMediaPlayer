@@ -285,6 +285,17 @@ class tMediaPlayerView : GLSurfaceView {
                     l.onSurfaceCreated(hwTextures)
                 }
                 this.hwTextures = hwTextures
+                hwTextures.oesTextureSurface.surfaceTexture.setOnFrameAvailableListener {
+                    tMediaPlayerLog.d(TAG) { "Read a new frame." }
+                }
+//                hwTextures.oesTextureSurface.let {
+//                    val canvas = it.surface.lockCanvas(null)
+//                    canvas.drawRGB(255, 0, 0)
+//                    it.surface.unlockCanvasAndPost(canvas)
+//                    tMediaPlayerLog.d(TAG ) { "Draw red" }
+//                    it.surfaceTexture.updateTexImage()
+//                    // oesTexture2Texture2D(it.surfaceTexture, it.textureId, hwTextures.bufferTextures[0], 1920, 1080)
+//                }
             }
         }
 
