@@ -405,6 +405,7 @@ static void releaseAudioDecoder(AudioDecoder *audioDecoder) {
 tMediaOptResult tMediaPlayerContext::prepare(
         const char *media_file_p,
         bool is_request_hw,
+        jobject hwSurface,
         int target_audio_channels,
         int target_audio_sample_rate,
         int target_audio_sample_bit_depth) {
@@ -572,7 +573,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
         this->requestHwVideoDecoder = is_request_hw;
         JNIEnv *jniEnv = nullptr;
         jvm->GetEnv(reinterpret_cast<void **>(&jniEnv), JNI_VERSION_1_6);
-        if (prepareVideoDecoder(jniEnv, video_stream, is_request_hw, nullptr, decoder) == OptSuccess) {
+        if (prepareVideoDecoder(jniEnv, video_stream, is_request_hw, hwSurface, decoder) == OptSuccess) {
             this->videoDecoder = decoder;
         } else {
             releaseVideoDecoder(decoder);
@@ -1040,27 +1041,6 @@ tMediaOptResult tMediaPlayerContext::moveDecodedAudioFrameToBuffer(tMediaAudioBu
     }
 }
 
-tMediaOptResult tMediaPlayerContext::setHwSurface(jobject surface) {
-    if (requestHwVideoDecoder) {
-        if (this->videoDecoder != nullptr) {
-            releaseVideoDecoder(this->videoDecoder);
-        } else {
-            this->videoDecoder = new VideoDecoder;
-        }
-        JNIEnv *jniEnv = nullptr;
-        jvm->GetEnv(reinterpret_cast<void **>(&jniEnv), JNI_VERSION_1_6);
-        auto ret = prepareVideoDecoder(jniEnv, video_stream, true, surface, videoDecoder);
-        if (ret == OptFail) {
-            releaseVideoDecoder(videoDecoder);
-            free(videoDecoder);
-            videoDecoder = nullptr;
-        }
-        return ret;
-    } else {
-        return OptFail;
-    }
-}
-
 void tMediaPlayerContext::requestInterruptReadPkt() {
     this->interruptReadPkt = true;
 }
@@ -1125,7 +1105,5 @@ void tMediaPlayerContext::release() {
         subtitleStreamCount = 0;
         subtitleStreams = nullptr;
     }
-
-    free(this);
     LOGD("Release media player");
 }

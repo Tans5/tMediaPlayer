@@ -6,11 +6,9 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
-import android.os.SystemClock
 import android.util.AttributeSet
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
 import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConverter
@@ -209,13 +207,14 @@ class tMediaPlayerView : GLSurfaceView {
     @Synchronized
     internal fun addRenderListener(l: RenderListener) {
         if (!isDetachedFromWindow) {
-            val hwTexture = renderer.hwTextures
-            if (hwTexture != null) {
-                l.onSurfaceCreated(hwTexture)
+            if (renderer.isSurfaceCreated) {
+                queueEvent {
+                    l.onSurfaceCreated(this)
+                }
             }
             renderListeners.add(l)
         } else {
-            l.onSurfaceDestroyed()
+            l.onSurfaceDestroyed(this)
         }
     }
 
@@ -227,9 +226,11 @@ class tMediaPlayerView : GLSurfaceView {
     @Synchronized
     override fun onDetachedFromWindow() {
         if (!isDetachedFromWindow) {
-            renderer.recycle()
+            queueEvent {
+                renderer.recycle()
+            }
             for (l in renderListeners) {
-                l.onSurfaceDestroyed()
+                l.onSurfaceDestroyed(this)
             }
             renderListeners.clear()
             isDetachedFromWindow = true
@@ -243,7 +244,7 @@ class tMediaPlayerView : GLSurfaceView {
 
         private var glRendererData: GLRendererData? = null
 
-        var hwTextures: HWTextures? = null
+        var isSurfaceCreated: Boolean = false
 
         override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
             val glVersion = gl.glGetString(GLES30.GL_VERSION)
@@ -273,29 +274,10 @@ class tMediaPlayerView : GLSurfaceView {
                 )
             }
             synchronized(this@tMediaPlayerView) {
-                hwTextures?.oesTextureSurface?.release()
-                val hwTextures = HWTextures(
-                    createUptimeMillis = SystemClock.uptimeMillis(),
-                    oesTextureSurface = createNewOesTextureSurface(),
-                    bufferTextures = IntArray(VIDEO_FRAME_QUEUE_SIZE) {
-                        glGenTexture()
-                    }
-                )
+                isSurfaceCreated = true
                 for (l in renderListeners) {
-                    l.onSurfaceCreated(hwTextures)
+                    l.onSurfaceCreated(this@tMediaPlayerView)
                 }
-                this.hwTextures = hwTextures
-                hwTextures.oesTextureSurface.surfaceTexture.setOnFrameAvailableListener {
-                    tMediaPlayerLog.d(TAG) { "Read a new frame." }
-                }
-//                hwTextures.oesTextureSurface.let {
-//                    val canvas = it.surface.lockCanvas(null)
-//                    canvas.drawRGB(255, 0, 0)
-//                    it.surface.unlockCanvasAndPost(canvas)
-//                    tMediaPlayerLog.d(TAG ) { "Draw red" }
-//                    it.surfaceTexture.updateTexImage()
-//                    // oesTexture2Texture2D(it.surfaceTexture, it.textureId, hwTextures.bufferTextures[0], 1920, 1080)
-//                }
             }
         }
 
@@ -315,7 +297,7 @@ class tMediaPlayerView : GLSurfaceView {
         private val matrixBuffer = newGlFloatMatrix()
         override fun onDrawFrame(gl: GL10) {
             for (l in renderListeners) {
-                l.onPreDrawFrame()
+                l.onPreDrawFrame(this@tMediaPlayerView)
             }
             val rendererData = this.glRendererData
             val screenSize = sizeCache
@@ -522,7 +504,7 @@ class tMediaPlayerView : GLSurfaceView {
                 tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
             }
             for (l in renderListeners) {
-                l.onPostDrawFrame()
+                l.onPostDrawFrame(this@tMediaPlayerView)
             }
         }
 
@@ -560,7 +542,9 @@ class tMediaPlayerView : GLSurfaceView {
                         val r = OESGLRenderData(
                             program = program,
                             VAO = VAO,
-                            VBO = VBO
+                            VBO = VBO,
+                            transformLocation = GLES30.glGetUniformLocation(program, "transform"),
+                            oesTextureLocation = GLES30.glGetUniformLocation(program, "oesTex")
                         )
                         oesGlRenderData = r
                         r
@@ -568,9 +552,9 @@ class tMediaPlayerView : GLSurfaceView {
                 }
                 GLES30.glUseProgram(renderData.program)
                 surfaceTexture.getTransformMatrix(renderData.transformMat)
-                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(renderData.program, "transform"), 1, false, renderData.transformMat, 0)
+                GLES30.glUniformMatrix4fv(renderData.transformLocation, 1, false, renderData.transformMat, 0)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-//                GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.program, "oesTex"), oesTexture)
+//                GLES30.glUniform1i(renderData.oesTextureLocation, oesTexture)
                 GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTexture)
 
                 GLES30.glBindVertexArray(renderData.VAO)
@@ -581,6 +565,7 @@ class tMediaPlayerView : GLSurfaceView {
         }
 
         fun recycle() {
+            isSurfaceCreated = false
             sizeCache = null
             val data = glRendererData
             if (data != null) {
@@ -596,15 +581,17 @@ class tMediaPlayerView : GLSurfaceView {
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
             tryRecycleUnhandledRequestImageData()
-            synchronized(this@tMediaPlayerView) {
-                hwTextures?.oesTextureSurface?.release()
-                hwTextures = null
-            }
         }
     }
 
     internal fun oesTexture2Texture2D(surfaceTexture: SurfaceTexture, oesTexture: Int, texture2D: Int, width: Int, height: Int): Boolean {
         return renderer.oesTexture2Texture2D(surfaceTexture = surfaceTexture, oesTexture = oesTexture, texture2D = texture2D, width = width, height = height)
+    }
+
+    internal fun genHwOesTextureAndBufferTextures(bufferSize: Int): Pair<Int, IntArray> {
+        return glGenOesTextureAndSetDefaultParams() to IntArray(bufferSize) {
+            glGenTextureAndSetDefaultParams()
+        }
     }
 
     internal fun tryRecycleUnhandledRequestImageData() {
@@ -788,7 +775,9 @@ class tMediaPlayerView : GLSurfaceView {
             val program: Int,
             val VAO: Int,
             val VBO: Int,
-            val transformMat: FloatArray = FloatArray(16)
+            val transformMat: FloatArray = FloatArray(16),
+            val transformLocation: Int,
+            val oesTextureLocation: Int
         ) {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
@@ -821,19 +810,19 @@ class tMediaPlayerView : GLSurfaceView {
 
         internal interface RenderListener {
 
-            fun onSurfaceCreated(hwTextures: HWTextures) {
+            fun onSurfaceCreated(playerView: tMediaPlayerView) {
 
             }
 
-            fun onPreDrawFrame() {
+            fun onPreDrawFrame(playerView: tMediaPlayerView) {
 
             }
 
-            fun onPostDrawFrame() {
+            fun onPostDrawFrame(playerView: tMediaPlayerView) {
 
             }
 
-            fun onSurfaceDestroyed() {
+            fun onSurfaceDestroyed(playerView: tMediaPlayerView) {
 
             }
         }

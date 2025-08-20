@@ -189,6 +189,7 @@ typedef struct tMediaPlayerContext {
     tMediaOptResult prepare(
             const char * media_file,
             bool is_request_hw,
+            jobject hwSurface,
             int target_audio_channels,
             int target_audio_sample_rate,
             int target_audio_sample_bit_depth);
@@ -214,8 +215,6 @@ typedef struct tMediaPlayerContext {
     tMediaOptResult moveDecodedAudioFrameToBuffer(tMediaAudioBuffer* buffer) const;
 
     void flushAudioCodecBuffer() const;
-
-    tMediaOptResult setHwSurface(jobject surface);
 
     void requestInterruptReadPkt();
 

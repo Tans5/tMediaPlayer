@@ -8,7 +8,7 @@ import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.OptResult
-import com.tans.tmediaplayer.player.playerview.HWTextures
+import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
@@ -42,20 +42,39 @@ internal class VideoFrameDecoder(
         AtomicReference()
     }
 
-    private val hwTextures: AtomicReference<HWTextures?> by lazy {
-        AtomicReference()
-    }
+    @Volatile
+    private var oesTextureAndBufferTextures: Pair<Int, IntArray>? = null
 
     private val renderListener: tMediaPlayerView.Companion.RenderListener by lazy {
         object : tMediaPlayerView.Companion.RenderListener {
-            override fun onSurfaceCreated(hwTextures: HWTextures) {
-                this@VideoFrameDecoder.hwTextures.set(hwTextures)
-                requestSetHwSurface()
+
+            override fun onSurfaceCreated(playerView: tMediaPlayerView) {
+                if (getState() != DecoderState.Released) {
+                    val textures = playerView.genHwOesTextureAndBufferTextures(VIDEO_FRAME_QUEUE_SIZE)
+                    oesTextureAndBufferTextures = textures
+                    val surfaceTexture = player.getHwSurfaces()?.second
+                    if (surfaceTexture != null) {
+                        try {
+                            surfaceTexture.attachToGLContext(textures.first)
+                            tMediaPlayerLog.d(TAG) { "SurfaceTexture attached to gl context: ${player.getHwSurfaces()?.first?.isValid}" }
+                        } catch (e: Throwable) {
+                            tMediaPlayerLog.e(TAG) { "SurfaceTexture attach to gl context fail: ${e.message}, Thread: ${Thread.currentThread().name}" }
+                        }
+                    }
+                }
             }
 
-            override fun onSurfaceDestroyed() {
-                this@VideoFrameDecoder.hwTextures.set(null)
-                requestSetHwSurface()
+            override fun onSurfaceDestroyed(playerView: tMediaPlayerView) {
+                oesTextureAndBufferTextures = null
+                val surfaceTexture = player.getHwSurfaces()?.second
+                if (surfaceTexture != null) {
+                    try {
+                        surfaceTexture.detachFromGLContext()
+                        tMediaPlayerLog.d(TAG) { "SurfaceTexture detached from gl context." }
+                    } catch (e: Throwable) {
+                        tMediaPlayerLog.e(TAG) { "SurfaceTexture detach from gl context fail: ${e.message}" }
+                    }
+                }
             }
         }
     }
@@ -133,35 +152,19 @@ internal class VideoFrameDecoder(
                                                                 frame.width = player.getVideoWidthNativeInternal(frame.nativeFrame)
                                                                 frame.height = player.getVideoHeightNativeInternal(frame.nativeFrame)
                                                                 val playerView = playerView.get()
-                                                                if (playerView != null) {
+                                                                val surfaceTexture = player.getHwSurfaces()?.second
+                                                                if (playerView != null && surfaceTexture != null) {
                                                                     playerView.queueEvent {
-                                                                        val hwTextures = hwTextures.get()
-                                                                        if (hwTextures != null) {
-                                                                            try {
-                                                                                val start = SystemClock.uptimeMillis()
-                                                                                tMediaPlayerLog.d(TAG) { "Oes start" }
-                                                                                hwTextures.oesTextureSurface.surfaceTexture.updateTexImage()
-                                                                                val isSuccess = playerView.oesTexture2Texture2D(
-                                                                                    surfaceTexture = hwTextures.oesTextureSurface.surfaceTexture,
-                                                                                    oesTexture = hwTextures.oesTextureSurface.textureId,
-                                                                                    texture2D = hwTextures.bufferTextures[0],
-                                                                                    width = frame.width,
-                                                                                    height = frame.height
-                                                                                )
-                                                                                // TODO: handle hw surface.
-                                                                                videoFrameQueue.enqueueWritable(frame)
-                                                                                val end = SystemClock.uptimeMillis()
-                                                                                tMediaPlayerLog.d(TAG) { "Oes end ${end - start}ms" }
-                                                                            } catch (e: Throwable) {
-                                                                                tMediaPlayerLog.e(TAG) { "Update hw surface fail: ${e.message}" }
-                                                                                videoFrameQueue.enqueueWritable(frame)
-                                                                            }
-                                                                        } else {
-                                                                            tMediaPlayerLog.e(TAG) { "Can handle hw surface data, hw textures is null." }
-                                                                            videoFrameQueue.enqueueWritable(frame)
+                                                                        try {
+                                                                            // TODO: handle hw frames
+                                                                            surfaceTexture.updateTexImage()
+                                                                            tMediaPlayerLog.d(TAG) { "Update hw frame success." }
+                                                                        } catch (e: Throwable) {
+                                                                            tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
                                                                         }
-                                                                        requestDecode()
                                                                     }
+                                                                    // FIXME: remove.
+                                                                    videoFrameQueue.enqueueWritable(frame)
                                                                 } else {
                                                                     tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
                                                                     videoFrameQueue.enqueueWritable(frame)
@@ -207,12 +210,6 @@ internal class VideoFrameDecoder(
                                     this@VideoFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }
                             }
-
-                            DecoderHandlerMsg.RequestSetHwSurface.ordinal -> {
-                                val surface = hwTextures.get()?.oesTextureSurface?.surface
-                                val ret = player.setHwSurfaceInternal(nativePlayer, surface)
-                                tMediaPlayerLog.d(TAG) { "Set hw surface ret: $ret" }
-                            }
                         }
                     }
                 }
@@ -226,6 +223,11 @@ internal class VideoFrameDecoder(
         videoDecoderHandler
         state.set(DecoderState.Ready)
         tMediaPlayerLog.d(TAG) { "Video decoder inited." }
+        player.getHwSurfaces()?.second?.let {
+            it.setOnFrameAvailableListener {
+                tMediaPlayerLog.d(TAG) { "Surface texture hw frame on available." }
+            }
+        }
     }
 
     fun requestDecode() {
@@ -261,21 +263,7 @@ internal class VideoFrameDecoder(
         val previous = this.playerView.get()
         if (this.playerView.compareAndSet(previous, view)) {
             previous?.removeRenderListener(renderListener)
-            hwTextures.set(null)
             view?.addRenderListener(renderListener)
-            if (previous != view && view == null) {
-                requestSetHwSurface()
-            }
-        }
-    }
-
-    fun requestSetHwSurface() {
-        val state = getState()
-        if (state in activeStates) {
-            videoDecoderHandler.removeMessages(DecoderHandlerMsg.RequestSetHwSurface.ordinal)
-            videoDecoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestSetHwSurface.ordinal)
-        } else {
-            tMediaPlayerLog.e(TAG) { "Request decode fail, wrong state: $state" }
         }
     }
 
@@ -286,8 +274,9 @@ internal class VideoFrameDecoder(
                 state.set(DecoderState.Released)
                 videoDecoderThread.quit()
                 videoDecoderThread.quitSafely()
+                playerView.get()?.removeRenderListener(renderListener)
                 playerView.set(null)
-                hwTextures.set(null)
+                oesTextureAndBufferTextures = null
                 tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }

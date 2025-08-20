@@ -25,6 +25,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_prepareNative(
         jlong native_player,
         jstring file_path,
         jboolean requestHw,
+        jobject hwSurface,
         jint targetAudioChannels,
         jint targetAudioSampleRate,
         jint targetAudioSampleBitDepth) {
@@ -32,10 +33,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_prepareNative(
     if (player == nullptr) {
         return OptFail;
     }
+    jobject hwSurfaceRef = env->NewLocalRef(hwSurface);
     av_jni_set_java_vm(player->jvm, nullptr);
     const char * file_path_chars = env->GetStringUTFChars(file_path, JNI_FALSE);
-    auto result = player->prepare(file_path_chars, requestHw, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
+    auto result = player->prepare(file_path_chars, requestHw, hwSurfaceRef, targetAudioChannels, targetAudioSampleRate, targetAudioSampleBitDepth);
     env->ReleaseStringUTFChars(file_path, file_path_chars);
+    env->DeleteLocalRef(hwSurface);
     return result;
 }
 
@@ -157,23 +160,6 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_moveDecodedAudioFrameToBufferNati
     return player->moveDecodedAudioFrameToBuffer(audioBuffer);
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_tans_tmediaplayer_player_tMediaPlayer_setHwSurfaceNative(
-        JNIEnv * env,
-        jobject j_player,
-        jlong native_player,
-        jobject surface) {
-    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    if (surface != nullptr) {
-        auto s = env->NewLocalRef(surface);
-        int ret = player->setHwSurface(s);
-        env->DeleteLocalRef(s);
-        return ret;
-    } else {
-        return player->setHwSurface(nullptr);
-    }
-}
-
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_interruptPacketReadNative(
         JNIEnv * env,
@@ -192,6 +178,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseNative(
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     player->jvm = nullptr;
     player->release();
+    free(player);
 }
 // endregion
 

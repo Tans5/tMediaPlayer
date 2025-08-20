@@ -1,5 +1,7 @@
 package com.tans.tmediaplayer.player
 
+import android.graphics.SurfaceTexture
+import android.os.Build
 import android.os.SystemClock
 import android.view.Surface
 import android.widget.TextView
@@ -53,6 +55,7 @@ class tMediaPlayer(
     private val audioOutputSampleRate: AudioSampleRate = AudioSampleRate.Rate48000,
     private val audioOutputSampleBitDepth: AudioSampleBitDepth = AudioSampleBitDepth.SixteenBits,
     private val enableVideoHardwareDecoder: Boolean = true,
+    private val enableHwSurface: Boolean = true
 ) : IPlayer {
 
     private val listener: AtomicReference<tMediaPlayerListener?> by lazy {
@@ -142,6 +145,25 @@ class tMediaPlayer(
 
     private val externalSubtitle: AtomicReference<ExternalSubtitle?> = AtomicReference(null)
 
+    private val hwSurfaces: Pair<Surface, SurfaceTexture>? by lazy {
+        if (enableVideoHardwareDecoder && enableHwSurface) {
+            val surfaceTexture = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                SurfaceTexture(false)
+            } else {
+                SurfaceTexture(0).apply {
+                    try {
+                        detachFromGLContext()
+                    } catch (_: Throwable) {
+                    }
+                }
+            }
+            val surface = Surface(surfaceTexture)
+            surface to surfaceTexture
+        } else {
+            null
+        }
+    }
+
     // region public methods
     @Synchronized
     override fun prepare(file: String): OptResult {
@@ -179,6 +201,7 @@ class tMediaPlayer(
                         nativePlayer = nativePlayer,
                         file = file,
                         requestHw = enableVideoHardwareDecoder,
+                        hwSurface = hwSurfaces?.first,
                         targetAudioChannels = audioOutputChannel.channel,
                         targetAudioSampleRate = audioOutputSampleRate.rate,
                         targetAudioSampleBitDepth = audioOutputSampleBitDepth.depth
@@ -201,7 +224,6 @@ class tMediaPlayer(
                     packetReader.requestAttachment()
                     audioDecoder.requestDecode()
                     videoDecoder.requestDecode()
-//                    videoDecoder.requestSetHwSurface()
 
                     // Renderers
                     audioRenderer.flush()
@@ -462,6 +484,10 @@ class tMediaPlayer(
                         externalSubtitle.set(null)
                         subtitleView.set(null)
                         tMediaPlayerLog.d(TAG) { "Release player" }
+
+                        // Hw Surface.
+                        hwSurfaces?.first?.release()
+                        hwSurfaces?.second?.release()
                         return OptResult.Success
                     } else {
                         tMediaPlayerLog.e(TAG) { "Update release state fail, currentState=${getState()}" }
@@ -657,6 +683,8 @@ class tMediaPlayer(
             ExternalClock -> externalClock.getClock()
         }
     }
+
+    internal fun getHwSurfaces(): Pair<Surface, SurfaceTexture>? = hwSurfaces
 
     private fun getMediaInfoByState(state: tMediaPlayerState): MediaInfo? {
         return when (state) {
@@ -879,6 +907,7 @@ class tMediaPlayer(
         nativePlayer: Long,
         file: String,
         requestHw: Boolean,
+        hwSurface: Surface?,
         targetAudioChannels: Int,
         targetAudioSampleRate: Int,
         targetAudioSampleBitDepth: Int): Int
@@ -930,10 +959,6 @@ class tMediaPlayer(
     }
 
     private external fun moveDecodedAudioFrameToBufferNative(nativePlayer: Long, nativeBuffer: Long): Int
-
-    internal fun setHwSurfaceInternal(nativePlayer: Long, surface: Surface?): OptResult = setHwSurfaceNative(nativePlayer, surface).toOptResult()
-
-    private external fun setHwSurfaceNative(nativePlayer: Long, surface: Surface?): Int
 
     private external fun interruptPacketReadNative(nativePlayer: Long)
 
