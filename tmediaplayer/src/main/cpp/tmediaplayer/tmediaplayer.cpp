@@ -864,6 +864,10 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
             videoBuffer->rgbaContentSize = rgbaSize;
             videoBuffer->type = Rgba;
         } else if (hw_pix_fmt_i != AV_PIX_FMT_NONE && format == hw_pix_fmt_i) {
+            int ret = av_mediacodec_release_buffer((AVMediaCodecBuffer *)video_frame->data[3], 1);
+            if (ret < 0) {
+                LOGE("MediaCodec release buffer error: %d", ret);
+            }
             videoBuffer->width = w;
             videoBuffer->height = h;
             videoBuffer->type = HwSurface;
@@ -922,7 +926,7 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
                 videoBuffer->uBufferSize = uSize;
             }
 
-            // // alloc V buffer if need.
+            // alloc V buffer if need.
             if (videoBuffer->vBufferSize < vSize || videoBuffer->vBuffer == nullptr) {
                 if (videoBuffer->vBuffer != nullptr) {
                     free(videoBuffer->vBuffer);
