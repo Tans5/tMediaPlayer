@@ -558,12 +558,13 @@ class tMediaPlayerView : GLSurfaceView {
                         }
                         val VAO = glGenVertexArrays()
                         val VBO = glGenBuffers()
+                        // TODO：传统的 GL texture 的原点是左下角，MediaCodec 的输出流的原点是左上角，没有有搞太懂.
                         val vertices = floatArrayOf(
                             // 顶点(position 0)   // 纹理坐标(position 1)
-                            -1.0f, 1.0f,        0.0f, 1.0f,    // 左上角
-                            1.0f, 1.0f,         1.0f, 1.0f,   // 右上角
-                            1.0f, -1.0f,        1.0f, 0.0f,   // 右下角
-                            -1.0f, -1.0f,       0.0f, 0.0f,   // 左下角
+                            -1.0f, 1.0f,        0.0f, 0.0f,    // 左上角
+                            1.0f, 1.0f,         1.0f, 0.0f,   // 右上角
+                            1.0f, -1.0f,        1.0f, 1.0f,   // 右下角
+                            -1.0f, -1.0f,       0.0f, 1.0f,   // 左下角
                         )
                         GLES30.glBindVertexArray(VAO)
                         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, VBO)
@@ -586,6 +587,12 @@ class tMediaPlayerView : GLSurfaceView {
                 }
                 GLES30.glUseProgram(renderData.program)
                 surfaceTexture.getTransformMatrix(renderData.transformMat)
+                /**
+                 * [1.0, 0.0, 0.0, 0.0,
+                 *  0.0, -1.0, 0.0, 0.0,
+                 *  0.0, 0.0, 1.0, 0.0,
+                 *  0.0, 1.0, 0.0, 1.0]
+                 */
                 GLES30.glUniformMatrix4fv(renderData.transformLocation, 1, false, renderData.transformMat, 0)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
 //                GLES30.glUniform1i(renderData.oesTextureLocation, oesTexture)
