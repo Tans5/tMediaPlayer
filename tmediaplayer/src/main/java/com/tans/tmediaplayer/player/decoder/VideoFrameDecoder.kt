@@ -45,6 +45,8 @@ internal class VideoFrameDecoder(
     @Volatile
     private var oesTextureAndBufferTextures: Pair<Int, IntArray>? = null
 
+    private var textureBufferIndex: Long = -1
+
     private val renderListener: tMediaPlayerView.Companion.RenderListener by lazy {
         object : tMediaPlayerView.Companion.RenderListener {
 
@@ -153,18 +155,33 @@ internal class VideoFrameDecoder(
                                                                 frame.height = player.getVideoHeightNativeInternal(frame.nativeFrame)
                                                                 val playerView = playerView.get()
                                                                 val surfaceTexture = player.getHwSurfaces()?.second
-                                                                if (playerView != null && surfaceTexture != null) {
+                                                                val oesTexture = oesTextureAndBufferTextures?.first
+                                                                val textureBuffers = oesTextureAndBufferTextures?.second
+                                                                if (playerView != null && surfaceTexture != null && oesTexture != null && textureBuffers != null) {
                                                                     playerView.queueEvent {
                                                                         try {
-                                                                            // TODO: handle hw frames
                                                                             surfaceTexture.updateTexImage()
-                                                                            tMediaPlayerLog.d(TAG) { "Update hw frame success." }
+                                                                            textureBufferIndex ++
+                                                                            val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
+                                                                            if (playerView.oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
+                                                                                val ret = videoDecoderHandler.post {
+                                                                                    frame.textureBuffer = textureBuffer
+                                                                                    videoFrameQueue.enqueueReadable(frame)
+                                                                                    player.readableVideoFrameReady()
+                                                                                }
+                                                                                if (!ret) {
+                                                                                    videoFrameQueue.enqueueWritable(frame)
+                                                                                    tMediaPlayerLog.d(TAG) { "Update hw frame fail: decoder handler released." }
+                                                                                }
+                                                                            } else {
+                                                                                videoFrameQueue.enqueueWritable(frame)
+                                                                                tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail." }
+                                                                            }
                                                                         } catch (e: Throwable) {
+                                                                            videoFrameQueue.enqueueWritable(frame)
                                                                             tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
                                                                         }
                                                                     }
-                                                                    // FIXME: remove.
-                                                                    videoFrameQueue.enqueueWritable(frame)
                                                                 } else {
                                                                     tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
                                                                     videoFrameQueue.enqueueWritable(frame)
@@ -223,11 +240,11 @@ internal class VideoFrameDecoder(
         videoDecoderHandler
         state.set(DecoderState.Ready)
         tMediaPlayerLog.d(TAG) { "Video decoder inited." }
-        player.getHwSurfaces()?.second?.let {
-            it.setOnFrameAvailableListener {
-                tMediaPlayerLog.d(TAG) { "Surface texture hw frame on available." }
-            }
-        }
+//        player.getHwSurfaces()?.second?.let {
+//            it.setOnFrameAvailableListener {
+//                tMediaPlayerLog.d(TAG) { "Surface texture hw frame on available." }
+//            }
+//        }
     }
 
     fun requestDecode() {

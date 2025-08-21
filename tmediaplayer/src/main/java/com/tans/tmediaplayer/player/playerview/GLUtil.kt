@@ -1,7 +1,6 @@
 package com.tans.tmediaplayer.player.playerview
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import com.tans.tmediaplayer.tMediaPlayerLog

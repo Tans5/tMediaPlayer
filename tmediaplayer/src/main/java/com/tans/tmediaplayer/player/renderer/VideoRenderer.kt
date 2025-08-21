@@ -301,8 +301,19 @@ internal class VideoRenderer(
                             }
                         }
                         ImageRawType.HwSurface -> {
-                            // TODO: Handle eos texture.
-                            renderCallback(false)
+                            val textureId = frame.textureBuffer
+                            if (textureId != null) {
+                                playerView.requestRenderGlTexture(
+                                    width = frame.width,
+                                    height = frame.height,
+                                    textureId = textureId,
+                                    pts = frame.pts,
+                                    callback = renderCallback
+                                )
+                            } else {
+                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                                renderCallback(false)
+                            }
                         }
                         ImageRawType.Unknown -> {
                             renderCallback(false)

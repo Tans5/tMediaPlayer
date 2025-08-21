@@ -96,6 +96,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = null,
             vBytes = null,
             uvBytes = null,
+            textureId = null,
             pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Rgba
@@ -119,6 +120,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = uBytes,
             vBytes = vBytes,
             uvBytes = null,
+            textureId = null,
             pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Yuv420p
@@ -141,6 +143,7 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = null,
             vBytes = null,
             uvBytes = uvBytes,
+            textureId = null,
             pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Nv12
@@ -163,9 +166,32 @@ class tMediaPlayerView : GLSurfaceView {
             uBytes = null,
             vBytes = null,
             uvBytes = vuBytes,
+            textureId = null,
             pts = pts,
             callback = callback,
             imageDataType = ImageDataType.Nv21
+        )
+    }
+
+    fun requestRenderGlTexture(
+        width: Int,
+        height: Int,
+        textureId: Int,
+        pts: Long,
+        callback: ((isRendered: Boolean) -> Unit)?,
+    ) {
+        requestRender(
+            width = width,
+            height = height,
+            rgbaBytes = null,
+            yBytes = null,
+            uBytes = null,
+            vBytes = null,
+            uvBytes = null,
+            textureId = textureId,
+            pts = pts,
+            callback = callback,
+            imageDataType = ImageDataType.GlTexture
         )
     }
 
@@ -177,6 +203,7 @@ class tMediaPlayerView : GLSurfaceView {
         uBytes: ByteArray?,
         vBytes: ByteArray?,
         uvBytes: ByteArray?,
+        textureId: Int?,
         pts: Long,
         callback: ((isRendered: Boolean) -> Unit)?,
         imageDataType: ImageDataType
@@ -193,6 +220,7 @@ class tMediaPlayerView : GLSurfaceView {
             requestRenderImageData.uBytes = uBytes
             requestRenderImageData.vBytes = vBytes
             requestRenderImageData.uvBytes = uvBytes
+            requestRenderImageData.textureId = textureId
             requestRenderImageData.pts = pts
             requestRenderImageData.callback = callback
             requestRenderImageData.imageDataType = imageDataType
@@ -313,6 +341,7 @@ class tMediaPlayerView : GLSurfaceView {
                 val uBytes: ByteArray?
                 val vBytes: ByteArray?
                 val uvBytes: ByteArray?
+                val textureId: Int?
                 val pts: Long?
                 val imageDataType: ImageDataType?
 
@@ -324,6 +353,7 @@ class tMediaPlayerView : GLSurfaceView {
                     uBytes = requestRenderImageData.uBytes
                     vBytes = requestRenderImageData.vBytes
                     uvBytes = requestRenderImageData.uvBytes
+                    textureId = requestRenderImageData.textureId
                     pts = requestRenderImageData.pts
                     imageDataType = requestRenderImageData.imageDataType
                 } else {
@@ -334,6 +364,7 @@ class tMediaPlayerView : GLSurfaceView {
                     uBytes = lastRenderedImageData.uBytes
                     vBytes = lastRenderedImageData.vBytes
                     uvBytes = lastRenderedImageData.uvBytes
+                    textureId = lastRenderedImageData.textureId
                     pts = lastRenderedImageData.pts
                     imageDataType = lastRenderedImageData.imageDataType
                 }
@@ -342,8 +373,11 @@ class tMediaPlayerView : GLSurfaceView {
                     ImageDataType.Rgba -> rgbaTexConverter
                     ImageDataType.Yuv420p -> yuv420pTexConverter
                     ImageDataType.Nv12, ImageDataType.Nv21 -> yuv420spTexConverter
+                    else -> {
+                        null
+                    }
                 }
-                val convertTextureId = texConverter.convertImageToTexture(
+                val convertTextureId = texConverter?.convertImageToTexture(
                     context = context,
                     surfaceSize = screenSize,
                     imageWidth = imageWidth,
@@ -354,7 +388,7 @@ class tMediaPlayerView : GLSurfaceView {
                     vBytes = vBytes,
                     uvBytes = uvBytes,
                     imageDataType = imageDataType
-                )
+                ) ?: textureId!!
 
                 filterInput.width = imageWidth
                 filterInput.height = imageHeight
@@ -612,7 +646,8 @@ class tMediaPlayerView : GLSurfaceView {
             Rgba,
             Yuv420p,
             Nv21,
-            Nv12
+            Nv12,
+            GlTexture
         }
 
         class RequestRenderImageData {
@@ -624,6 +659,7 @@ class tMediaPlayerView : GLSurfaceView {
             var uBytes: ByteArray? = null
             var vBytes: ByteArray? = null
             var uvBytes: ByteArray? = null
+            var textureId: Int? = null
             var pts: Long? = null
             var imageDataType: ImageDataType? = null
 
@@ -636,6 +672,7 @@ class tMediaPlayerView : GLSurfaceView {
                 uBytes = null
                 vBytes = null
                 uvBytes = null
+                textureId = null
                 pts = null
                 imageDataType = null
             }
@@ -654,6 +691,7 @@ class tMediaPlayerView : GLSurfaceView {
             var uBytes: ByteArray? = null
             var vBytes: ByteArray? = null
             var uvBytes: ByteArray? = null
+            var textureId: Int? = null
             var pts: Long? = null
             var imageDataType: ImageDataType? = null
 
@@ -669,6 +707,7 @@ class tMediaPlayerView : GLSurfaceView {
                 uBytes = imageData.uBytes
                 vBytes = imageData.vBytes
                 uvBytes = imageData.uvBytes
+                textureId = imageData.textureId
                 pts = imageData.pts
                 imageDataType = imageData.imageDataType
             }

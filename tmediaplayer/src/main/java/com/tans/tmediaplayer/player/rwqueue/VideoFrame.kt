@@ -14,6 +14,7 @@ internal class VideoFrame(val nativeFrame: Long) {
     var vBuffer: ByteArray? = null
     var uvBuffer: ByteArray? = null
     var rgbaBuffer: ByteArray? = null
+    var textureBuffer: Int? = null
     var isEof: Boolean = false
 
     override fun toString(): String {
