@@ -1,7 +1,6 @@
 package com.tans.tmediaplayer.player.playerview.filter
 
 import android.content.Context
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 
 interface ImageFilter {
 
@@ -11,7 +10,8 @@ interface ImageFilter {
 
     fun filter(
         context: Context,
-        surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
+        surfaceWidth: Int,
+        surfaceHeight: Int,
         input: FilterImageTexture,
         output: FilterImageTexture
     )

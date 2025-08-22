@@ -2,10 +2,9 @@ package com.tans.tmediaplayer.player.playerview.texconverter
 
 import android.content.Context
 import android.opengl.GLES30
+import com.tans.tmediaplayer.player.playerview.ImageDataType
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView.Companion.ImageDataType
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 
@@ -17,7 +16,8 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
 
     override fun convertImageToTexture(
         context: Context,
-        surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
+        surfaceWidth: Int,
+        surfaceHeight: Int,
         imageWidth: Int,
         imageHeight: Int,
         rgbaBytes: ByteArray?,
@@ -27,7 +27,7 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
         uvBytes: ByteArray?,
         imageDataType: ImageDataType
     ): Int {
-        return if (imageDataType == tMediaPlayerView.Companion.ImageDataType.Rgba) {
+        return if (imageDataType == ImageDataType.Rgba) {
             val renderData = ensureRenderData()
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.outputTexId)
             GLES30.glTexImage2D(

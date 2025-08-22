@@ -302,7 +302,7 @@ class tMediaPlayerView : GLSurfaceView {
 
     private inner class FrameRenderer : Renderer {
 
-        private var sizeCache: SurfaceSizeCache? = null
+        private var sizeCache: Pair<Int, Int>? = null
 
         private var glRendererData: GLRendererData? = null
 
@@ -344,7 +344,7 @@ class tMediaPlayerView : GLSurfaceView {
         }
 
         override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
-            sizeCache = SurfaceSizeCache(gl, width, height)
+            sizeCache = width to height
             GLES30.glViewport(0, 0, width, height)
         }
 
@@ -410,7 +410,8 @@ class tMediaPlayerView : GLSurfaceView {
                 }
                 val convertTextureId = texConverter?.convertImageToTexture(
                     context = context,
-                    surfaceSize = screenSize,
+                    surfaceWidth = screenSize.first,
+                    surfaceHeight = screenSize.second,
                     imageWidth = imageWidth,
                     imageHeight = imageHeight,
                     rgbaBytes = rgbaBytes,
@@ -427,7 +428,8 @@ class tMediaPlayerView : GLSurfaceView {
 
                 asciiArtFilter.filter(
                     context = context,
-                    surfaceSize = screenSize,
+                    surfaceWidth = screenSize.first,
+                    surfaceHeight = screenSize.second,
                     input = filterInput,
                     output = filterOutput
                 )
@@ -437,7 +439,7 @@ class tMediaPlayerView : GLSurfaceView {
                 GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, filterOutput.texture)
                 GLES30.glUniform1i(GLES30.glGetUniformLocation(rendererData.program, "Texture"), 0)
                 val imageRatio = filterOutput.width.toFloat() / filterOutput.height.toFloat()
-                val renderRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
+                val renderRatio = screenSize.first.toFloat() / screenSize.second.toFloat()
                 val scaleType = this@tMediaPlayerView.getScaleType()
 
                 var textureTlX = 0.0f
@@ -672,18 +674,6 @@ class tMediaPlayerView : GLSurfaceView {
     }
 
     companion object {
-        enum class ScaleType {
-            CenterFit,
-            CenterCrop
-        }
-
-        enum class ImageDataType {
-            Rgba,
-            Yuv420p,
-            Nv21,
-            Nv12,
-            GlTexture
-        }
 
         class RequestRenderImageData {
             var imageWidth: Int = 0
@@ -875,12 +865,6 @@ class tMediaPlayerView : GLSurfaceView {
                 return result
             }
         }
-
-        data class SurfaceSizeCache(
-            val gl: GL10,
-            val width: Int,
-            val height: Int
-        )
 
         internal interface RenderListener {
 

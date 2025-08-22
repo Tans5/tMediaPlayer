@@ -4,13 +4,12 @@ import android.content.Context
 import android.opengl.GLES30
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
+import com.tans.tmediaplayer.player.playerview.ImageDataType
 import com.tans.tmediaplayer.player.playerview.compileShaderProgram
 import com.tans.tmediaplayer.player.playerview.glGenBuffers
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
 import com.tans.tmediaplayer.player.playerview.offScreenRender
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView.Companion.ImageDataType
 import com.tans.tmediaplayer.player.playerview.toGlBuffer
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
@@ -23,7 +22,8 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
 
     override fun convertImageToTexture(
         context: Context,
-        surfaceSize: tMediaPlayerView.Companion.SurfaceSizeCache,
+        surfaceWidth: Int,
+        surfaceHeight: Int,
         imageWidth: Int,
         imageHeight: Int,
         rgbaBytes: ByteArray?,
@@ -33,7 +33,7 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
         uvBytes: ByteArray?,
         imageDataType: ImageDataType
     ): Int {
-        return if (imageDataType == tMediaPlayerView.Companion.ImageDataType.Nv12 || imageDataType == tMediaPlayerView.Companion.ImageDataType.Nv21) {
+        return if (imageDataType == ImageDataType.Nv12 || imageDataType == ImageDataType.Nv21) {
             val renderData = ensureRenderData(context)
             if (renderData != null) {
                 offScreenRender(
@@ -59,7 +59,7 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter {
                     GLES30.glUniform1i(
                         GLES30.glGetUniformLocation(renderData.program, "swapUv"),
                         when (imageDataType) {
-                            tMediaPlayerView.Companion.ImageDataType.Nv12 -> 0
+                            ImageDataType.Nv12 -> 0
                             else -> 1
                         }
                     )
