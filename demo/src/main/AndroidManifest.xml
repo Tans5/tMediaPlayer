@@ -31,8 +31,7 @@
 
         <activity android:name=".PlayerActivity"
             android:exported="true"
-            android:screenOrientation="landscape"
-            android:configChanges="screenSize|orientation|uiMode" />
+            android:screenOrientation="landscape" />
     </application>
 
 </manifest>

@@ -50,7 +50,7 @@ internal class VideoFrameDecoder(
     private val renderListener: tMediaPlayerView.Companion.RenderListener by lazy {
         object : tMediaPlayerView.Companion.RenderListener {
 
-            override fun onSurfaceCreated(playerView: tMediaPlayerView) {
+            override fun onSurfaceAttached(playerView: tMediaPlayerView) {
                 if (getState() != DecoderState.Released) {
                     val textures = playerView.genHwOesTextureAndBufferTextures(VIDEO_FRAME_QUEUE_SIZE)
                     oesTextureAndBufferTextures = textures
@@ -58,23 +58,23 @@ internal class VideoFrameDecoder(
                     if (surfaceTexture != null) {
                         try {
                             surfaceTexture.attachToGLContext(textures.first)
-                            tMediaPlayerLog.d(TAG) { "SurfaceTexture attached to gl context: ${player.getHwSurfaces()?.first?.isValid}" }
+                            tMediaPlayerLog.d(TAG) { "SurfaceTexture attached to gl context to ${Thread.currentThread().name}" }
                         } catch (e: Throwable) {
-                            tMediaPlayerLog.e(TAG) { "SurfaceTexture attach to gl context fail: ${e.message}, Thread: ${Thread.currentThread().name}" }
+                            tMediaPlayerLog.e(TAG) { "SurfaceTexture attach to gl context fail \"${e.message}\" from ${Thread.currentThread().name}" }
                         }
                     }
                 }
             }
 
-            override fun onSurfaceDestroyed(playerView: tMediaPlayerView) {
+            override fun onSurfaceDetached(playerView: tMediaPlayerView) {
                 oesTextureAndBufferTextures = null
                 val surfaceTexture = player.getHwSurfaces()?.second
                 if (surfaceTexture != null) {
                     try {
                         surfaceTexture.detachFromGLContext()
-                        tMediaPlayerLog.d(TAG) { "SurfaceTexture detached from gl context." }
+                        tMediaPlayerLog.d(TAG) { "SurfaceTexture detached from gl context from ${Thread.currentThread().name}" }
                     } catch (e: Throwable) {
-                        tMediaPlayerLog.e(TAG) { "SurfaceTexture detach from gl context fail: ${e.message}" }
+                        tMediaPlayerLog.e(TAG) { "SurfaceTexture detach from gl context fail \"${e.message}\" from ${Thread.currentThread().name}" }
                     }
                 }
             }
@@ -279,7 +279,7 @@ internal class VideoFrameDecoder(
     fun attachPlayerView(view: tMediaPlayerView?) {
         val previous = this.playerView.get()
         if (this.playerView.compareAndSet(previous, view)) {
-            previous?.removeRenderListener(renderListener)
+            previous?.removeRenderListener(renderListener, true)
             view?.addRenderListener(renderListener)
         }
     }
@@ -293,7 +293,6 @@ internal class VideoFrameDecoder(
                 videoDecoderThread.quitSafely()
                 playerView.get()?.removeRenderListener(renderListener)
                 playerView.set(null)
-                oesTextureAndBufferTextures = null
                 tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }

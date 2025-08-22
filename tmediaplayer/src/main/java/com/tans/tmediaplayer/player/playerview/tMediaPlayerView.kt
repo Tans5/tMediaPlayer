@@ -55,9 +55,10 @@ class tMediaPlayerView : GLSurfaceView {
         AsciiArtImageFilter()
     }
 
+    @Volatile
     private var isDetachedFromWindow: Boolean = false
 
-    private val renderListeners: LinkedBlockingDeque<RenderListener> by lazy {
+    private val renderListeners: LinkedBlockingDeque<RenderListenerWrapper> by lazy {
         LinkedBlockingDeque()
     }
 
@@ -233,37 +234,70 @@ class tMediaPlayerView : GLSurfaceView {
     }
 
     @Synchronized
-    internal fun addRenderListener(l: RenderListener) {
+    internal fun addRenderListener(l: RenderListener, waitAttached: Boolean = false) {
         if (!isDetachedFromWindow) {
+            val wrapper = RenderListenerWrapper(l)
+            renderListeners.add(wrapper)
             if (renderer.isSurfaceCreated) {
                 queueEvent {
-                    l.onSurfaceCreated(this)
+                    wrapper.dispatchAttached(this)
                 }
             }
-            renderListeners.add(l)
-        } else {
-            l.onSurfaceDestroyed(this)
+            if (waitAttached) {
+                synchronized(wrapper) {
+                    while (!wrapper.isAttached) {
+                        (wrapper as Object).wait()
+                    }
+                }
+            }
         }
     }
 
     @Synchronized
-    internal fun removeRenderListener(l: RenderListener) {
-        renderListeners.remove(l)
+    internal fun removeRenderListener(l: RenderListener, waitDetached: Boolean = false) {
+        val wrapper = renderListeners.find { it.listener == l }
+        if (wrapper != null) {
+            if (!isDetachedFromWindow) {
+                queueEvent {
+                    wrapper.dispatchDetached(this)
+                    renderListeners.remove(wrapper)
+                }
+            } else {
+                renderListeners.remove(wrapper)
+            }
+            if (waitDetached) {
+                synchronized(wrapper) {
+                    while (wrapper.isAttached) {
+                        (wrapper as Object).wait()
+                    }
+                }
+            }
+        }
     }
 
     @Synchronized
     override fun onDetachedFromWindow() {
         if (!isDetachedFromWindow) {
+            val recycleFinishLock = Any()
             queueEvent {
                 renderer.recycle()
+                for (l in renderListeners) {
+                    l.dispatchDetached(this)
+                }
+                isDetachedFromWindow = true
+                synchronized(recycleFinishLock) {
+                    (recycleFinishLock as Object).notifyAll()
+                }
             }
-            for (l in renderListeners) {
-                l.onSurfaceDestroyed(this)
+            synchronized(recycleFinishLock) {
+                while (!isDetachedFromWindow) {
+                    (recycleFinishLock as Object).wait()
+                }
             }
-            renderListeners.clear()
-            isDetachedFromWindow = true
+            super.onDetachedFromWindow()
+        } else {
+            super.onDetachedFromWindow()
         }
-        super.onDetachedFromWindow()
     }
 
     private inner class FrameRenderer : Renderer {
@@ -304,7 +338,7 @@ class tMediaPlayerView : GLSurfaceView {
             synchronized(this@tMediaPlayerView) {
                 isSurfaceCreated = true
                 for (l in renderListeners) {
-                    l.onSurfaceCreated(this@tMediaPlayerView)
+                    l.dispatchAttached(this@tMediaPlayerView)
                 }
             }
         }
@@ -324,9 +358,6 @@ class tMediaPlayerView : GLSurfaceView {
         private val vertexBuffer = vertexArray.toGlBuffer().asFloatBuffer()
         private val matrixBuffer = newGlFloatMatrix()
         override fun onDrawFrame(gl: GL10) {
-            for (l in renderListeners) {
-                l.onPreDrawFrame(this@tMediaPlayerView)
-            }
             val rendererData = this.glRendererData
             val screenSize = sizeCache
             if (rendererData != null && screenSize != null && isWritingRenderImageData.compareAndSet(false, true)) {
@@ -536,9 +567,6 @@ class tMediaPlayerView : GLSurfaceView {
                 tMediaPlayerLog.d(TAG) { "Rendered video frame: $pts" }
             } else {
                 tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
-            }
-            for (l in renderListeners) {
-                l.onPostDrawFrame(this@tMediaPlayerView)
             }
         }
 
@@ -856,20 +884,42 @@ class tMediaPlayerView : GLSurfaceView {
 
         internal interface RenderListener {
 
-            fun onSurfaceCreated(playerView: tMediaPlayerView) {
+            fun onSurfaceAttached(playerView: tMediaPlayerView) {
 
             }
 
-            fun onPreDrawFrame(playerView: tMediaPlayerView) {
+            fun onSurfaceDetached(playerView: tMediaPlayerView) {
 
             }
+        }
 
-            fun onPostDrawFrame(playerView: tMediaPlayerView) {
+        private class RenderListenerWrapper(
+            val listener: RenderListener
+        ) {
 
+            @Volatile
+            var isAttached: Boolean  = false
+
+            // invoke on gl thread.
+            fun dispatchAttached(playerView: tMediaPlayerView) {
+                if (!isAttached) {
+                    listener.onSurfaceAttached(playerView)
+                    isAttached = true
+                }
+                synchronized(this) {
+                    (this as Object).notifyAll()
+                }
             }
 
-            fun onSurfaceDestroyed(playerView: tMediaPlayerView) {
-
+            // invoke on gl thread.
+            fun dispatchDetached(playerView: tMediaPlayerView) {
+                if (isAttached) {
+                    listener.onSurfaceDetached(playerView)
+                    isAttached = false
+                }
+                synchronized(this) {
+                    (this as Object).notifyAll()
+                }
             }
         }
 
