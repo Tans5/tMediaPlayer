@@ -10,6 +10,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
 
     override var isReleased: Boolean = false
     override val listeners: MutableList<RenderSurfaceAdapter.WrapperListener> = LinkedList()
+    @Volatile
     override var activeSurface: Surface? = null
     override var activeSurfaceWidth: Int? = null
     override var activeSurfaceHeight: Int? = null

@@ -752,26 +752,20 @@ internal class GLRenderer {
 
         @Synchronized
         fun requestAttachSurface(s: Surface) {
-            if (surface == null && isThreadAlive()) {
-                surface = s
-                (this as Object).notifyAll()
-            }
+            surface = s
+            (this as Object).notifyAll()
         }
 
         @Synchronized
         fun requestDetachSurface() {
-            if (surface != null && isThreadAlive()) {
-                surface = null
-                (this as Object).notifyAll()
-            }
+            surface = null
+            (this as Object).notifyAll()
         }
 
         @Synchronized
         fun requestSizeChange(width: Int, height: Int) {
-            if (isThreadAlive()) {
-                surfaceSizeChange = width to height
-                (this as Object).notifyAll()
-            }
+            surfaceSizeChange = width to height
+            (this as Object).notifyAll()
         }
 
 
@@ -806,32 +800,74 @@ internal class GLRenderer {
             // 1. Display
             var display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
             val version = IntArray(2)
-            EGL14.eglInitialize(display, version, 0, version, 1)
+            if (!EGL14.eglInitialize(display, version, 0, version, 1)) {
+                error("Init egl display fail.")
+            }
             tMediaPlayerLog.d(TAG) { "EGL display inited, major version: ${version[0]}, minor version: ${version[1]}" }
 
 
             // 2. Choose configure
-            val eglConfigureAttrs = intArrayOf(
+            val eglConfigureSpec = intArrayOf(
                 EGL14.EGL_RED_SIZE, 8,
                 EGL14.EGL_GREEN_SIZE, 8,
                 EGL14.EGL_BLUE_SIZE, 8,
-                EGL14.EGL_ALPHA_SIZE, 8,
+                EGL14.EGL_ALPHA_SIZE, 0,
+                EGL14.EGL_DEPTH_SIZE, 16,
+                EGL14.EGL_STENCIL_SIZE, 0,
+                // EGL14.EGL_SURFACE_TYPE, EGL14.EGL_WINDOW_BIT,
                 EGL14.EGL_RENDERABLE_TYPE, EGLExt.EGL_OPENGL_ES3_BIT_KHR,
-                EGL14.EGL_SURFACE_TYPE, EGL14.EGL_WINDOW_BIT,
                 EGL14.EGL_NONE
             )
-            val eglConfigure = Array<EGLConfig?>(1) { null }
-            val numConfigure = IntArray(1)
-            EGL14.eglChooseConfig(display, eglConfigureAttrs, 0, eglConfigure,
-                0, 1, numConfigure, 0)
-            tMediaPlayerLog.d(TAG) { "Choose egl configure: ${eglConfigure[0]}" }
+            val configNum = intArrayOf(0)
+            if (!EGL14.eglChooseConfig(display,
+                eglConfigureSpec, 0,
+                null, 0, 0,
+                configNum, 0
+            )) {
+                error("eglChooseConfig fail.")
+            }
+            tMediaPlayerLog.d(TAG) { "All configure size: ${configNum[0]}" }
+            val allConfigs = Array<EGLConfig?>(configNum[0]) { null }
+            if (!EGL14.eglChooseConfig(display,
+                eglConfigureSpec, 0,
+                allConfigs, 0, allConfigs.size,
+                configNum, 0
+            )) {
+                error("eglChooseConfig fail.")
+            }
+            var chooseConfig: EGLConfig? = null
+            val v = intArrayOf(0)
+            fun eglGetConfigAttr(config: EGLConfig, key: Int): Int {
+                if (EGL14.eglGetConfigAttrib(display, config, key, v, 0)) {
+                    return v[0]
+                } else {
+                    return 0
+                }
+            }
+            for (c in allConfigs) {
+                if (c != null) {
+                    val d = eglGetConfigAttr(c, EGL14.EGL_DEPTH_SIZE)
+                    if (d >= 16) {
+                        val r = eglGetConfigAttr(c, EGL14.EGL_RED_SIZE)
+                        val g = eglGetConfigAttr(c, EGL14.EGL_GREEN_SIZE)
+                        val b = eglGetConfigAttr(c, EGL14.EGL_BLUE_SIZE)
+                        val a = eglGetConfigAttr(c, EGL14.EGL_ALPHA_SIZE)
+                        if (r == 8 && g == 8 && b == 8 && a == 0) {
+                            chooseConfig = c
+                            break
+                        }
+                    }
+                }
+            }
+
+            tMediaPlayerLog.d(TAG) { "Choose egl configure: $chooseConfig" }
 
             // 3. Create egl context.
             val eglContextAttrs = intArrayOf(
                 EGL14.EGL_CONTEXT_CLIENT_VERSION, 3,
                 EGL14.EGL_NONE
             )
-            var eglContext = EGL14.eglCreateContext(display, eglConfigure[0], EGL14.EGL_NO_CONTEXT, eglContextAttrs, 0)
+            var eglContext = EGL14.eglCreateContext(display, chooseConfig, EGL14.EGL_NO_CONTEXT, eglContextAttrs, 0)
             tMediaPlayerLog.d(TAG) { "Create egl context: $eglContext" }
 
             // 4. Wait create surface.
@@ -869,11 +905,10 @@ internal class GLRenderer {
                     if (sur != null) {
                         if (eglSurface == EGL14.EGL_NO_SURFACE) {
                             // Create new egl surface
-                            eglSurface = EGL14.eglCreateWindowSurface(display, eglConfigure[0], sur, intArrayOf(
-                                EGL14.EGL_NONE), 0)
-                            EGL14.eglMakeCurrent(display, eglSurface, EGL14.EGL_NO_SURFACE, eglContext)
+                            eglSurface = EGL14.eglCreateWindowSurface(display, chooseConfig, sur, intArrayOf(EGL14.EGL_NONE), 0)
+                            EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
                             realRenderer.glContextCreated()
-                            tMediaPlayerLog.d(TAG) { "GL context created." }
+                            tMediaPlayerLog.d(TAG) { "GL context created, surface: $eglSurface" }
                         }
                     } else {
                         if (eglSurface != EGL14.EGL_NO_SURFACE) {

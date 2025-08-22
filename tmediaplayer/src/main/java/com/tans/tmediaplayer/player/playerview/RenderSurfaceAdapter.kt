@@ -47,6 +47,7 @@ internal interface RenderSurfaceAdapter {
 
     fun dispatchSurfaceCreated(s: Surface, width: Int, height: Int) {
         synchronized(this) {
+            activeSurface = s
             activeSurfaceWidth = width
             activeSurfaceHeight = height
             for (l in listeners) {

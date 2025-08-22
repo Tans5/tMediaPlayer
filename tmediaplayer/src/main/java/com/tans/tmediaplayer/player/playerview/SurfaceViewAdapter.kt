@@ -10,6 +10,7 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
 
     override var isReleased: Boolean = false
     override val listeners: MutableList<RenderSurfaceAdapter.WrapperListener> = LinkedList()
+    @Volatile
     override var activeSurface: Surface? = null
     override var activeSurfaceWidth: Int? = null
     override var activeSurfaceHeight: Int? = null
@@ -17,7 +18,10 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
     private val surfaceViewWeakRef: WeakReference<SurfaceView> = WeakReference(surfaceView)
 
     init {
-        surfaceView.holder?.addCallback(this)
+        surfaceView.holder.addCallback(this)
+        if (surfaceView.holder.surface != null) {
+            surfaceCreated(surfaceView.holder)
+        }
     }
 
 
