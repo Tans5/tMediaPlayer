@@ -1,6 +1,5 @@
 package com.tans.tmediaplayer.player.playerview
 
-import android.content.Context
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import android.view.TextureView
@@ -27,6 +26,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         width: Int,
         height: Int
     ) {
+        RenderSurfaceAdapter.setApplicationContext(textureViewWeakRef.get()?.context)
         dispatchSurfaceCreated(Surface(surface), width, height)
     }
 
@@ -52,6 +52,4 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         textureViewWeakRef.get()?.surfaceTextureListener = null
         activeSurface?.release()
     }
-
-    override fun getAndroidContext(): Context? = textureViewWeakRef.get()?.context?.applicationContext
 }

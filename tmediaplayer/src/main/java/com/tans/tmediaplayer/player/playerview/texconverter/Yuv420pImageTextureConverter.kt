@@ -10,7 +10,6 @@ import com.tans.tmediaplayer.player.playerview.glGenBuffers
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
 import com.tans.tmediaplayer.player.playerview.offScreenRender
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.playerview.toGlBuffer
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference

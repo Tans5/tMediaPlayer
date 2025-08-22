@@ -1,10 +1,13 @@
 package com.tans.tmediaplayer.player
 
+import android.view.SurfaceView
+import android.view.TextureView
 import android.widget.TextView
 import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.SubtitleStreamInfo
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.ScaleType
+import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
 
 
 internal interface IPlayer {
@@ -29,7 +32,9 @@ internal interface IPlayer {
 
     fun setListener(l: tMediaPlayerListener?)
 
-    fun attachPlayerView(view: tMediaPlayerView?)
+    fun attachPlayerView(view: TextureView?)
+
+    fun attachPlayerView(view: SurfaceView?)
 
     fun attachSubtitleView(view: TextView?)
 
@@ -40,4 +45,14 @@ internal interface IPlayer {
     fun loadExternalSubtitleFile(file: String)
 
     fun getExternalSubtitleFile(): String?
+
+    fun setScaleType(scaleType: ScaleType)
+
+    fun getScaleType(): ScaleType
+
+    fun enableAsciiArtFilter(enable: Boolean)
+
+    fun getAsciiArtImageFilter(): AsciiArtImageFilter
+
+    fun refreshVideoFrame()
 }

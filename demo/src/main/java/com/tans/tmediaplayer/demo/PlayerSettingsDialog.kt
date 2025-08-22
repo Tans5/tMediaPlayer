@@ -4,8 +4,8 @@ import android.app.Dialog
 import android.view.View
 import android.widget.SeekBar
 import com.tans.tmediaplayer.demo.databinding.PlayerSettingsDialogBinding
+import com.tans.tmediaplayer.player.playerview.ScaleType
 import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.tMediaPlayer
 import com.tans.tmediaplayer.player.tMediaPlayerState
 import com.tans.tuiutils.dialog.BaseCoroutineStateDialogFragment
@@ -13,17 +13,14 @@ import com.tans.tuiutils.dialog.createDefaultDialog
 
 class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
 
-    private val playerView: tMediaPlayerView?
 
     private val player: tMediaPlayer?
 
     constructor() : super(Unit) {
-        this.playerView = null
         this.player = null
     }
 
-    constructor(playerView: tMediaPlayerView, player: tMediaPlayer) : super(Unit) {
-        this.playerView = playerView
+    constructor(player: tMediaPlayer) : super(Unit) {
         this.player = player
     }
 
@@ -38,7 +35,6 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
     override fun firstLaunchInitData() {}
 
     override fun bindContentView(view: View) {
-        val playerView = this.playerView ?: return
         val player = this.player ?: return
         val viewBinding = PlayerSettingsDialogBinding.bind(view)
 
@@ -50,24 +46,24 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 || state is tMediaPlayerState.PlayEnd
                 || state is tMediaPlayerState.Stopped
             ) {
-                playerView.requestRender()
+                player.refreshVideoFrame()
             }
         }
 
-        viewBinding.cropImageSw.isChecked = playerView.getScaleType() == tMediaPlayerView.Companion.ScaleType.CenterCrop
+        viewBinding.cropImageSw.isChecked = player.getScaleType() == ScaleType.CenterCrop
         viewBinding.cropImageSw.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterCrop)
+                player.setScaleType(ScaleType.CenterCrop)
             } else {
-                playerView.setScaleType(tMediaPlayerView.Companion.ScaleType.CenterFit)
+                player.setScaleType(ScaleType.CenterFit)
             }
             requestRender()
         }
 
-        val asciiArtFilter = playerView.getAsciiArtImageFilter()
+        val asciiArtFilter = player.getAsciiArtImageFilter()
         viewBinding.asciiFilterSw.isChecked = asciiArtFilter.isEnable()
         viewBinding.asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
-            playerView.enableAsciiArtFilter(isChecked)
+            player.enableAsciiArtFilter(isChecked)
             requestRender()
         }
 

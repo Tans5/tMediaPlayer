@@ -55,6 +55,10 @@ internal class GLRenderer {
 
     private var isReleased: Boolean = false
 
+    private val glContextListeners: LinkedBlockingDeque<GLContextListenerWrapper> by lazy {
+        LinkedBlockingDeque()
+    }
+
     // region Opt
     fun setScaleType(scaleType: ScaleType) {
         this.realRenderer.scaleType.set(scaleType)
@@ -72,6 +76,11 @@ internal class GLRenderer {
     // endregion
 
     // region RequestRenderImage
+
+    fun refreshFrame() {
+        glThread.requestRender()
+    }
+
     fun requestRenderRgbaFrame(
         width: Int,
         height: Int,
@@ -273,7 +282,9 @@ internal class GLRenderer {
             if (glThread.isStarted()) {
                 glThread.requestQuitAndWait()
             }
-            // TODO:
+            renderSurfaceAdapter?.release()
+            renderSurfaceAdapter = null
+            glContextListeners.clear()
         }
     }
 
@@ -284,6 +295,28 @@ internal class GLRenderer {
     fun genHwOesTextureAndBufferTextures(bufferSize: Int): Pair<Int, IntArray> {
         return glGenOesTextureAndSetDefaultParams() to IntArray(bufferSize) {
             glGenTextureAndSetDefaultParams()
+        }
+    }
+
+    fun addGLContextListener(l: GLContextListener) {
+        if (glContextListeners.find { it.l === l } == null) {
+            val new = GLContextListenerWrapper(l)
+            glContextListeners.add(new)
+            if (glThread.isSurfaceAlive()) {
+                enqueueTask { new.dispatchGLContextCreated() }
+            }
+        }
+    }
+
+    fun removeGLContextListener(l: GLContextListener) {
+        val toRemove = glContextListeners.find { it.l === l }
+        if (toRemove != null) {
+            if (glThread.isSurfaceAlive()) {
+                enqueueTask {
+                    toRemove.dispatchGLContextDestroying()
+                    glContextListeners.remove(toRemove)
+                }
+            }
         }
     }
 
@@ -324,11 +357,10 @@ internal class GLRenderer {
         private var glRendererData: GLRendererData? = null
 
         fun glContextCreated() {
-            // FixME: Fix context
-            val context = renderSurfaceAdapter?.getAndroidContext()
+            val context = RenderSurfaceAdapter.getAndroidApplicationContext()!!
             GLES30.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
-            val program = compileShaderProgram(context!!, R.raw.t_media_player_vert, R.raw.t_media_player_frag)
+            val program = compileShaderProgram(context, R.raw.t_media_player_vert, R.raw.t_media_player_frag)
             if (program != null) {
                 val VAOArray = IntArray(1)
                 GLES30.glGenVertexArrays(1, VAOArray, 0)
@@ -350,6 +382,9 @@ internal class GLRenderer {
                     VBO = VBO
                 )
             }
+            for (l in glContextListeners) {
+                l.dispatchGLContextCreated()
+            }
         }
 
         fun surfaceSizeChanged(width: Int, height: Int) {
@@ -369,9 +404,8 @@ internal class GLRenderer {
         fun drawFrame() {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
-            // FixME: Fix context
-            val context = renderSurfaceAdapter?.getAndroidContext()
-            if (context != null && rendererData != null && screenSize != null && isWritingRenderImageData.compareAndSet(false, true)) {
+            val context = RenderSurfaceAdapter.getAndroidApplicationContext()!!
+            if (rendererData != null && screenSize != null && isWritingRenderImageData.compareAndSet(false, true)) {
                 if (!requestRenderImageData.containRenderData() && !lastRenderedImageData.containRenderData()) {
                     isWritingRenderImageData.set(false)
                     return
@@ -584,8 +618,7 @@ internal class GLRenderer {
         var oesGlRenderData: OESGLRenderData? = null
         fun oesTexture2Texture2D(surfaceTexture: SurfaceTexture, oesTexture: Int, texture2D: Int, width: Int, height: Int): Boolean {
             var isSuccess = true
-            // FixME: Fix context
-            val context = renderSurfaceAdapter!!.getAndroidContext()!!
+            val context = RenderSurfaceAdapter.getAndroidApplicationContext()!!
             offScreenRender(texture2D, width, height) {
                 val renderData = oesGlRenderData.let {
                     if (it != null) {
@@ -662,6 +695,9 @@ internal class GLRenderer {
             yuv420spTexConverter.recycle()
             asciiArtFilter.recycle()
             tryRecycleUnhandledRequestImageData()
+            for (l in glContextListeners) {
+                l.dispatchGLContextDestroying()
+            }
         }
 
         private fun tryRecycleUnhandledRequestImageData() {
@@ -858,6 +894,7 @@ internal class GLRenderer {
 
                     val size = surfaceSizeChange
                     if (size != null) {
+                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${size.first}x${size.second}"}
                         realRenderer.surfaceSizeChanged(size.first, size.second)
                         surfaceSizeChange = null
                     }
@@ -1073,6 +1110,30 @@ internal class GLRenderer {
             }
         }
 
+        private class GLContextListenerWrapper(
+            val l: GLContextListener
+        ) {
+            private val isGLContextCreated: AtomicBoolean = AtomicBoolean(false)
+
+            fun dispatchGLContextCreated() {
+                if (isGLContextCreated.compareAndSet(false, true)) {
+                    l.glContextCreated()
+                }
+            }
+
+            fun dispatchGLContextDestroying() {
+                if (isGLContextCreated.compareAndSet(true, false)) {
+                    l.glContextDestroying()
+                }
+            }
+        }
+
+        interface GLContextListener {
+
+            fun glContextCreated()
+
+            fun glContextDestroying()
+        }
 
         private const val TAG = "GLRenderer"
     }

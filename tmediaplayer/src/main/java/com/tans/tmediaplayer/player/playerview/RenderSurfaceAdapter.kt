@@ -45,8 +45,6 @@ internal interface RenderSurfaceAdapter {
 
     fun doRelease()
 
-    fun getAndroidContext(): Context?
-
     fun dispatchSurfaceCreated(s: Surface, width: Int, height: Int) {
         synchronized(this) {
             activeSurfaceWidth = width
@@ -119,5 +117,19 @@ internal interface RenderSurfaceAdapter {
         fun onSurfaceSizeChanged(width: Int, height: Int)
 
         fun onSurfaceDestroyed()
+    }
+
+    companion object {
+
+        @Volatile
+        private var applicationContext: Context? = null
+
+        fun setApplicationContext(context: Context?) {
+            if (applicationContext == null && context != null) {
+                applicationContext = context.applicationContext
+            }
+        }
+
+        fun getAndroidApplicationContext(): Context? = applicationContext
     }
 }

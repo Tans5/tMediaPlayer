@@ -1,6 +1,5 @@
 package com.tans.tmediaplayer.player.playerview
 
-import android.content.Context
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -25,6 +24,7 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
     // region SurfaceView Callback
     override fun surfaceCreated(holder: SurfaceHolder) {
         val v = surfaceViewWeakRef.get()
+        RenderSurfaceAdapter.Companion.setApplicationContext(v?.context)
         dispatchSurfaceCreated(holder.surface, v?.measuredWidth ?: 0, v?.measuredHeight ?: 0)
     }
 
@@ -41,8 +41,6 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
         dispatchSurfaceDestroyed()
     }
     // endregion
-
-    override fun getAndroidContext(): Context? = surfaceViewWeakRef.get()?.context?.applicationContext
 
     override fun doRelease() {
         surfaceViewWeakRef.get()?.holder?.removeCallback(this)

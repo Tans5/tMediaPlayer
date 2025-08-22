@@ -12,7 +12,6 @@ import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
 import com.tans.tmediaplayer.player.model.SyncType
 import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
@@ -27,8 +26,6 @@ internal class VideoRenderer(
     private val videoPacketQueue: PacketQueue,
     private val player: tMediaPlayer
 ) {
-    private val playerView: AtomicReference<tMediaPlayerView?> = AtomicReference()
-
     private val state: AtomicReference<RendererState> = AtomicReference(RendererState.NotInit)
 
     // Is read thread ready?
@@ -218,7 +215,7 @@ internal class VideoRenderer(
 
             val renderedFrame: LastRenderedFrame = LastRenderedFrame() // For Message use.
             fun renderVideoFrame(frame: VideoFrame) {
-                val playerView = this@VideoRenderer.playerView.get()
+                val glRenderer = player.getGLRenderer()
                 val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
                     if (isRendered) {
                         val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
@@ -230,97 +227,93 @@ internal class VideoRenderer(
                     }
                     enqueueWriteableFrame(frame)
                 }
-                if (playerView != null) {
-                    when (frame.imageType) {
-                        ImageRawType.Yuv420p -> {
-                            val y = frame.yBuffer
-                            val u = frame.uBuffer
-                            val v = frame.vBuffer
-                            if (y != null && u != null && v != null) {
-                                playerView.requestRenderYuv420pFrame(
-                                    width = frame.width,
-                                    height = frame.height,
-                                    yBytes = y,
-                                    uBytes = u,
-                                    vBytes = v,
-                                    pts = frame.pts,
-                                    callback = renderCallback
-                                )
-                            } else {
-                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                renderCallback(false)
-                            }
-                        }
-                        ImageRawType.Nv12 -> {
-                            val y = frame.yBuffer
-                            val uv = frame.uvBuffer
-                            if (y != null && uv != null) {
-                                playerView.requestRenderNv12Frame(
-                                    width = frame.width,
-                                    height = frame.height,
-                                    yBytes = y,
-                                    uvBytes = uv,
-                                    pts = frame.pts,
-                                    callback = renderCallback
-                                )
-                            } else {
-                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                renderCallback(false)
-                            }
-                        }
-                        ImageRawType.Nv21 -> {
-                            val y = frame.yBuffer
-                            val vu = frame.uvBuffer
-                            if (y != null && vu != null) {
-                                playerView.requestRenderNv21Frame(
-                                    width = frame.width,
-                                    height = frame.height,
-                                    yBytes = y,
-                                    vuBytes = vu,
-                                    pts = frame.pts,
-                                    callback = renderCallback
-                                )
-                            } else {
-                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                renderCallback(false)
-                            }
-                        }
-                        ImageRawType.Rgba -> {
-                            val rgba = frame.rgbaBuffer
-                            if (rgba != null) {
-                                playerView.requestRenderRgbaFrame(
-                                    width = frame.width,
-                                    height = frame.height,
-                                    imageBytes = rgba,
-                                    pts = frame.pts,
-                                    callback = renderCallback
-                                )
-                            } else {
-                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                renderCallback(false)
-                            }
-                        }
-                        ImageRawType.HwSurface -> {
-                            val textureId = frame.textureBuffer
-                            if (textureId != null) {
-                                playerView.requestRenderGlTexture(
-                                    width = frame.width,
-                                    height = frame.height,
-                                    textureId = textureId,
-                                    pts = frame.pts,
-                                    callback = renderCallback
-                                )
-                            } else {
-                                tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                                renderCallback(false)
-                            }
-                        }
-                        ImageRawType.Unknown -> {
+                when (frame.imageType) {
+                    ImageRawType.Yuv420p -> {
+                        val y = frame.yBuffer
+                        val u = frame.uBuffer
+                        val v = frame.vBuffer
+                        if (y != null && u != null && v != null) {
+                            glRenderer.requestRenderYuv420pFrame(
+                                width = frame.width,
+                                height = frame.height,
+                                yBytes = y,
+                                uBytes = u,
+                                vBytes = v,
+                                pts = frame.pts,
+                                callback = renderCallback
+                            )
+                        } else {
+                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
                             renderCallback(false)
                         }
                     }
-                } else {
-                    renderCallback(false)
+                    ImageRawType.Nv12 -> {
+                        val y = frame.yBuffer
+                        val uv = frame.uvBuffer
+                        if (y != null && uv != null) {
+                            glRenderer.requestRenderNv12Frame(
+                                width = frame.width,
+                                height = frame.height,
+                                yBytes = y,
+                                uvBytes = uv,
+                                pts = frame.pts,
+                                callback = renderCallback
+                            )
+                        } else {
+                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                            renderCallback(false)
+                        }
+                    }
+                    ImageRawType.Nv21 -> {
+                        val y = frame.yBuffer
+                        val vu = frame.uvBuffer
+                        if (y != null && vu != null) {
+                            glRenderer.requestRenderNv21Frame(
+                                width = frame.width,
+                                height = frame.height,
+                                yBytes = y,
+                                vuBytes = vu,
+                                pts = frame.pts,
+                                callback = renderCallback
+                            )
+                        } else {
+                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                            renderCallback(false)
+                        }
+                    }
+                    ImageRawType.Rgba -> {
+                        val rgba = frame.rgbaBuffer
+                        if (rgba != null) {
+                            glRenderer.requestRenderRgbaFrame(
+                                width = frame.width,
+                                height = frame.height,
+                                imageBytes = rgba,
+                                pts = frame.pts,
+                                callback = renderCallback
+                            )
+                        } else {
+                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                            renderCallback(false)
+                        }
+                    }
+                    ImageRawType.HwSurface -> {
+                        val textureId = frame.textureBuffer
+                        if (textureId != null) {
+                            glRenderer.requestRenderGlTexture(
+                                width = frame.width,
+                                height = frame.height,
+                                textureId = textureId,
+                                pts = frame.pts,
+                                callback = renderCallback
+                            )
+                        } else {
+                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                            renderCallback(false)
+                        }
+                    }
+                    ImageRawType.Unknown -> {
+                        renderCallback(false)
+                    }
                 }
             }
 
@@ -427,8 +420,6 @@ internal class VideoRenderer(
             val state = getState()
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
-                this.playerView.get()?.tryRecycleUnhandledRequestImageData()
-                this.playerView.set(null)
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
                 tMediaPlayerLog.d(TAG) { "Video renderer released." }
@@ -436,10 +427,6 @@ internal class VideoRenderer(
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
             }
         }
-    }
-
-    fun attachPlayerView(view: tMediaPlayerView?) {
-        this.playerView.set(view)
     }
 
     fun getState(): RendererState = state.get()

@@ -4,6 +4,8 @@ import android.graphics.SurfaceTexture
 import android.os.Build
 import android.os.SystemClock
 import android.view.Surface
+import android.view.SurfaceView
+import android.view.TextureView
 import android.widget.TextView
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.tMediaPlayerLog
@@ -31,7 +33,9 @@ import com.tans.tmediaplayer.player.model.toOptResult
 import com.tans.tmediaplayer.player.model.toReadPacketResult
 import com.tans.tmediaplayer.player.pktreader.PacketReader
 import com.tans.tmediaplayer.player.pktreader.ReaderState
-import com.tans.tmediaplayer.player.playerview.tMediaPlayerView
+import com.tans.tmediaplayer.player.playerview.GLRenderer
+import com.tans.tmediaplayer.player.playerview.ScaleType
+import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.renderer.AudioRenderer
 import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.renderer.VideoRenderer
@@ -162,6 +166,10 @@ class tMediaPlayer(
         } else {
             null
         }
+    }
+
+    private val glRenderer: GLRenderer by lazy {
+        GLRenderer()
     }
 
     // region public methods
@@ -488,6 +496,10 @@ class tMediaPlayer(
                         // Hw Surface.
                         hwSurfaces?.first?.release()
                         hwSurfaces?.second?.release()
+
+                        // GLRenderer
+                        glRenderer.release()
+
                         return OptResult.Success
                     } else {
                         tMediaPlayerLog.e(TAG) { "Update release state fail, currentState=${getState()}" }
@@ -517,9 +529,20 @@ class tMediaPlayer(
         l?.onPlayerState(getState())
     }
 
-    override fun attachPlayerView(view: tMediaPlayerView?) {
-        videoRenderer.attachPlayerView(view)
-        videoDecoder.attachPlayerView(view)
+    override fun attachPlayerView(view: SurfaceView?) {
+        if (view != null) {
+            glRenderer.attachRendererSurface(view)
+        } else {
+            glRenderer.detachRenderSurface()
+        }
+    }
+
+    override fun attachPlayerView(view: TextureView?) {
+        if (view != null) {
+            glRenderer.attachRendererSurface(view)
+        } else {
+            glRenderer.detachRenderSurface()
+        }
     }
 
     override fun attachSubtitleView(view: TextView?) {
@@ -601,6 +624,26 @@ class tMediaPlayer(
         } else {
             null
         }
+    }
+
+    override fun setScaleType(scaleType: ScaleType) {
+        glRenderer.setScaleType(scaleType)
+    }
+
+    override fun getScaleType(): ScaleType {
+        return glRenderer.getScaleType()
+    }
+
+    override fun enableAsciiArtFilter(enable: Boolean) {
+        glRenderer.enableAsciiArtFilter(enable)
+    }
+
+    override fun getAsciiArtImageFilter(): AsciiArtImageFilter {
+        return glRenderer.getAsciiArtImageFilter()
+    }
+
+    override fun refreshVideoFrame() {
+        glRenderer.refreshFrame()
     }
     // endregion
 
@@ -685,6 +728,8 @@ class tMediaPlayer(
     }
 
     internal fun getHwSurfaces(): Pair<Surface, SurfaceTexture>? = hwSurfaces
+
+    internal fun getGLRenderer(): GLRenderer = glRenderer
 
     private fun getMediaInfoByState(state: tMediaPlayerState): MediaInfo? {
         return when (state) {
