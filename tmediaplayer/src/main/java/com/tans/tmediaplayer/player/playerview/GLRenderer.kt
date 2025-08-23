@@ -950,6 +950,7 @@ internal class GLRenderer {
                     }
 
                     if (requestRender) {
+                        requestRender = false
                         realRenderer.drawFrame()
                         EGL14.eglSwapBuffers(display, eglSurface)
                     }
