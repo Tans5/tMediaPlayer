@@ -61,6 +61,6 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
     }
 
     companion object {
-        const val TAG = "SurfaceViewAdapter"
+        private const val TAG = "SurfaceViewAdapter"
     }
 }

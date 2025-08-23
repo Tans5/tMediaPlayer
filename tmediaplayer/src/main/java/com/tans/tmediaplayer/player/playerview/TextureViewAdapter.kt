@@ -23,7 +23,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         textureView.post {
             val s = textureView.surfaceTexture
             if (s != null) {
-                tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Get surface from post: surfaceTexture=$s" }
+                tMediaPlayerLog.d(TAG) { "Get surface from post: surfaceTexture=$s" }
                 onSurfaceTextureAvailable(s, textureView.measuredWidth, textureView.measuredHeight)
             }
         }
@@ -38,7 +38,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         RenderSurfaceAdapter.setApplicationContext(textureViewWeakRef.get()?.context)
         if (activeSurface == null) {
             dispatchSurfaceCreated(Surface(surface), width, height)
-            tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Surface created: $activeSurface" }
+            tMediaPlayerLog.d(TAG) { "Surface created: $activeSurface" }
         }
     }
 
@@ -47,7 +47,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         width: Int,
         height: Int
     ) {
-        tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Surface size changed: surface=${activeSurface}, size=${width}x${height}" }
+        tMediaPlayerLog.d(TAG) { "Surface size changed: surface=${activeSurface}, size=${width}x${height}" }
         dispatchSurfaceSizeChanged(width, height)
     }
 
@@ -56,7 +56,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
     }
 
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-        tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Surface destroyed: $activeSurface" }
+        tMediaPlayerLog.d(TAG) { "Surface destroyed: $activeSurface" }
         dispatchSurfaceDestroyed()
         return true
     }

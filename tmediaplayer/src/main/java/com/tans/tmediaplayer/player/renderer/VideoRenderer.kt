@@ -443,6 +443,7 @@ internal class VideoRenderer(
     }
 
     private fun enqueueWriteableFrame(f: VideoFrame) {
+        tMediaPlayerLog.d(TAG) { "Enqueue writeable video frame: ${f.hashCode()}" }
         videoFrameQueue.enqueueWritable(f)
         player.writeableVideoFrameReady()
     }
