@@ -217,7 +217,6 @@ internal class VideoRenderer(
             fun renderVideoFrame(frame: VideoFrame) {
                 val glRenderer = player.getGLRenderer()
                 val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
-                    tMediaPlayerLog.d(TAG) { "Render callback: $isRendered" }
                     if (isRendered) {
                         val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
                         renderedFrame.serial = frame.serial
@@ -298,20 +297,19 @@ internal class VideoRenderer(
                         }
                     }
                     ImageRawType.HwSurface -> {
-//                        val textureId = frame.textureBuffer
-//                        if (textureId != null) {
-//                            glRenderer.requestRenderGlTexture(
-//                                width = frame.width,
-//                                height = frame.height,
-//                                textureId = textureId,
-//                                pts = frame.pts,
-//                                callback = renderCallback
-//                            )
-//                        } else {
-//                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-//                            renderCallback(false)
-//                        }
-                        renderCallback(false)
+                        val textureId = frame.textureBuffer
+                        if (textureId != null) {
+                            glRenderer.requestRenderGlTexture(
+                                width = frame.width,
+                                height = frame.height,
+                                textureId = textureId,
+                                pts = frame.pts,
+                                callback = renderCallback
+                            )
+                        } else {
+                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                            renderCallback(false)
+                        }
                     }
                     ImageRawType.Unknown -> {
                         renderCallback(false)
@@ -444,7 +442,6 @@ internal class VideoRenderer(
     }
 
     private fun enqueueWriteableFrame(f: VideoFrame) {
-        tMediaPlayerLog.d(TAG) { "Enqueue writeable video frame: ${f.hashCode()}" }
         videoFrameQueue.enqueueWritable(f)
         player.writeableVideoFrameReady()
     }

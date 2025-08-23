@@ -153,37 +153,30 @@ internal class VideoFrameDecoder(
                                                                 val oesTexture = oesTextureAndBufferTextures?.first
                                                                 val textureBuffers = oesTextureAndBufferTextures?.second
                                                                 if (surfaceTexture != null && oesTexture != null && textureBuffers != null) {
-                                                                    // TODO: FixME
-//                                                                    player.getGLRenderer().enqueueTask {
-//                                                                        if (it) {
-//                                                                            try {
-//                                                                                surfaceTexture.updateTexImage()
-//                                                                                textureBufferIndex ++
-//                                                                                val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
-//                                                                                if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
-//                                                                                    val ret = videoDecoderHandler.post {
-//                                                                                        frame.textureBuffer = textureBuffer
-//                                                                                        videoFrameQueue.enqueueReadable(frame)
-//                                                                                        player.readableVideoFrameReady()
-//                                                                                    }
-//                                                                                    if (!ret) {
-//                                                                                        videoFrameQueue.enqueueWritable(frame)
-//                                                                                        tMediaPlayerLog.d(TAG) { "Update hw frame fail: decoder handler released." }
-//                                                                                    }
-//                                                                                } else {
-//                                                                                    videoFrameQueue.enqueueWritable(frame)
-//                                                                                    tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail." }
-//                                                                                }
-//                                                                            } catch (e: Throwable) {
-//                                                                                videoFrameQueue.enqueueWritable(frame)
-//                                                                                tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
-//                                                                            }
-//                                                                        } else {
-//                                                                            videoFrameQueue.enqueueWritable(frame)
-//                                                                            tMediaPlayerLog.e(TAG) { "Update hw frame fail: not in gl context thread." }
-//                                                                        }
-//                                                                    }
-                                                                    videoFrameQueue.enqueueWritable(frame)
+                                                                    player.getGLRenderer().enqueueTask {
+                                                                        if (it) {
+                                                                            try {
+                                                                                surfaceTexture.updateTexImage()
+                                                                                textureBufferIndex ++
+                                                                                // TODO: FixME
+                                                                                val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
+                                                                                if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
+                                                                                    frame.textureBuffer = textureBuffer
+                                                                                    videoFrameQueue.enqueueReadable(frame)
+                                                                                    player.readableVideoFrameReady()
+                                                                                } else {
+                                                                                    videoFrameQueue.enqueueWritable(frame)
+                                                                                    tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail." }
+                                                                                }
+                                                                            } catch (e: Throwable) {
+                                                                                videoFrameQueue.enqueueWritable(frame)
+                                                                                tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
+                                                                            }
+                                                                        } else {
+                                                                            videoFrameQueue.enqueueWritable(frame)
+                                                                            tMediaPlayerLog.e(TAG) { "Update hw frame fail: not in gl context thread." }
+                                                                        }
+                                                                    }
                                                                 } else {
                                                                     tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
                                                                     videoFrameQueue.enqueueWritable(frame)

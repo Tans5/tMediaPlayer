@@ -225,9 +225,6 @@ internal class GLRenderer {
                 requestRenderImageData.pts = pts
                 requestRenderImageData.callback = callback
                 requestRenderImageData.imageDataType = imageDataType
-                isWritingRenderImageData.set(false)
-                // FIXME
-                // glThread.requestRender()
                 if (!glThread.requestRender()) {
                     callback?.invoke(false)
                     tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, gl surface not ready." }
@@ -236,7 +233,7 @@ internal class GLRenderer {
                 isWritingRenderImageData.set(false)
             } else {
                 callback?.invoke(false)
-                tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, under rendering or gl thread not ready." }
+                tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, under rendering or gl surface not ready." }
             }
         }
     }
@@ -611,7 +608,6 @@ internal class GLRenderer {
 
                 if (requestRenderImageData.containRenderData()) {
                     requestRenderImageData.callback?.invoke(true)
-                    tMediaPlayerLog.d(TAG) { "Call back: ${requestRenderImageData.callback?.hashCode()}" }
                     lastRenderedImageData.update(requestRenderImageData)
                     requestRenderImageData.reset()
                 }
@@ -783,10 +779,6 @@ internal class GLRenderer {
 
         @Synchronized
         fun requestRender(): Boolean {
-//            // FixME
-//            requestRender = true
-//            (this as Object).notifyAll()
-//            return true
             return if (isSurfaceAlive()) {
                 requestRender = true
                 (this as Object).notifyAll()
