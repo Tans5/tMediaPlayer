@@ -3,6 +3,7 @@ package com.tans.tmediaplayer.player.playerview
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import com.tans.tmediaplayer.tMediaPlayerLog
 import java.lang.ref.WeakReference
 import java.util.LinkedList
 
@@ -19,8 +20,12 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
 
     init {
         surfaceView.holder.addCallback(this)
-        if (surfaceView.holder.surface != null) {
-            surfaceCreated(surfaceView.holder)
+
+        surfaceView.post {
+            if (surfaceView.holder.surface?.isValid == true) {
+                tMediaPlayerLog.d(TAG) { "Get surface from post: ${surfaceView.holder.surface}" }
+                surfaceCreated(surfaceView.holder)
+            }
         }
     }
 
@@ -29,7 +34,10 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
     override fun surfaceCreated(holder: SurfaceHolder) {
         val v = surfaceViewWeakRef.get()
         RenderSurfaceAdapter.Companion.setApplicationContext(v?.context)
-        dispatchSurfaceCreated(holder.surface, v?.measuredWidth ?: 0, v?.measuredHeight ?: 0)
+        if (activeSurface == null) {
+            tMediaPlayerLog.d(TAG) { "Surface created: ${holder.surface}" }
+            dispatchSurfaceCreated(holder.surface, v?.measuredWidth ?: 0, v?.measuredHeight ?: 0)
+        }
     }
 
     override fun surfaceChanged(
@@ -38,10 +46,12 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
         width: Int,
         height: Int
     ) {
+        tMediaPlayerLog.d(TAG) { "Surface size changed: surface=${holder.surface}, size=${width}x${height}" }
         dispatchSurfaceSizeChanged(width, height)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        tMediaPlayerLog.d(TAG) { "Surface destroyed: $activeSurface" }
         dispatchSurfaceDestroyed()
     }
     // endregion
@@ -50,4 +60,7 @@ internal class SurfaceViewAdapter(surfaceView: SurfaceView) : SurfaceHolder.Call
         surfaceViewWeakRef.get()?.holder?.removeCallback(this)
     }
 
+    companion object {
+        const val TAG = "SurfaceViewAdapter"
+    }
 }

@@ -3,6 +3,7 @@ package com.tans.tmediaplayer.player.playerview
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import android.view.TextureView
+import com.tans.tmediaplayer.tMediaPlayerLog
 import java.lang.ref.WeakReference
 import java.util.LinkedList
 
@@ -19,6 +20,13 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
 
     init {
         textureView.surfaceTextureListener = this
+        textureView.post {
+            val s = textureView.surfaceTexture
+            if (s != null) {
+                tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Get surface from post: surfaceTexture=$s" }
+                onSurfaceTextureAvailable(s, textureView.measuredWidth, textureView.measuredHeight)
+            }
+        }
     }
 
     // region TextureView Callback
@@ -28,7 +36,10 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         height: Int
     ) {
         RenderSurfaceAdapter.setApplicationContext(textureViewWeakRef.get()?.context)
-        dispatchSurfaceCreated(Surface(surface), width, height)
+        if (activeSurface == null) {
+            dispatchSurfaceCreated(Surface(surface), width, height)
+            tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Surface created: $activeSurface" }
+        }
     }
 
     override fun onSurfaceTextureSizeChanged(
@@ -36,6 +47,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
         width: Int,
         height: Int
     ) {
+        tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Surface size changed: surface=${activeSurface}, size=${width}x${height}" }
         dispatchSurfaceSizeChanged(width, height)
     }
 
@@ -44,6 +56,7 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
     }
 
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+        tMediaPlayerLog.d(SurfaceViewAdapter.Companion.TAG) { "Surface destroyed: $activeSurface" }
         dispatchSurfaceDestroyed()
         return true
     }
@@ -52,5 +65,9 @@ internal class TextureViewAdapter(textureView: TextureView) : RenderSurfaceAdapt
     override fun doRelease() {
         textureViewWeakRef.get()?.surfaceTextureListener = null
         activeSurface?.release()
+    }
+
+    companion object {
+        private const val TAG = "TextureViewAdapter"
     }
 }

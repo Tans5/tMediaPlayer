@@ -225,11 +225,15 @@ internal class GLRenderer {
                 requestRenderImageData.pts = pts
                 requestRenderImageData.callback = callback
                 requestRenderImageData.imageDataType = imageDataType
+                if (!glThread.requestRender()) {
+                    callback?.invoke(false)
+                    tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, gl surface not ready." }
+                    requestRenderImageData.reset()
+                }
                 isWritingRenderImageData.set(false)
-                glThread.requestRender()
             } else {
                 callback?.invoke(false)
-                tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, because under rendering." }
+                tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, under rendering or gl thread not ready." }
             }
         }
     }
@@ -752,14 +756,18 @@ internal class GLRenderer {
 
         @Synchronized
         fun requestAttachSurface(s: Surface) {
+            tMediaPlayerLog.d(TAG) { "Request set surface: $s" }
             surface = s
             (this as Object).notifyAll()
         }
 
         @Synchronized
         fun requestDetachSurface() {
-            surface = null
-            (this as Object).notifyAll()
+            if (surface != null) {
+                tMediaPlayerLog.d(TAG) { "Request remove surface: $surface" }
+                surface = null
+                (this as Object).notifyAll()
+            }
         }
 
         @Synchronized
@@ -770,10 +778,13 @@ internal class GLRenderer {
 
 
         @Synchronized
-        fun requestRender() {
-            if (isThreadAlive()) {
+        fun requestRender(): Boolean {
+            return if (isSurfaceAlive()) {
                 requestRender = true
                 (this as Object).notifyAll()
+                true
+            } else {
+                false
             }
         }
 
@@ -905,10 +916,14 @@ internal class GLRenderer {
                     if (sur != null) {
                         if (eglSurface == EGL14.EGL_NO_SURFACE) {
                             // Create new egl surface
-                            eglSurface = EGL14.eglCreateWindowSurface(display, chooseConfig, sur, intArrayOf(EGL14.EGL_NONE), 0)
-                            EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
+                            try {
+                                eglSurface = EGL14.eglCreateWindowSurface(display, chooseConfig, sur, intArrayOf(EGL14.EGL_NONE), 0)
+                                EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
+                                tMediaPlayerLog.d(TAG) { "GL surface created: eglSurface=$eglSurface, surface=$sur" }
+                            } catch (e: Throwable) {
+                                tMediaPlayerLog.e(TAG) { "GL surface create fail: ${e.message}, surface=$sur" }
+                            }
                             realRenderer.glContextCreated()
-                            tMediaPlayerLog.d(TAG) { "GL context created, surface: $eglSurface" }
                         }
                     } else {
                         if (eglSurface != EGL14.EGL_NO_SURFACE) {
@@ -916,8 +931,8 @@ internal class GLRenderer {
                             realRenderer.glContextDestroying()
                             EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
                             EGL14.eglDestroySurface(display, eglSurface)
+                            tMediaPlayerLog.d(TAG) { "GL surface destroyed: eglSurface=$eglSurface" }
                             eglSurface = EGL14.EGL_NO_SURFACE
-                            tMediaPlayerLog.d(TAG) { "GL context destroyed." }
                         }
                     }
 

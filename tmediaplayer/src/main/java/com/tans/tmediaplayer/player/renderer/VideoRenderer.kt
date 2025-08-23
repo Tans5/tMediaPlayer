@@ -217,6 +217,7 @@ internal class VideoRenderer(
             fun renderVideoFrame(frame: VideoFrame) {
                 val glRenderer = player.getGLRenderer()
                 val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
+                    tMediaPlayerLog.d(TAG) { "Render callback: $isRendered" }
                     if (isRendered) {
                         val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
                         renderedFrame.serial = frame.serial
