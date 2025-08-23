@@ -298,19 +298,20 @@ internal class VideoRenderer(
                         }
                     }
                     ImageRawType.HwSurface -> {
-                        val textureId = frame.textureBuffer
-                        if (textureId != null) {
-                            glRenderer.requestRenderGlTexture(
-                                width = frame.width,
-                                height = frame.height,
-                                textureId = textureId,
-                                pts = frame.pts,
-                                callback = renderCallback
-                            )
-                        } else {
-                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                            renderCallback(false)
-                        }
+//                        val textureId = frame.textureBuffer
+//                        if (textureId != null) {
+//                            glRenderer.requestRenderGlTexture(
+//                                width = frame.width,
+//                                height = frame.height,
+//                                textureId = textureId,
+//                                pts = frame.pts,
+//                                callback = renderCallback
+//                            )
+//                        } else {
+//                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+//                            renderCallback(false)
+//                        }
+                        renderCallback(false)
                     }
                     ImageRawType.Unknown -> {
                         renderCallback(false)
