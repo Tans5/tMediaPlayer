@@ -447,7 +447,9 @@ internal class GLRenderer {
                     textureId = lastRenderedImageData.textureId
                     pts = lastRenderedImageData.pts
                     imageDataType = lastRenderedImageData.imageDataType
+                    tMediaPlayerLog.d(TAG) { "Draw last frame" }
                 }
+                tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
                 val texConverter = when (imageDataType!!) {
                     ImageDataType.Rgba -> rgbaTexConverter
@@ -613,7 +615,7 @@ internal class GLRenderer {
                 }
                 isWritingRenderImageData.set(false)
 
-                tMediaPlayerLog.d(TAG) { "Rendered video frame: $pts" }
+                tMediaPlayerLog.d(TAG) { "Rendered video frame: pts=$pts, textureId=${textureId}" }
             } else {
                 tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
             }
@@ -952,7 +954,9 @@ internal class GLRenderer {
                     if (requestRender) {
                         requestRender = false
                         realRenderer.drawFrame()
-                        EGL14.eglSwapBuffers(display, eglSurface)
+                        if (!EGL14.eglSwapBuffers(display, eglSurface)) {
+                            tMediaPlayerLog.e(TAG) { "GL surface swap buffers fail: ${EGL14.eglGetError()}" }
+                        }
                     }
                     while (tasks.isNotEmpty()) {
                         tasks.pollFirst()?.invoke(true)

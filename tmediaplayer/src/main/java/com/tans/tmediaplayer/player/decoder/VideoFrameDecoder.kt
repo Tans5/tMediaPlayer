@@ -149,6 +149,7 @@ internal class VideoFrameDecoder(
                                                                 frame.imageType = ImageRawType.HwSurface
                                                                 frame.width = player.getVideoWidthNativeInternal(frame.nativeFrame)
                                                                 frame.height = player.getVideoHeightNativeInternal(frame.nativeFrame)
+                                                                frame.pts = player.getVideoPtsInternal(frame.nativeFrame)
                                                                 val surfaceTexture = player.getHwSurfaces()?.second
                                                                 val oesTexture = oesTextureAndBufferTextures?.first
                                                                 val textureBuffers = oesTextureAndBufferTextures?.second
@@ -160,13 +161,15 @@ internal class VideoFrameDecoder(
                                                                                 textureBufferIndex ++
                                                                                 // TODO: FixME
                                                                                 val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
+                                                                                tMediaPlayerLog.d(TAG) { "Request write texture: pts=${frame.pts}, texture=$textureBuffer" }
                                                                                 if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
                                                                                     frame.textureBuffer = textureBuffer
+                                                                                    tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
                                                                                     videoFrameQueue.enqueueReadable(frame)
                                                                                     player.readableVideoFrameReady()
                                                                                 } else {
                                                                                     videoFrameQueue.enqueueWritable(frame)
-                                                                                    tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail." }
+                                                                                    tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
                                                                                 }
                                                                             } catch (e: Throwable) {
                                                                                 videoFrameQueue.enqueueWritable(frame)
