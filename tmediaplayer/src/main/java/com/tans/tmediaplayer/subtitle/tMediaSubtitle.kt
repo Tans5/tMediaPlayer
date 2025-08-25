@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("ClassName")
 @Keep
-internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -> Unit)? = null) {
+internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private val subtitleNative: AtomicReference<Long?> = AtomicReference(null)
 
@@ -45,7 +45,7 @@ internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -
         subtitleNative.set(createSubtitleNative())
         subtitleThread
         while (!isLooperPrepared.get()) {}
-        decoder = SubtitleFrameDecoder(this, subtitleThread.looper, writeablePktReady)
+        decoder = SubtitleFrameDecoder(this, subtitleThread.looper)
         renderer = SubtitleRenderer(player, this, subtitleThread.looper)
     }
 
@@ -109,14 +109,6 @@ internal class tMediaSubtitle(val player: tMediaPlayer, writeablePktReady: (() -
                 subtitleThread.quitSafely()
             }
         }
-    }
-
-    fun readableFrameReady() {
-        renderer.readableFrameReady()
-    }
-
-    fun writeableFrameReady() {
-        decoder.writeableFrameReady()
     }
 
     private external fun createSubtitleNative(): Long

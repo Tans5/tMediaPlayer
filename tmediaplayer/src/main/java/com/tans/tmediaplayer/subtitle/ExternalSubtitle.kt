@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.model.ReadPacketResult
 import com.tans.tmediaplayer.player.model.toOptResult
 import com.tans.tmediaplayer.player.model.toReadPacketResult
 import com.tans.tmediaplayer.player.pktreader.ReaderState
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -37,12 +38,16 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
     private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer, ReaderState.Eof)
 
     private val subtitle: tMediaSubtitle by lazy {
-        tMediaSubtitle(
-            player = player,
-            writeablePktReady = {
-                writeablePktReady()
-            }
-        )
+        tMediaSubtitle(player = player)
+    }
+
+    private val packetQueue = subtitle.packetQueue
+
+    private val packetQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() {
+            writeablePktReady()
+        }
+        override fun onNewReadableFrame() { }
     }
 
     private val readerHandler: Handler by lazy {
@@ -81,10 +86,8 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                 }
                             }
                             HandlerMsg.RequestReadPkt.ordinal -> {
-                                val pktQueue = subtitle.packetQueue
-                                val queueSize = pktQueue.readableQueueSize()
+                                val queueSize = packetQueue.readableQueueSize()
                                 if (queueSize >= MAX_PKT_SIZE) {
-                                    subtitle.decoder.readablePacketReady()
                                     tMediaPlayerLog.d(TAG) { "Packet queue full, queueSize=$queueSize." }
                                     this@ExternalSubtitle.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
@@ -93,10 +96,9 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                     }
                                     when (readPacketNative(readerNative).toReadPacketResult()) {
                                         ReadPacketResult.ReadSubtitleSuccess -> {
-                                            val pkt = pktQueue.dequeueWriteableForce()
+                                            val pkt = packetQueue.dequeueWriteableForce()
                                             movePacketRefNative(readerNative = readerNative, packetNative = pkt.nativePacket)
-                                            pktQueue.enqueueReadable(pkt)
-                                            subtitle.decoder.readablePacketReady()
+                                            packetQueue.enqueueReadable(pkt)
                                             requestReadPkt()
                                             tMediaPlayerLog.d(TAG) { "Read subtitle pkt: $pkt" }
                                         }
@@ -130,6 +132,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         while (!isLooperPrepared.get()) {}
         readerHandler
         subtitle
+        packetQueue.addListener(packetQueueListener)
         state.set(ReaderState.Ready)
         tMediaPlayerLog.d(TAG) { "Subtitle packet reader inited." }
     }
@@ -189,6 +192,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                 if (readerNative != null) {
                     releaseNative(readerNative)
                 }
+                packetQueue.removeListener(packetQueueListener)
                 loadedFile.set(null)
             }
         }

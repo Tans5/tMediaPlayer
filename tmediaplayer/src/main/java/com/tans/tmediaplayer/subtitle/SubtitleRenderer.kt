@@ -8,6 +8,7 @@ import android.widget.TextView
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.renderer.RendererHandlerMsg
 import com.tans.tmediaplayer.player.renderer.RendererState
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.min
@@ -28,6 +29,13 @@ internal class SubtitleRenderer(
     )
 
     private val uiThreadHandler: Handler = Handler(Looper.getMainLooper())
+
+    private val frameListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() {}
+        override fun onNewReadableFrame() {
+            readableFrameReady()
+        }
+    }
 
     private val latestSubtitleShowingRange: AtomicReference<LongRange?> = AtomicReference(null)
 
@@ -51,11 +59,9 @@ internal class SubtitleRenderer(
                                         val f = frameQueue.dequeueReadable()
                                         if (f === frame) {
                                             frameQueue.enqueueWritable(f)
-                                            subtitle.writeableFrameReady()
                                             tMediaPlayerLog.e(TAG) { "Drop subtitle frame, playerPts=$playerPts, frame=${frame}" }
                                         } else if (f != null) {
                                             frameQueue.enqueueWritable(f)
-                                            subtitle.writeableFrameReady()
                                         }
                                         requestRender()
                                     }
@@ -87,7 +93,6 @@ internal class SubtitleRenderer(
                                         }
                                         if (f != null) {
                                             frameQueue.enqueueWritable(f)
-                                            subtitle.writeableFrameReady()
                                         }
                                         requestRender()
                                     }
@@ -104,6 +109,10 @@ internal class SubtitleRenderer(
                 }
             }
         }
+    }
+
+    init {
+        frameQueue.addListener(frameListener)
     }
 
     fun play() {
@@ -136,6 +145,7 @@ internal class SubtitleRenderer(
             val state = getState()
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
+                frameQueue.removeListener(frameListener)
                 this.latestSubtitleShowingRange.set(null)
                 uiThreadHandler.post {
                     val view = player.getSubtitleView()

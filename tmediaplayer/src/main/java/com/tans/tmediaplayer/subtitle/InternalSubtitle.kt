@@ -43,7 +43,6 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
             val index = player.getPacketStreamIndexInternal(pkt.nativePacket)
             if (selectedStreamIndex == index) {
                 subtitle.packetQueue.enqueueReadable(pkt)
-                subtitle.decoder.readablePacketReady()
             } else {
                 subtitle.packetQueue.enqueueWritable(pkt)
             }

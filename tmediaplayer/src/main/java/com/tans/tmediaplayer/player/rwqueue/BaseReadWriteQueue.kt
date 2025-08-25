@@ -126,10 +126,16 @@ internal abstract class BaseReadWriteQueue<T : Any> {
 
     open fun flushReadableBuffer() {
         if (!isReleased.get()) {
+            val needNotifyWrite = readableQueue.isNotEmpty()
             while (readableQueue.isNotEmpty()) {
                 val b = readableQueue.pollFirst()
                 if (b != null) {
                     writeableQueue.addLast(b)
+                }
+            }
+            if (needNotifyWrite) {
+                for (l in listeners) {
+                    l.onNewWriteableFrame()
                 }
             }
         }
