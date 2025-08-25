@@ -225,12 +225,8 @@ internal class GLRenderer {
                 requestRenderImageData.pts = pts
                 requestRenderImageData.callback = callback
                 requestRenderImageData.imageDataType = imageDataType
-                if (!glThread.requestRender()) {
-                    callback?.invoke(false)
-                    tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, gl surface not ready." }
-                    requestRenderImageData.reset()
-                }
                 isWritingRenderImageData.set(false)
+                glThread.requestRender()
             } else {
                 callback?.invoke(false)
                 tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, under rendering or gl surface not ready." }
@@ -780,13 +776,10 @@ internal class GLRenderer {
 
 
         @Synchronized
-        fun requestRender(): Boolean {
-            return if (isSurfaceAlive()) {
+        fun requestRender() {
+            if (isSurfaceAlive()) {
                 requestRender = true
                 (this as Object).notifyAll()
-                true
-            } else {
-                false
             }
         }
 

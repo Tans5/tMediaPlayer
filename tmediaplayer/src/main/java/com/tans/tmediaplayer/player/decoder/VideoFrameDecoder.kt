@@ -175,7 +175,6 @@ internal class VideoFrameDecoder(
                                                                             try {
                                                                                 surfaceTexture.updateTexImage()
                                                                                 textureBufferIndex ++
-                                                                                // TODO: FixME
                                                                                 val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
                                                                                 tMediaPlayerLog.d(TAG) { "Request write texture: pts=${frame.pts}, texture=$textureBuffer" }
                                                                                 if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
