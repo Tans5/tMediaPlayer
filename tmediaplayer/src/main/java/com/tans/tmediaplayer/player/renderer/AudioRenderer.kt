@@ -13,6 +13,7 @@ import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
@@ -52,6 +53,14 @@ internal class AudioRenderer(
                 isLooperPrepared.set(true)
             }
         }.apply { start() }
+    }
+
+    private val frameQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() { }
+
+        override fun onNewReadableFrame() {
+            readableFrameReady()
+        }
     }
 
     private val canRenderStates = arrayOf(RendererState.Playing, RendererState.Eof, RendererState.WaitingReadableFrameBuffer)
@@ -198,6 +207,7 @@ internal class AudioRenderer(
         audioRendererThread
         while (!isLooperPrepared.get()) {}
         audioRendererHandler
+        audioFrameQueue.addListener(frameQueueListener)
         state.set(RendererState.Paused)
         audioTrack
         tMediaPlayerLog.d(TAG) { "Audio renderer inited." }
@@ -242,7 +252,7 @@ internal class AudioRenderer(
                 }
             }
             if (isAddWritingBuffer) {
-                player.writeableAudioFrameReady()
+                player.renderedAudioFrame()
             }
         } else {
             tMediaPlayerLog.e(TAG) { "Flush error, because of state: $state" }
@@ -272,6 +282,7 @@ internal class AudioRenderer(
                 }
                 audioRendererThread.quit()
                 audioRendererThread.quitSafely()
+                audioFrameQueue.removeListener(frameQueueListener)
                 tMediaPlayerLog.d(TAG) { "Audio renderer released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
@@ -293,7 +304,7 @@ internal class AudioRenderer(
 
     private fun enqueueWritableFrame(frame: AudioFrame) {
         audioFrameQueue.enqueueWritable(frame)
-        player.writeableAudioFrameReady()
+        player.renderedAudioFrame()
     }
 
     companion object {

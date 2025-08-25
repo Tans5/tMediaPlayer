@@ -11,6 +11,7 @@ import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.playerview.GLRenderer
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
@@ -36,6 +37,21 @@ internal class VideoFrameDecoder(
                 isLooperPrepared.set(true)
             }
         }.apply { start() }
+    }
+
+    private val packetQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() { }
+
+        override fun onNewReadableFrame() {
+            readablePacketReady()
+        }
+    }
+
+    private val frameQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() {
+            writeableFrameReady()
+        }
+        override fun onNewReadableFrame() { }
     }
 
     @Volatile
@@ -211,7 +227,6 @@ internal class VideoFrameDecoder(
                                             }
                                             if (pkt != null) {
                                                 videoPacketQueue.enqueueWritable(pkt)
-                                                player.writeableVideoPacketReady()
                                             }
                                         } else { // No pkt to decode.
                                             requestDecode()
@@ -236,8 +251,10 @@ internal class VideoFrameDecoder(
         videoDecoderThread
         while (!isLooperPrepared.get()) {}
         videoDecoderHandler
-        state.set(DecoderState.Ready)
+        videoPacketQueue.addListener(packetQueueListener)
+        videoFrameQueue.addListener(frameQueueListener)
         player.getGLRenderer().addGLContextListener(glContextListener)
+        state.set(DecoderState.Ready)
         tMediaPlayerLog.d(TAG) { "Video decoder inited." }
 //        player.getHwSurfaces()?.second?.let {
 //            it.setOnFrameAvailableListener {
@@ -282,6 +299,8 @@ internal class VideoFrameDecoder(
                 state.set(DecoderState.Released)
                 videoDecoderThread.quit()
                 videoDecoderThread.quitSafely()
+                videoPacketQueue.removeListener(packetQueueListener)
+                videoFrameQueue.removeListener(frameQueueListener)
                 player.getGLRenderer().removeGLContextListener(glContextListener)
                 tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {

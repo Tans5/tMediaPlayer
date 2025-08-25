@@ -862,21 +862,6 @@ class tMediaPlayer(
         }
     }
 
-    internal fun readableVideoPacketReady() {
-        videoDecoder.readablePacketReady()
-    }
-    internal fun readableAudioPacketReady() {
-        audioDecoder.readablePacketReady()
-    }
-
-    internal fun writeableVideoPacketReady() {
-        packetReader.writeablePacketBufferReady()
-    }
-
-    internal fun writeableAudioPacketReady() {
-        packetReader.writeablePacketBufferReady()
-    }
-
     internal fun readableVideoFrameReady() {
         videoRenderer.readableFrameReady()
     }
@@ -885,16 +870,14 @@ class tMediaPlayer(
         audioRenderer.readableFrameReady()
     }
 
-    internal fun writeableVideoFrameReady() {
-        videoDecoder.writeableFrameReady()
+    internal fun renderedVideoFrame() {
         if (getSyncType() != AudioMaster || audioRenderer.getState() == RendererState.Eof) {
             dispatchProgress(videoClock.getClock())
         }
         checkPlayEnd()
     }
 
-    internal fun writeableAudioFrameReady() {
-        audioDecoder.writeableFrameReady()
+    internal fun renderedAudioFrame() {
         if (getSyncType() != VideoMaster || videoRenderer.getState() == RendererState.Eof) {
             dispatchProgress(audioClock.getClock())
         }

@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.AudioFrame
 import com.tans.tmediaplayer.player.rwqueue.AudioFrameQueue
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -27,12 +28,27 @@ internal class AudioFrameDecoder(
 
     // Audio decode thread.
     private val audioDecoderThread: HandlerThread by lazy {
-        object : HandlerThread("tMP_AudioDecoder", Thread.MAX_PRIORITY) {
+        object : HandlerThread("tMP_AudioDecoder", MAX_PRIORITY) {
             override fun onLooperPrepared() {
                 super.onLooperPrepared()
                 isLooperPrepared.set(true)
             }
         }.apply { start() }
+    }
+
+    private val packetQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() { }
+
+        override fun onNewReadableFrame() {
+            readablePacketReady()
+        }
+    }
+
+    private val frameQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() {
+            writeableFrameReady()
+        }
+        override fun onNewReadableFrame() { }
     }
 
     private val activeStates = arrayOf(DecoderState.Ready, DecoderState.Eof, DecoderState.WaitingWritableFrameBuffer, DecoderState.WaitingReadablePacketBuffer)
@@ -116,7 +132,6 @@ internal class AudioFrameDecoder(
                                             }
                                             if (pkt != null) {
                                                 audioPacketQueue.enqueueWritable(pkt)
-                                                player.writeableAudioPacketReady()
                                             }
                                         } else {
                                             requestDecode()
@@ -141,6 +156,8 @@ internal class AudioFrameDecoder(
         audioDecoderThread
         while (!isLooperPrepared.get()) {}
         audioDecoderHandler
+        audioPacketQueue.addListener(packetQueueListener)
+        audioFrameQueue.addListener(frameQueueListener)
         state.set(DecoderState.Ready)
         tMediaPlayerLog.d(TAG) { "Audio decoder inited." }
     }
@@ -181,6 +198,8 @@ internal class AudioFrameDecoder(
                 state.set(DecoderState.Released)
                 audioDecoderThread.quit()
                 audioDecoderThread.quitSafely()
+                audioPacketQueue.removeListener(packetQueueListener)
+                audioFrameQueue.removeListener(frameQueueListener)
                 tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }

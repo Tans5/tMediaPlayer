@@ -8,6 +8,8 @@ internal const val INFINITY_MAX_QUEUE_SIZE = -1
 
 internal abstract class BaseReadWriteQueue<T : Any> {
 
+    private val listeners = LinkedBlockingDeque<ReadWriteQueueListener>()
+
     abstract val maxQueueSize: Int
 
     private val currentQueueSize: AtomicInteger by lazy {
@@ -36,6 +38,9 @@ internal abstract class BaseReadWriteQueue<T : Any> {
     open fun enqueueReadable(b: T) {
         if (!isReleased.get()) {
             readableQueue.addLast(b)
+            for (l in listeners) {
+                l.onNewReadableFrame()
+            }
         } else {
             recycleBuffer(b)
         }
@@ -86,6 +91,9 @@ internal abstract class BaseReadWriteQueue<T : Any> {
                 currentQueueSize.decrementAndGet()
             } else {
                 writeableQueue.addFirst(b)
+                for (l in listeners) {
+                    l.onNewWriteableFrame()
+                }
             }
         }
     }
@@ -129,6 +137,16 @@ internal abstract class BaseReadWriteQueue<T : Any> {
 
     // endregion
 
+    fun addListener(l: ReadWriteQueueListener) {
+        if (!isReleased.get()) {
+            listeners.add(l)
+        }
+    }
+
+    fun removeListener(l: ReadWriteQueueListener) {
+        listeners.remove(l)
+    }
+
     protected abstract fun recycleBuffer(b: T)
 
     protected abstract fun allocBuffer(): T
@@ -148,6 +166,7 @@ internal abstract class BaseReadWriteQueue<T : Any> {
                 }
             }
             currentQueueSize.set(0)
+            listeners.clear()
         }
     }
 }

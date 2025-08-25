@@ -13,6 +13,7 @@ import com.tans.tmediaplayer.player.model.SyncType
 import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
@@ -39,6 +40,14 @@ internal class VideoRenderer(
                 isLooperPrepared.set(true)
             }
         }.apply { start() }
+    }
+
+    private val frameQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() { }
+
+        override fun onNewReadableFrame() {
+            readableFrameReady()
+        }
     }
 
     private val canRenderStates = arrayOf(
@@ -364,6 +373,7 @@ internal class VideoRenderer(
         videoRendererThread
         while (!isLooperPrepared.get()) {}
         videoRendererHandler
+        videoFrameQueue.addListener(frameQueueListener)
         state.set(RendererState.Paused)
         tMediaPlayerLog.d(TAG) { "Video renderer inited." }
     }
@@ -422,6 +432,7 @@ internal class VideoRenderer(
                 this.state.set(RendererState.Released)
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
+                videoFrameQueue.removeListener(frameQueueListener)
                 tMediaPlayerLog.d(TAG) { "Video renderer released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
@@ -443,7 +454,7 @@ internal class VideoRenderer(
 
     private fun enqueueWriteableFrame(f: VideoFrame) {
         videoFrameQueue.enqueueWritable(f)
-        player.writeableVideoFrameReady()
+        player.renderedVideoFrame()
     }
 
     companion object {

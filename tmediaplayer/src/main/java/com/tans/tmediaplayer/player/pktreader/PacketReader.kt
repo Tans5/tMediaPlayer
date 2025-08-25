@@ -8,6 +8,7 @@ import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.ReadPacketResult
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
+import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -32,6 +33,14 @@ internal class PacketReader(
                 isLooperPrepared.set(true)
             }
         }.apply { start() }
+    }
+
+    private val packetQueueListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
+        override fun onNewWriteableFrame() {
+            writeablePacketBufferReady()
+        }
+
+        override fun onNewReadableFrame() {  }
     }
 
     private val activeStates = arrayOf(ReaderState.Ready, ReaderState.WaitingWritableBuffer, ReaderState.Eof)
@@ -75,7 +84,6 @@ internal class PacketReader(
                                                 val eofPkt = videoPacketQueue.dequeueWriteableForce()
                                                 eofPkt.isEof = true
                                                 videoPacketQueue.enqueueReadable(eofPkt)
-                                                player.readableVideoPacketReady()
                                                 tMediaPlayerLog.d(TAG) { "Read video attachment." }
                                             } else {
                                                 tMediaPlayerLog.d(TAG) { "Skip handle video attachment." }
@@ -87,7 +95,6 @@ internal class PacketReader(
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             videoPacketQueue.enqueueReadable(pkt)
                                             tMediaPlayerLog.d(TAG) { "Read video pkt: $pkt" }
-                                            player.readableVideoPacketReady()
                                             requestReadPkt()
 
                                         }
@@ -96,7 +103,6 @@ internal class PacketReader(
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             audioPacketQueue.enqueueReadable(pkt)
                                             tMediaPlayerLog.d(TAG) { "Read audio pkt: $pkt" }
-                                            player.readableAudioPacketReady()
                                             requestReadPkt()
                                         }
                                         ReadPacketResult.ReadSubtitleSuccess -> { // Subtitle frame
@@ -109,13 +115,11 @@ internal class PacketReader(
                                                 val videoEofPkt = videoPacketQueue.dequeueWriteableForce()
                                                 videoEofPkt.isEof = true
                                                 videoPacketQueue.enqueueReadable(videoEofPkt)
-                                                player.readableVideoPacketReady()
                                             }
                                             if (mediaInfo.audioStreamInfo != null) { // Add eof frame to audio frame queue.
                                                 val audioEofPkt = audioPacketQueue.dequeueWriteableForce()
                                                 audioEofPkt.isEof = true
                                                 audioPacketQueue.enqueueReadable(audioEofPkt)
-                                                player.readableAudioPacketReady()
                                             }
                                             tMediaPlayerLog.d(TAG) { "Read pkt eof." }
                                             this@PacketReader.state.set(ReaderState.Eof)
@@ -164,6 +168,8 @@ internal class PacketReader(
         pktReaderThread
         while (!isLooperPrepared.get()) {}
         pktReaderHandler
+        audioPacketQueue.addListener(packetQueueListener)
+        videoPacketQueue.addListener(packetQueueListener)
         state.set(ReaderState.Ready)
         tMediaPlayerLog.d(TAG) { "Packet reader inited." }
     }
@@ -211,6 +217,8 @@ internal class PacketReader(
                 state.set(ReaderState.Released)
                 pktReaderThread.quit()
                 pktReaderThread.quitSafely()
+                videoPacketQueue.removeListener(packetQueueListener)
+                audioPacketQueue.removeListener(packetQueueListener)
                 tMediaPlayerLog.d(TAG) { "Package reader released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $state" }
@@ -229,6 +237,7 @@ internal class PacketReader(
 
         // 15 mb
         private const val MAX_QUEUE_SIZE_IN_BYTES = 15L * 1024L * 1024L
+
         // 1s
         private const val MAX_QUEUE_DURATION = 1000L
     }
