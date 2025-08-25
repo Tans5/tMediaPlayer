@@ -862,14 +862,6 @@ class tMediaPlayer(
         }
     }
 
-    internal fun readableVideoFrameReady() {
-        videoRenderer.readableFrameReady()
-    }
-
-    internal fun readableAudioFrameReady() {
-        audioRenderer.readableFrameReady()
-    }
-
     internal fun renderedVideoFrame() {
         if (getSyncType() != AudioMaster || audioRenderer.getState() == RendererState.Eof) {
             dispatchProgress(videoClock.getClock())

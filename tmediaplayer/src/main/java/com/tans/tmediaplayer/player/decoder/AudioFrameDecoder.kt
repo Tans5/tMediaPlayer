@@ -92,10 +92,9 @@ internal class AudioFrameDecoder(
                                                 val frame = audioFrameQueue.dequeueWriteableForce()
                                                 frame.isEof = true
                                                 frame.serial = packetSerial
-                                                audioFrameQueue.enqueueReadable(frame)
                                                 tMediaPlayerLog.d(TAG) { "Decode audio frame eof." }
                                                 this@AudioFrameDecoder.state.set(DecoderState.Eof)
-                                                player.readableAudioFrameReady()
+                                                audioFrameQueue.enqueueReadable(frame)
                                             } else { // Not eof.
                                                 val start = SystemClock.uptimeMillis()
                                                 val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)  // do decode.
@@ -108,7 +107,6 @@ internal class AudioFrameDecoder(
                                                         if (moveResult == OptResult.Success) {
                                                             audioFrame = frame
                                                             audioFrameQueue.enqueueReadable(frame)
-                                                            player.readableAudioFrameReady()
                                                         } else {
                                                             audioFrameQueue.enqueueWritable(frame)
                                                             tMediaPlayerLog.e(TAG) { "Move audio frame fail." }

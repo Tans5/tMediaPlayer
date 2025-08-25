@@ -248,9 +248,9 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
 
     override fun onPause() {
         super.onPause()
-        if (mediaPlayer.getState() is tMediaPlayerState.Playing) {
-            mediaPlayer.pause()
-        }
+//        if (mediaPlayer.getState() is tMediaPlayerState.Playing) {
+//            mediaPlayer.pause()
+//        }
     }
 
     override fun onViewModelCleared() {

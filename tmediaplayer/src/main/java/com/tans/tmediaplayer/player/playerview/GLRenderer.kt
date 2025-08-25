@@ -967,6 +967,7 @@ internal class GLRenderer {
                         surfaceSizeChange = null
                     }
 
+                    // Draw frame
                     if (requestRender) {
                         requestRender = false
                         realRenderer.drawFrame()
@@ -974,6 +975,8 @@ internal class GLRenderer {
                             tMediaPlayerLog.e(TAG) { "GL surface swap buffers fail: ${EGL14.eglGetError()}" }
                         }
                     }
+
+                    // Run tasks
                     while (tasks.isNotEmpty()) {
                         tasks.pollFirst()?.invoke(true)
                     }

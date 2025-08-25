@@ -143,7 +143,6 @@ internal class VideoFrameDecoder(
                                                 videoFrameQueue.enqueueReadable(frame)
                                                 tMediaPlayerLog.d(TAG) { "Decode video frame eof." }
                                                 this@VideoFrameDecoder.state.set(DecoderState.Eof)
-                                                player.readableVideoFrameReady()
                                             } else { // Not eof.
                                                 val start = SystemClock.uptimeMillis()
                                                 val decodeResult = player.decodeVideoInternal(nativePlayer, pkt) // do decode.
@@ -181,7 +180,6 @@ internal class VideoFrameDecoder(
                                                                                     frame.textureBuffer = textureBuffer
                                                                                     tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
                                                                                     videoFrameQueue.enqueueReadable(frame)
-                                                                                    player.readableVideoFrameReady()
                                                                                 } else {
                                                                                     videoFrameQueue.enqueueWritable(frame)
                                                                                     tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
@@ -201,7 +199,6 @@ internal class VideoFrameDecoder(
                                                                 }
                                                             } else {
                                                                 videoFrameQueue.enqueueReadable(frame)
-                                                                player.readableVideoFrameReady()
                                                             }
                                                         } else {
                                                             videoFrameQueue.enqueueWritable(frame)
