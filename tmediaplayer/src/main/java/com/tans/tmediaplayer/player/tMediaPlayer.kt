@@ -150,17 +150,8 @@ class tMediaPlayer(
     private val externalSubtitle: AtomicReference<ExternalSubtitle?> = AtomicReference(null)
 
     private val hwSurfaces: Pair<Surface, SurfaceTexture>? by lazy {
-        if (enableVideoHardwareDecoder && enableHwSurface) {
-            val surfaceTexture = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                SurfaceTexture(false)
-            } else {
-                SurfaceTexture(0).apply {
-                    try {
-                        detachFromGLContext()
-                    } catch (_: Throwable) {
-                    }
-                }
-            }
+        if (enableVideoHardwareDecoder && enableHwSurface && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val surfaceTexture = SurfaceTexture(false)
             val surface = Surface(surfaceTexture)
             surface to surfaceTexture
         } else {

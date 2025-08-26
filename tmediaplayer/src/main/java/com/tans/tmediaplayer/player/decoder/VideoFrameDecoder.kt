@@ -63,17 +63,15 @@ internal class VideoFrameDecoder(
         object : GLRenderer.Companion.GLContextListener {
 
             override fun glContextCreated() {
-                if (getState() != DecoderState.Released) {
+                val hwSurfaces = player.getHwSurfaces()
+                if (getState() != DecoderState.Released && hwSurfaces != null) {
                     val textures = player.getGLRenderer().genHwOesTextureAndBufferTextures(VIDEO_FRAME_QUEUE_SIZE)
                     oesTextureAndBufferTextures = textures
-                    val surfaceTexture = player.getHwSurfaces()?.second
-                    if (surfaceTexture != null) {
-                        try {
-                            surfaceTexture.attachToGLContext(textures.first)
-                            tMediaPlayerLog.d(TAG) { "SurfaceTexture attached to gl context to ${Thread.currentThread().name}" }
-                        } catch (e: Throwable) {
-                            tMediaPlayerLog.e(TAG) { "SurfaceTexture attach to gl context fail \"${e.message}\" from ${Thread.currentThread().name}" }
-                        }
+                    try {
+                        hwSurfaces.second.attachToGLContext(textures.first)
+                        tMediaPlayerLog.d(TAG) { "SurfaceTexture attached to gl context to ${Thread.currentThread().name}" }
+                    } catch (e: Throwable) {
+                        tMediaPlayerLog.e(TAG) { "SurfaceTexture attach to gl context fail \"${e.message}\" from ${Thread.currentThread().name}" }
                     }
                 }
             }
