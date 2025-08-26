@@ -1,14 +1,53 @@
 package com.tans.tmediaplayer.player.playerview.filter
 
 import android.content.Context
+import java.util.concurrent.atomic.AtomicBoolean
 
-interface ImageFilter {
+abstract class ImageFilter {
 
-    fun enable(enable: Boolean)
+    private val isEnabled = AtomicBoolean(true)
 
-    fun isEnable(): Boolean
+    private val isDispatchCreated = AtomicBoolean(false)
 
-    fun filter(
+    internal fun dispatchGlSurfaceCreated(context: Context) {
+        if (isDispatchCreated.compareAndSet(false, true)) {
+            glSurfaceCreated(context)
+        }
+    }
+
+    abstract fun glSurfaceCreated(context: Context)
+
+    fun enable(enable: Boolean) {
+        isEnabled.set(enable)
+    }
+
+    fun isEnable(): Boolean {
+        return isEnabled.get()
+    }
+
+    internal fun dispatchDrawFrame(
+        context: Context,
+        surfaceWidth: Int,
+        surfaceHeight: Int,
+        input: FilterImageTexture,
+        output: FilterImageTexture
+    ) {
+        if (isEnable()) {
+            drawFrame(
+                context,
+                surfaceWidth,
+                surfaceHeight,
+                input,
+                output
+            )
+        } else {
+            output.width = input.width
+            output.height = input.height
+            output.texture = input.texture
+        }
+    }
+
+    abstract fun drawFrame(
         context: Context,
         surfaceWidth: Int,
         surfaceHeight: Int,
@@ -16,5 +55,11 @@ interface ImageFilter {
         output: FilterImageTexture
     )
 
-    fun recycle()
+    internal fun dispatchGlSurfaceDestroying() {
+        if (isDispatchCreated.compareAndSet(true, false)) {
+            glSurfaceDestroying()
+        }
+    }
+
+    abstract fun glSurfaceDestroying()
 }

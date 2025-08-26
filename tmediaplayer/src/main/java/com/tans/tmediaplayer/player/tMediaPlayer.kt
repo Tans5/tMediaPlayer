@@ -35,7 +35,7 @@ import com.tans.tmediaplayer.player.pktreader.PacketReader
 import com.tans.tmediaplayer.player.pktreader.ReaderState
 import com.tans.tmediaplayer.player.playerview.GLRenderer
 import com.tans.tmediaplayer.player.playerview.ScaleType
-import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
+import com.tans.tmediaplayer.player.playerview.filter.ImageFilter
 import com.tans.tmediaplayer.player.renderer.AudioRenderer
 import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.renderer.VideoRenderer
@@ -625,13 +625,11 @@ class tMediaPlayer(
         return glRenderer.getScaleType()
     }
 
-    override fun enableAsciiArtFilter(enable: Boolean) {
-        glRenderer.enableAsciiArtFilter(enable)
+    override fun setFilter(filter: ImageFilter?) {
+        glRenderer.setFilter(filter)
     }
 
-    override fun getAsciiArtImageFilter(): AsciiArtImageFilter {
-        return glRenderer.getAsciiArtImageFilter()
-    }
+    override fun getFilter(): ImageFilter? = glRenderer.getFilter()
 
     override fun refreshVideoFrame() {
         glRenderer.refreshFrame()

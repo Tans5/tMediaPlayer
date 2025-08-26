@@ -3,7 +3,7 @@ package com.tans.tmediaplayer.player.playerview.texconverter
 import android.content.Context
 import com.tans.tmediaplayer.player.playerview.ImageDataType
 
-interface ImageTextureConverter {
+internal interface ImageTextureConverter {
 
     fun convertImageToTexture(
         context: Context,

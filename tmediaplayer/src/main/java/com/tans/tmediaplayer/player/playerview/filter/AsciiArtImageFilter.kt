@@ -7,9 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.opengl.GLES30
-import android.os.SystemClock
 import androidx.annotation.FloatRange
-import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.playerview.compileShaderProgram
 import com.tans.tmediaplayer.player.playerview.glGenBuffers
@@ -26,17 +24,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-class AsciiArtImageFilter : ImageFilter {
-
-    private val isEnable: AtomicBoolean by lazy { AtomicBoolean(false) }
-
-    private val renderData: AtomicReference<RenderData?> by lazy {
-        AtomicReference(null)
-    }
-
-    private val lumaImageCache: AtomicReference<ByteArray> by lazy {
-        AtomicReference(null)
-    }
+class AsciiArtImageFilter : ImageFilter() {
 
     private val charLineWidth: AtomicInteger by lazy {
         AtomicInteger(128)
@@ -63,6 +51,7 @@ class AsciiArtImageFilter : ImageFilter {
         }
     }
 
+    // region Open methods
     fun setCharLineWidth(width: Int) {
         charLineWidth.set(min(max(MIN_CHAR_LINE_WIDTH, width), MAX_CHAR_LINE_WIDTH))
     }
@@ -90,130 +79,256 @@ class AsciiArtImageFilter : ImageFilter {
 
     fun getColorFillRate(): Float = colorFillRate.get()
 
-    override fun enable(enable: Boolean) {
-        isEnable.set(enable)
+    // endregion
+
+    private var renderData: RenderData? = null
+
+    override fun glSurfaceCreated(context: Context) {
+        val lumaProgram = compileShaderProgram(context, R.raw.t_media_player_ascii_filter_luma_vert, R.raw.t_media_player_ascii_filter_luma_frag)
+        val charProgram = compileShaderProgram(context, R.raw.t_media_player_ascii_filter_char_vert, R.raw.t_media_player_ascii_filter_char_frag)
+        if (lumaProgram != null && charProgram != null) {
+            val lumaTexture = glGenTextureAndSetDefaultParams()
+            val vertices = floatArrayOf(
+                // 坐标(position 0)   // 纹理坐标
+                -1.0f, 1.0f, 0.0f, 1.0f,    // 左上角
+                1.0f, 1.0f, 1.0f, 1.0f,   // 右上角
+                1.0f, -1.0f, 1.0f, 0.0f,   // 右下角
+                -1.0f, -1.0f, 0.0f, 0.0f,   // 左下角
+            )
+            val lumaVao = glGenVertexArrays()
+            val lumaVbo = glGenBuffers()
+            GLES30.glBindVertexArray(lumaVao)
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, lumaVbo)
+            GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
+            GLES30.glEnableVertexAttribArray(0)
+            GLES30.glBufferData(
+                GLES30.GL_ARRAY_BUFFER,
+                vertices.size * 4,
+                vertices.toGlBuffer(),
+                GLES30.GL_STATIC_DRAW
+            )
+
+            val charTexture = glGenTextureAndSetDefaultParams()
+            val charVao = glGenVertexArrays()
+            val charVertVbo = glGenBuffers()
+            val charOffsetVbo = glGenBuffers()
+            val charColorAndTextureVbo = glGenBuffers()
+            GLES30.glBindVertexArray(charVao)
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charVertVbo)
+            GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
+            GLES30.glEnableVertexAttribArray(0)
+            GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 64, null, GLES30.GL_STREAM_DRAW)
+
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charOffsetVbo)
+            GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 8, 0)
+            GLES30.glEnableVertexAttribArray(1)
+
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charColorAndTextureVbo)
+            GLES30.glVertexAttribPointer(2, 4, GLES30.GL_FLOAT, false, 16, 0)
+            GLES30.glEnableVertexAttribArray(2)
+
+            GLES30.glVertexAttribDivisor(1, 1)
+            GLES30.glVertexAttribDivisor(2, 1)
+
+
+            val charTexturesArray = IntArray(1)
+            GLES30.glGenTextures(1, charTexturesArray, 0)
+            val charTextures = charTexturesArray[0]
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, charTextures)
+            val charSize = 16
+            // GLES30.glTexStorage3D(GLES30.GL_TEXTURE_2D_ARRAY, 1, GLES30.GL_RGBA8, charSize, charSize, asciiChars.length)
+            GLES30.glTexImage3D(
+                GLES30.GL_TEXTURE_2D_ARRAY,
+                0,
+                GLES30.GL_RGBA,
+                charSize,
+                charSize,
+                asciiChars.length,
+                0,
+                GLES30.GL_RGBA,
+                GLES30.GL_UNSIGNED_BYTE,
+                null
+            )
+            GLES30.glTexParameteri(
+                GLES30.GL_TEXTURE_2D_ARRAY,
+                GLES30.GL_TEXTURE_WRAP_S,
+                GLES30.GL_REPEAT
+            )
+            GLES30.glTexParameteri(
+                GLES30.GL_TEXTURE_2D_ARRAY,
+                GLES30.GL_TEXTURE_WRAP_T,
+                GLES30.GL_REPEAT
+            )
+            GLES30.glTexParameteri(
+                GLES30.GL_TEXTURE_2D_ARRAY,
+                GLES30.GL_TEXTURE_MIN_FILTER,
+                GLES30.GL_LINEAR
+            )
+            GLES30.glTexParameteri(
+                GLES30.GL_TEXTURE_2D_ARRAY,
+                GLES30.GL_TEXTURE_MAG_FILTER,
+                GLES30.GL_LINEAR
+            )
+            GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D_ARRAY)
+            charPaint.textSize = charSize.toFloat() * 1.1f
+            for ((i, c) in asciiChars.toCharArray().withIndex()) {
+                val bitmap = Bitmap.createBitmap(charSize, charSize, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                val metrics = charPaint.fontMetrics
+                val charWidth = charPaint.measureText(c.toString())
+                val x = max((charSize - charWidth) / 2.0f, 0.0f)
+                val y = -metrics.top / (metrics.bottom - metrics.top) * charSize
+                canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+                canvas.drawText(c.toString(), x, y, charPaint)
+                val b = ByteBuffer.allocate(charSize * charSize * 4)
+                bitmap.copyPixelsToBuffer(b)
+                b.position(0)
+                GLES30.glTexSubImage3D(
+                    GLES30.GL_TEXTURE_2D_ARRAY,
+                    0,
+                    0,
+                    0,
+                    i,
+                    charSize,
+                    charSize,
+                    1,
+                    GLES30.GL_RGBA,
+                    GLES30.GL_UNSIGNED_BYTE,
+                    b
+                )
+                bitmap.recycle()
+            }
+
+            val renderData = RenderData(
+                lumaProgram = lumaProgram,
+                lumaVao = lumaVao,
+                lumaVbo = lumaVbo,
+                lumaTexture = lumaTexture,
+
+                charProgram = charProgram,
+                charVao = charVao,
+                charVertVbo = charVertVbo,
+                charOffsetVbo = charOffsetVbo,
+                charColorAndTextureVbo = charColorAndTextureVbo,
+                charTexture = charTexture,
+                charTexturesArray = charTextures
+            )
+            this.renderData = renderData
+        }
     }
 
-    override fun isEnable(): Boolean = isEnable.get()
-
-    override fun filter(
+    override fun drawFrame(
         context: Context,
         surfaceWidth: Int,
         surfaceHeight: Int,
         input: FilterImageTexture,
         output: FilterImageTexture
     ) {
-        if (isEnable()) {
-            val renderData = ensureRenderData(context)
-            if (renderData != null) {
-                val asciiWidth = charLineWidth.get()
-                val asciiHeight = (asciiWidth.toFloat() * input.height.toFloat() / input.width.toFloat()).toInt()
-                val lumaImageBytes = ensureLumaImageCache(asciiHeight * asciiWidth * 4)
-                offScreenRender(
-                    outputTexId = renderData.lumaTexture,
-                    outputTexWidth = asciiWidth,
-                    outputTexHeight = asciiHeight
-                ) {
-                    GLES30.glUseProgram(renderData.lumaProgram)
-                    GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-                    GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, input.texture)
-                    GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.lumaProgram, "Texture"), 0)
+        val renderData = this.renderData
+        if (renderData != null) {
+            val asciiWidth = charLineWidth.get()
+            val asciiHeight = (asciiWidth.toFloat() * input.height.toFloat() / input.width.toFloat()).toInt()
+            val lumaImageBytes = ensureLumaImageCache(asciiHeight * asciiWidth * 4)
+            offScreenRender(
+                outputTexId = renderData.lumaTexture,
+                outputTexWidth = asciiWidth,
+                outputTexHeight = asciiHeight
+            ) {
+                GLES30.glUseProgram(renderData.lumaProgram)
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, input.texture)
+                GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.lumaProgram, "Texture"), 0)
 
-                    GLES30.glBindVertexArray(renderData.lumaVao)
-                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.lumaVbo)
-                    GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
+                GLES30.glBindVertexArray(renderData.lumaVao)
+                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.lumaVbo)
+                GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
 
-                    GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.lumaTexture)
-                    GLES30.glReadPixels(
-                        0, 0,
-                        asciiWidth, asciiHeight,
-                        GLES30.GL_RGBA,
-                        GLES30.GL_UNSIGNED_BYTE,
-                        ByteBuffer.wrap(lumaImageBytes)
-                    )
-                }
-                offScreenRender(
-                    outputTexId = renderData.charTexture,
-                    outputTexWidth = input.width,
-                    outputTexHeight = input.height
-                ) {
-                    GLES30.glEnable(GLES30.GL_BLEND)
-                    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
-                    GLES30.glUseProgram(renderData.charProgram)
-                    val charWidthGLStep = 2.0f / asciiWidth.toFloat()
-                    val charHeightGLStep = 2.0f / asciiHeight.toFloat()
-                    val pixelSize = asciiWidth * asciiHeight
-                    var pixelIndex = 0
-                    val start = SystemClock.uptimeMillis()
-                    GLES30.glBindVertexArray(renderData.charVao)
-                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVertVbo)
-                    renderData.charVert.let {
-                        it[1] = -1.0f + charHeightGLStep
-                        it[4] = -1.0f + charWidthGLStep
-                        it[5] = -1.0f + charHeightGLStep
-                        it[8] = -1.0f + charWidthGLStep
-                    }
-                    renderData.charVertBuffer.clear()
-                    renderData.charVertBuffer.put(renderData.charVert)
-                    renderData.charVertBuffer.position(0)
-                    GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVertBuffer)
-                    val offsetCache = getCharOffsetCacheArray(pixelSize)
-                    val offsetArray = offsetCache.floatArray
-                    val colorTexCache = getCharColorAndTextureCacheArray(pixelSize)
-                    val colorTexArray = colorTexCache.floatArray
-                    var xOffset = 0.0f
-                    var yOffset = 0.0f
-                    for (h in 0 until asciiHeight) {
-                        for (w in 0 until asciiWidth) {
-                            offsetArray[pixelIndex * 2] = xOffset
-                            offsetArray[pixelIndex * 2 + 1] = yOffset
-                            val r = lumaImageBytes[pixelIndex * 4].toUnsignedInt()
-                            val g = lumaImageBytes[pixelIndex * 4 + 1].toUnsignedInt()
-                            val b = lumaImageBytes[pixelIndex * 4 + 2].toUnsignedInt()
-                            val y = lumaImageBytes[pixelIndex * 4 + 3].toUnsignedInt()
-                            val charIndex = if (reverseChar.get()) asciiLightLevelIndexReverse[y] else asciiLightLevelIndex[y]
-                            colorTexArray[pixelIndex * 4] = r.toFloat()
-                            colorTexArray[pixelIndex * 4 + 1] = g.toFloat()
-                            colorTexArray[pixelIndex * 4 + 2] = b.toFloat()
-                            colorTexArray[pixelIndex * 4 + 3] = charIndex.toFloat()
-
-                            pixelIndex ++
-                            xOffset += charWidthGLStep
-                        }
-                        xOffset = 0.0f
-                        yOffset += charHeightGLStep
-                    }
-                    GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "reverseColor"), if (reverseColor.get()) 1 else 0)
-                    GLES30.glUniform1f(GLES30.glGetUniformLocation(renderData.charProgram, "colorFillRate"), colorFillRate.get())
-                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charOffsetVbo)
-                    offsetCache.floatBuffer.apply {
-                        clear()
-                        put(offsetArray)
-                        position(0)
-                    }
-                    GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, offsetArray.size * 4, offsetCache.floatBuffer, GLES30.GL_STREAM_DRAW)
-                    GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charColorAndTextureVbo)
-                    colorTexCache.floatBuffer.apply {
-                        clear()
-                        put(colorTexArray)
-                        position(0)
-                    }
-                    GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, colorTexArray.size * 4, colorTexCache.floatBuffer, GLES30.GL_STREAM_DRAW)
-                    GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, renderData.charTexturesArray)
-                    GLES30.glDrawArraysInstanced(GLES30.GL_TRIANGLE_FAN, 0, 4, pixelSize)
-                    GLES30.glDisable(GLES30.GL_BLEND)
-                    val end = SystemClock.uptimeMillis()
-                    tMediaPlayerLog.d(TAG) { "Char render cost: ${end - start} ms" }
-                }
-
-                output.width = input.width
-                output.height = input.height
-                output.texture = renderData.charTexture
-            } else {
-                output.width = input.width
-                output.height = input.height
-                output.texture = input.texture
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.lumaTexture)
+                GLES30.glReadPixels(
+                    0, 0,
+                    asciiWidth, asciiHeight,
+                    GLES30.GL_RGBA,
+                    GLES30.GL_UNSIGNED_BYTE,
+                    ByteBuffer.wrap(lumaImageBytes)
+                )
             }
+            offScreenRender(
+                outputTexId = renderData.charTexture,
+                outputTexWidth = input.width,
+                outputTexHeight = input.height
+            ) {
+                GLES30.glEnable(GLES30.GL_BLEND)
+                GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
+                GLES30.glUseProgram(renderData.charProgram)
+                val charWidthGLStep = 2.0f / asciiWidth.toFloat()
+                val charHeightGLStep = 2.0f / asciiHeight.toFloat()
+                val pixelSize = asciiWidth * asciiHeight
+                var pixelIndex = 0
+                // val start = SystemClock.uptimeMillis()
+                GLES30.glBindVertexArray(renderData.charVao)
+                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charVertVbo)
+                renderData.charVert.let {
+                    it[1] = -1.0f + charHeightGLStep
+                    it[4] = -1.0f + charWidthGLStep
+                    it[5] = -1.0f + charHeightGLStep
+                    it[8] = -1.0f + charWidthGLStep
+                }
+                renderData.charVertBuffer.clear()
+                renderData.charVertBuffer.put(renderData.charVert)
+                renderData.charVertBuffer.position(0)
+                GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, 64, renderData.charVertBuffer)
+                val offsetCache = getCharOffsetCacheArray(pixelSize)
+                val offsetArray = offsetCache.floatArray
+                val colorTexCache = getCharColorAndTextureCacheArray(pixelSize)
+                val colorTexArray = colorTexCache.floatArray
+                var xOffset = 0.0f
+                var yOffset = 0.0f
+                for (h in 0 until asciiHeight) {
+                    for (w in 0 until asciiWidth) {
+                        offsetArray[pixelIndex * 2] = xOffset
+                        offsetArray[pixelIndex * 2 + 1] = yOffset
+                        val r = lumaImageBytes[pixelIndex * 4].toUnsignedInt()
+                        val g = lumaImageBytes[pixelIndex * 4 + 1].toUnsignedInt()
+                        val b = lumaImageBytes[pixelIndex * 4 + 2].toUnsignedInt()
+                        val y = lumaImageBytes[pixelIndex * 4 + 3].toUnsignedInt()
+                        val charIndex = if (reverseChar.get()) asciiLightLevelIndexReverse[y] else asciiLightLevelIndex[y]
+                        colorTexArray[pixelIndex * 4] = r.toFloat()
+                        colorTexArray[pixelIndex * 4 + 1] = g.toFloat()
+                        colorTexArray[pixelIndex * 4 + 2] = b.toFloat()
+                        colorTexArray[pixelIndex * 4 + 3] = charIndex.toFloat()
+
+                        pixelIndex ++
+                        xOffset += charWidthGLStep
+                    }
+                    xOffset = 0.0f
+                    yOffset += charHeightGLStep
+                }
+                GLES30.glUniform1i(GLES30.glGetUniformLocation(renderData.charProgram, "reverseColor"), if (reverseColor.get()) 1 else 0)
+                GLES30.glUniform1f(GLES30.glGetUniformLocation(renderData.charProgram, "colorFillRate"), colorFillRate.get())
+                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charOffsetVbo)
+                offsetCache.floatBuffer.apply {
+                    clear()
+                    put(offsetArray)
+                    position(0)
+                }
+                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, offsetArray.size * 4, offsetCache.floatBuffer, GLES30.GL_STREAM_DRAW)
+                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, renderData.charColorAndTextureVbo)
+                colorTexCache.floatBuffer.apply {
+                    clear()
+                    put(colorTexArray)
+                    position(0)
+                }
+                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, colorTexArray.size * 4, colorTexCache.floatBuffer, GLES30.GL_STREAM_DRAW)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, renderData.charTexturesArray)
+                GLES30.glDrawArraysInstanced(GLES30.GL_TRIANGLE_FAN, 0, 4, pixelSize)
+                GLES30.glDisable(GLES30.GL_BLEND)
+                // val end = SystemClock.uptimeMillis()
+                // tMediaPlayerLog.d(TAG) { "Char render cost: ${end - start} ms" }
+            }
+
+            output.width = input.width
+            output.height = input.height
+            output.texture = renderData.charTexture
         } else {
             output.width = input.width
             output.height = input.height
@@ -221,11 +336,10 @@ class AsciiArtImageFilter : ImageFilter {
         }
     }
 
-
-    override fun recycle() {
-        val renderData = renderData.get()
+    override fun glSurfaceDestroying() {
+        val renderData = this.renderData
         if (renderData != null) {
-            this.renderData.set(null)
+            this.renderData = null
             GLES30.glDeleteProgram(renderData.lumaProgram)
             GLES30.glDeleteTextures(1, intArrayOf(renderData.lumaTexture), 0)
             GLES30.glDeleteBuffers(1, intArrayOf(renderData.lumaVbo), 0)
@@ -237,123 +351,27 @@ class AsciiArtImageFilter : ImageFilter {
         }
     }
 
+    private var lumaImageCache: ByteArray? = null
+
     private fun ensureLumaImageCache(size: Int): ByteArray {
-        val array = lumaImageCache.get()
-        return if (array == null || array.size != size) {
+        val cache = lumaImageCache
+        return if (cache == null || cache.size != size) {
             val new = ByteArray(size)
-            lumaImageCache.set(new)
+            this.lumaImageCache = new
             new
         } else {
-            array
+            cache
         }
     }
 
-    private fun ensureRenderData(context: Context): RenderData? {
-        val lastRenderData = renderData.get()
-        return if (lastRenderData != null) {
-            lastRenderData
-        } else {
-            val lumaProgram = compileShaderProgram(context, R.raw.t_media_player_ascii_filter_luma_vert, R.raw.t_media_player_ascii_filter_luma_frag)
-            val charProgram = compileShaderProgram(context, R.raw.t_media_player_ascii_filter_char_vert, R.raw.t_media_player_ascii_filter_char_frag)
-            if (lumaProgram != null && charProgram != null) {
-                val lumaTexture = glGenTextureAndSetDefaultParams()
-                val vertices = floatArrayOf(
-                    // 坐标(position 0)   // 纹理坐标
-                    -1.0f, 1.0f,        0.0f, 1.0f,    // 左上角
-                    1.0f, 1.0f,         1.0f, 1.0f,   // 右上角
-                    1.0f, -1.0f,        1.0f, 0.0f,   // 右下角
-                    -1.0f, -1.0f,       0.0f, 0.0f,   // 左下角
-                )
-                val lumaVao = glGenVertexArrays()
-                val lumaVbo = glGenBuffers()
-                GLES30.glBindVertexArray(lumaVao)
-                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, lumaVbo)
-                GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
-                GLES30.glEnableVertexAttribArray(0)
-                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertices.toGlBuffer(), GLES30.GL_STATIC_DRAW)
-
-                val charTexture = glGenTextureAndSetDefaultParams()
-                val charVao = glGenVertexArrays()
-                val charVertVbo = glGenBuffers()
-                val charOffsetVbo = glGenBuffers()
-                val charColorAndTextureVbo = glGenBuffers()
-                GLES30.glBindVertexArray(charVao)
-                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charVertVbo)
-                GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
-                GLES30.glEnableVertexAttribArray(0)
-                GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, 64, null, GLES30.GL_STREAM_DRAW)
-
-                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charOffsetVbo)
-                GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 8, 0)
-                GLES30.glEnableVertexAttribArray(1)
-
-                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, charColorAndTextureVbo)
-                GLES30.glVertexAttribPointer(2, 4, GLES30.GL_FLOAT, false, 16, 0)
-                GLES30.glEnableVertexAttribArray(2)
-
-                GLES30.glVertexAttribDivisor(1, 1)
-                GLES30.glVertexAttribDivisor(2, 1)
-
-
-                val charTexturesArray = IntArray(1)
-                GLES30.glGenTextures(1, charTexturesArray, 0)
-                val charTextures = charTexturesArray[0]
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, charTextures)
-                val charSize = 16
-                // GLES30.glTexStorage3D(GLES30.GL_TEXTURE_2D_ARRAY, 1, GLES30.GL_RGBA8, charSize, charSize, asciiChars.length)
-                GLES30.glTexImage3D(GLES30.GL_TEXTURE_2D_ARRAY, 0, GLES30.GL_RGBA, charSize, charSize, asciiChars.length, 0, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, null)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_REPEAT)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
-                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
-                GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D_ARRAY)
-                charPaint.textSize = charSize.toFloat() * 1.1f
-                for ((i, c) in asciiChars.toCharArray().withIndex()) {
-                    val bitmap = Bitmap.createBitmap(charSize, charSize, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(bitmap)
-                    val metrics = charPaint.fontMetrics
-                    val charWidth = charPaint.measureText(c.toString())
-                    val x = max((charSize - charWidth) / 2.0f, 0.0f)
-                    val y = - metrics.top / (metrics.bottom - metrics.top) * charSize
-                    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-                    canvas.drawText(c.toString(), x, y, charPaint)
-                    val b = ByteBuffer.allocate(charSize * charSize * 4)
-                    bitmap.copyPixelsToBuffer(b)
-                    b.position(0)
-                    GLES30.glTexSubImage3D(GLES30.GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, charSize, charSize, 1, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, b)
-                    bitmap.recycle()
-                }
-
-                val renderData = RenderData(
-                    lumaProgram = lumaProgram,
-                    lumaVao = lumaVao,
-                    lumaVbo = lumaVbo,
-                    lumaTexture = lumaTexture,
-
-                    charProgram = charProgram,
-                    charVao = charVao,
-                    charVertVbo = charVertVbo,
-                    charOffsetVbo = charOffsetVbo,
-                    charColorAndTextureVbo = charColorAndTextureVbo,
-                    charTexture = charTexture,
-                    charTexturesArray = charTextures
-                )
-                this.renderData.set(renderData)
-                renderData
-            } else {
-                null
-            }
-        }
-    }
 
     private fun Byte.toUnsignedInt(): Int = this.toInt() shl 24 ushr 24
 
-    private val lastCharOffsetCacheArray: AtomicReference<FloatArrayBufferCache?> by lazy {
-        AtomicReference(null)
-    }
+    private var lastCharOffsetCacheArray: FloatArrayBufferCache? = null
+
     private fun getCharOffsetCacheArray(pixelSize: Int): FloatArrayBufferCache {
         val size = pixelSize shl 1
-        val last = lastCharOffsetCacheArray.get()
+        val last = lastCharOffsetCacheArray
         return if (last?.size == size) {
             last
         } else {
@@ -364,17 +382,16 @@ class AsciiArtImageFilter : ImageFilter {
                 floatArray = array,
                 floatBuffer = buffer
             )
-            lastCharOffsetCacheArray.set(new)
+            this.lastCharOffsetCacheArray = new
             new
         }
     }
 
-    private val lastCharColorAndTextureCacheArray: AtomicReference<FloatArrayBufferCache?> by lazy {
-        AtomicReference(null)
-    }
+    private var lastCharColorAndTextureCacheArray: FloatArrayBufferCache? = null
+
     private fun getCharColorAndTextureCacheArray(pixelSize: Int): FloatArrayBufferCache {
         val size = pixelSize shl 2
-        val last = lastCharColorAndTextureCacheArray.get()
+        val last = lastCharColorAndTextureCacheArray
         return if (last?.size == size) {
             last
         } else {
@@ -385,13 +402,13 @@ class AsciiArtImageFilter : ImageFilter {
                 floatArray = array,
                 floatBuffer = buffer
             )
-            lastCharColorAndTextureCacheArray.set(new)
+            lastCharColorAndTextureCacheArray = new
             new
         }
     }
 
-
     companion object {
+
         private const val TAG = "AsciiArtImageFilter"
 
         private data class FloatArrayBufferCache(
@@ -527,4 +544,5 @@ class AsciiArtImageFilter : ImageFilter {
         }
 
     }
+
 }

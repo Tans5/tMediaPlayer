@@ -11,8 +11,8 @@ import android.view.Surface
 import android.view.SurfaceView
 import android.view.TextureView
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.player.playerview.filter.AsciiArtImageFilter
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
+import com.tans.tmediaplayer.player.playerview.filter.ImageFilter
 import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420spImageTextureConverter
@@ -64,12 +64,12 @@ internal class GLRenderer {
         this.realRenderer.scaleType.set(scaleType)
     }
 
-    fun enableAsciiArtFilter(enable: Boolean) {
-        realRenderer.asciiArtFilter.enable(enable)
+    fun setFilter(filter: ImageFilter?) {
+        realRenderer.filter.set(filter)
     }
 
-    fun getAsciiArtImageFilter(): AsciiArtImageFilter {
-        return realRenderer.asciiArtFilter
+    fun getFilter(): ImageFilter? {
+        return realRenderer.filter.get()
     }
 
     fun getScaleType(): ScaleType = this.realRenderer.scaleType.get()
@@ -322,8 +322,8 @@ internal class GLRenderer {
 
     private inner class RealRenderer {
 
-        val asciiArtFilter: AsciiArtImageFilter by lazy {
-            AsciiArtImageFilter()
+        val filter: AtomicReference<ImageFilter?> by lazy {
+            AtomicReference(null)
         }
 
         val scaleType: AtomicReference<ScaleType> by lazy {
@@ -382,6 +382,7 @@ internal class GLRenderer {
                     VBO = VBO
                 )
             }
+            filter.get()?.dispatchGlSurfaceCreated(context)
             for (l in glContextListeners) {
                 l.dispatchGLContextCreated()
             }
@@ -479,13 +480,22 @@ internal class GLRenderer {
                 filterInput.height = imageHeight
                 filterInput.texture = convertTextureId
 
-                asciiArtFilter.filter(
-                    context = context,
-                    surfaceWidth = screenSize.first,
-                    surfaceHeight = screenSize.second,
-                    input = filterInput,
-                    output = filterOutput
-                )
+                filter.get().let {
+                    if (it != null) {
+                        it.dispatchGlSurfaceCreated(context)
+                        it.dispatchDrawFrame(
+                            context = context,
+                            surfaceWidth = screenSize.first,
+                            surfaceHeight = screenSize.second,
+                            input = filterInput,
+                            output = filterOutput
+                        )
+                    } else {
+                        filterOutput.width = filterInput.width
+                        filterOutput.height = filterInput.height
+                        filterOutput.texture = filterInput.texture
+                    }
+                }
 
                 GLES30.glUseProgram(rendererData.program)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
@@ -705,7 +715,7 @@ internal class GLRenderer {
             rgbaTexConverter.recycle()
             yuv420pTexConverter.recycle()
             yuv420spTexConverter.recycle()
-            asciiArtFilter.recycle()
+            filter.get()?.dispatchGlSurfaceDestroying()
             tryRecycleUnhandledRequestImageData()
             for (l in glContextListeners) {
                 l.dispatchGLContextDestroying()

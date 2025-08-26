@@ -60,10 +60,19 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
             requestRender()
         }
 
-        val asciiArtFilter = player.getAsciiArtImageFilter()
+        val asciiArtFilter: AsciiArtImageFilter = (player.getFilter() as? AsciiArtImageFilter).let {
+            if (it == null) {
+                val filter = AsciiArtImageFilter()
+                filter.enable(false)
+                player.setFilter(filter)
+                filter
+            } else {
+                it
+            }
+        }
         viewBinding.asciiFilterSw.isChecked = asciiArtFilter.isEnable()
         viewBinding.asciiFilterSw.setOnCheckedChangeListener { _, isChecked ->
-            player.enableAsciiArtFilter(isChecked)
+            asciiArtFilter.enable(isChecked)
             requestRender()
         }
 
