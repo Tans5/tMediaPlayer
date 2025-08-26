@@ -3,7 +3,6 @@ package com.tans.tmediaplayer.player.decoder
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
-import android.os.SystemClock
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.ImageRawType
@@ -142,7 +141,7 @@ internal class VideoFrameDecoder(
                                                 tMediaPlayerLog.d(TAG) { "Decode video frame eof." }
                                                 this@VideoFrameDecoder.state.set(DecoderState.Eof)
                                             } else { // Not eof.
-                                                val start = SystemClock.uptimeMillis()
+                                                // val start = SystemClock.uptimeMillis()
                                                 val decodeResult = player.decodeVideoInternal(nativePlayer, pkt) // do decode.
                                                 var videoFrame: VideoFrame? = null
                                                 when (decodeResult) {
@@ -173,14 +172,14 @@ internal class VideoFrameDecoder(
                                                                                 surfaceTexture.updateTexImage()
                                                                                 textureBufferIndex ++
                                                                                 val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
-                                                                                tMediaPlayerLog.d(TAG) { "Request write texture: pts=${frame.pts}, texture=$textureBuffer" }
+                                                                                // tMediaPlayerLog.d(TAG) { "Request write texture: pts=${frame.pts}, texture=$textureBuffer" }
                                                                                 if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
                                                                                     frame.textureBuffer = textureBuffer
-                                                                                    tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
+                                                                                    // tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
                                                                                     frame.isBadTextureBuffer = false
                                                                                 } else {
                                                                                     frame.isBadTextureBuffer = true
-                                                                                    tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
+                                                                                    tMediaPlayerLog.e(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
                                                                                 }
                                                                             } catch (e: Throwable) {
                                                                                 frame.isBadTextureBuffer = true
@@ -193,7 +192,7 @@ internal class VideoFrameDecoder(
                                                                         videoFrameQueue.enqueueReadable(frame)
                                                                     }
                                                                 } else {
-                                                                    tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
+                                                                    tMediaPlayerLog.e(TAG) { "Can't handle hw surface data, no oes textures." }
                                                                     frame.isBadTextureBuffer = true
                                                                     videoFrameQueue.enqueueReadable(frame)
                                                                 }
@@ -215,8 +214,8 @@ internal class VideoFrameDecoder(
                                                         requestDecode()
                                                     }
                                                 }
-                                                val end = SystemClock.uptimeMillis()
-                                                tMediaPlayerLog.d(TAG) { "Decode video cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, videoFrame=${videoFrame}" }
+                                                // val end = SystemClock.uptimeMillis()
+                                                // tMediaPlayerLog.d(TAG) { "Decode video cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, videoFrame=${videoFrame}" }
                                                 if (state != DecoderState.Ready) {
                                                     this@VideoFrameDecoder.state.set(DecoderState.Ready)
                                                 }

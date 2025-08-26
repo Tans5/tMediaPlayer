@@ -27,7 +27,7 @@ internal class PacketReader(
 
     // Reader thread.
     private val pktReaderThread: HandlerThread by lazy {
-        object : HandlerThread("tMP_PktReader", Thread.MAX_PRIORITY) {
+        object : HandlerThread("tMP_PktReader", MAX_PRIORITY) {
             override fun onLooperPrepared() {
                 super.onLooperPrepared()
                 isLooperPrepared.set(true)
@@ -94,7 +94,7 @@ internal class PacketReader(
                                             val pkt = videoPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             videoPacketQueue.enqueueReadable(pkt)
-                                            tMediaPlayerLog.d(TAG) { "Read video pkt: $pkt" }
+                                            // tMediaPlayerLog.d(TAG) { "Read video pkt: $pkt" }
                                             requestReadPkt()
 
                                         }
@@ -102,11 +102,11 @@ internal class PacketReader(
                                             val pkt = audioPacketQueue.dequeueWriteableForce()
                                             player.movePacketRefInternal(nativePlayer, pkt.nativePacket)
                                             audioPacketQueue.enqueueReadable(pkt)
-                                            tMediaPlayerLog.d(TAG) { "Read audio pkt: $pkt" }
+                                            // tMediaPlayerLog.d(TAG) { "Read audio pkt: $pkt" }
                                             requestReadPkt()
                                         }
                                         ReadPacketResult.ReadSubtitleSuccess -> { // Subtitle frame
-                                            tMediaPlayerLog.d(TAG) { "Read subtitle pkt." }
+                                            // tMediaPlayerLog.d(TAG) { "Read subtitle pkt." }
                                             player.getInternalSubtitle()?.enqueueSubtitlePacket()
                                             requestReadPkt()
                                         }

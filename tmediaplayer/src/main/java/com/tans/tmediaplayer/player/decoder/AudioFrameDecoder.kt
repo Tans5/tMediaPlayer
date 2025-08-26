@@ -3,7 +3,6 @@ package com.tans.tmediaplayer.player.decoder
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
-import android.os.SystemClock
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
@@ -96,7 +95,7 @@ internal class AudioFrameDecoder(
                                                 this@AudioFrameDecoder.state.set(DecoderState.Eof)
                                                 audioFrameQueue.enqueueReadable(frame)
                                             } else { // Not eof.
-                                                val start = SystemClock.uptimeMillis()
+//                                                val start = SystemClock.uptimeMillis()
                                                 val decodeResult = player.decodeAudioInternal(nativePlayer, pkt)  // do decode.
                                                 var audioFrame: AudioFrame? = null
                                                 when (decodeResult) {
@@ -122,8 +121,8 @@ internal class AudioFrameDecoder(
                                                         requestDecode()
                                                     }
                                                 }
-                                                val end = SystemClock.uptimeMillis()
-                                                tMediaPlayerLog.d(TAG) { "Decode audio cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, audioFrame=${audioFrame}" }
+//                                                val end = SystemClock.uptimeMillis()
+//                                                tMediaPlayerLog.d(TAG) { "Decode audio cost ${end - start}ms, DecodeResult=${decodeResult}, pkt=${pkt}, audioFrame=${audioFrame}" }
                                                 if (state != DecoderState.Ready) {
                                                     this@AudioFrameDecoder.state.set(DecoderState.Ready)
                                                 }

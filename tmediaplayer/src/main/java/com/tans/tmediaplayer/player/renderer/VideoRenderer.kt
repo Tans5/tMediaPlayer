@@ -130,8 +130,9 @@ internal class VideoRenderer(
                                             val delay = computeTargetDelay(lastDuration)
                                             val time = SystemClock.uptimeMillis()
                                             if (time < frameTimer + delay) {  // Need wait to render.
-                                                val remainingTime = min(frameTimer + delay - time, VIDEO_REFRESH_RATE)
-                                                tMediaPlayerLog.d(TAG) { "Frame=${frame.pts}, need delay ${remainingTime}ms to display." }
+                                                val realDelay = frameTimer + delay - time
+                                                val remainingTime = min(realDelay, VIDEO_REFRESH_RATE)
+                                                // tMediaPlayerLog.d(TAG) { "Frame=${frame.pts}, need delay ${remainingTime}ms to check agin, realDelay=${realDelay}ms" }
                                                 requestRender(remainingTime)
                                                 return@synchronized
                                             }
@@ -195,7 +196,7 @@ internal class VideoRenderer(
 
                                 val time = SystemClock.uptimeMillis()
                                 val nextFrame = videoFrameQueue.peekReadable()
-                                if (nextFrame != null && !nextFrame.isEof) { // Drop out of data frames.
+                                if (nextFrame != null && !nextFrame.isEof) { // Drop out of date frames.
                                     val duration = frameDuration(
                                         currentSerial = lastRenderedFrame.serial,
                                         currentPts = lastRenderedFrame.pts,
@@ -225,6 +226,7 @@ internal class VideoRenderer(
             val renderedFrame: LastRenderedFrame = LastRenderedFrame() // For Message use.
             fun renderVideoFrame(frame: VideoFrame) {
                 val glRenderer = player.getGLRenderer()
+                // TODO: To opt this callback
                 val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
                     if (lastRenderedFrame.serial < frame.serial || (lastRenderedFrame.serial == frame.serial && frame.pts > lastRenderedFrame.pts)) {
                         val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
@@ -351,7 +353,7 @@ internal class VideoRenderer(
                     val videoClock = player.videoClock.getClock()
                     val masterClock = player.getMasterClock()
                     val diff = videoClock - masterClock
-                    tMediaPlayerLog.d(TAG) { "VideoClock: $videoClock, MasterClock: $masterClock, ClockDiff: $diff, FrameDuration: $frameDuration" }
+                    // tMediaPlayerLog.d(TAG) { "VideoClock: $videoClock, MasterClock: $masterClock, ClockDiff: $diff, FrameDuration: $frameDuration" }
                     val threshold: Long = max(min(frameDuration, SYNC_THRESHOLD_MAX), SYNC_THRESHOLD_MIN) // Calculate clock diff threshold, In common use frame duration.
                     if (diff <= - threshold) { // VideoClock slow
                         max(0L, frameDuration + diff)

@@ -47,7 +47,7 @@ internal class AudioRenderer(
 
     // Audio renderer thread.
     private val audioRendererThread: HandlerThread by lazy {
-        object : HandlerThread("tMP_AudioRenderer", Thread.MAX_PRIORITY) {
+        object : HandlerThread("tMP_AudioRenderer", MAX_PRIORITY) {
             override fun onLooperPrepared() {
                 super.onLooperPrepared()
                 isLooperPrepared.set(true)
@@ -189,7 +189,7 @@ internal class AudioRenderer(
                                 lastRenderedFrame.serial = frame.serial
                                 lastRenderedFrame.pts = frame.pts
                                 lastRenderedFrame.duration = frame.duration
-                                tMediaPlayerLog.d(TAG) { "Rendered audio frame: fixedPts=$fixedPts, originPts=${frame.pts}, audioTrackBufferCount=$audioTrackBufferCount, waitingBufferCount=$waitingBufferCount" }
+                                // tMediaPlayerLog.d(TAG) { "Rendered audio frame: fixedPts=$fixedPts, originPts=${frame.pts}, audioTrackBufferCount=$audioTrackBufferCount, waitingBufferCount=$waitingBufferCount" }
                                 player.audioClock.setClock(fixedPts, frame.serial)
                                 player.externalClock.syncToClock(player.audioClock)
                                 enqueueWritableFrame(frame)

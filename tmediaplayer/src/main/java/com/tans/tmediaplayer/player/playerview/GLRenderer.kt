@@ -449,9 +449,9 @@ internal class GLRenderer {
                     textureId = lastRenderedImageData.textureId
                     pts = lastRenderedImageData.pts
                     imageDataType = lastRenderedImageData.imageDataType
-                    tMediaPlayerLog.d(TAG) { "Draw last frame" }
+                    // tMediaPlayerLog.d(TAG) { "Draw last frame" }
                 }
-                tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
+                // tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
                 val texConverter = when (imageDataType!!) {
                     ImageDataType.Rgba -> rgbaTexConverter
@@ -617,7 +617,7 @@ internal class GLRenderer {
                 }
                 isWritingRenderImageData.set(false)
 
-                tMediaPlayerLog.d(TAG) { "Rendered video frame: pts=$pts, textureId=${textureId}" }
+                // tMediaPlayerLog.d(TAG) { "Rendered video frame: pts=$pts, textureId=${textureId}" }
             } else {
                 tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
             }
@@ -722,6 +722,10 @@ internal class GLRenderer {
     }
 
     private inner class GLThread : Thread("tMediaGLThread") {
+
+        init {
+            priority = MAX_PRIORITY
+        }
 
         private val isStarted: AtomicBoolean = AtomicBoolean(false)
 
@@ -854,10 +858,10 @@ internal class GLRenderer {
             var chooseConfig: EGLConfig? = null
             val v = intArrayOf(0)
             fun eglGetConfigAttr(config: EGLConfig, key: Int): Int {
-                if (EGL14.eglGetConfigAttrib(display, config, key, v, 0)) {
-                    return v[0]
+                return if (EGL14.eglGetConfigAttrib(display, config, key, v, 0)) {
+                    v[0]
                 } else {
-                    return 0
+                    0
                 }
             }
             for (c in allConfigs) {
