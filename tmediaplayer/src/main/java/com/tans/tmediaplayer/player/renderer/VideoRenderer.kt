@@ -307,7 +307,7 @@ internal class VideoRenderer(
                     }
                     ImageRawType.HwSurface -> {
                         val textureId = frame.textureBuffer
-                        if (textureId != null) {
+                        if (textureId != null && !frame.isBadTextureBuffer) {
                             glRenderer.requestRenderGlTexture(
                                 width = frame.width,
                                 height = frame.height,
@@ -316,7 +316,7 @@ internal class VideoRenderer(
                                 callback = renderCallback
                             )
                         } else {
-                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
+                            tMediaPlayerLog.e(TAG) { "Bad texture frame: $frame" }
                             renderCallback(false)
                         }
                     }

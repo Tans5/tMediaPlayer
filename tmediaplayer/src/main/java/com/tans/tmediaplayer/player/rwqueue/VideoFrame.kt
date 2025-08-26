@@ -15,6 +15,7 @@ internal class VideoFrame(val nativeFrame: Long) {
     var uvBuffer: ByteArray? = null
     var rgbaBuffer: ByteArray? = null
     var textureBuffer: Int? = null
+    var isBadTextureBuffer: Boolean = true
     var isEof: Boolean = false
 
     override fun toString(): String {
@@ -36,6 +37,8 @@ internal class VideoFrame(val nativeFrame: Long) {
         imageType = ImageRawType.Unknown
         width = 0
         height = 0
+        textureBuffer = null
+        isBadTextureBuffer = true
         isEof = false
     }
 }

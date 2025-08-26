@@ -160,7 +160,7 @@ internal class VideoFrameDecoder(
                                                         if (moveResult == OptResult.Success) {
                                                             videoFrame = frame
                                                             val type = player.getVideoFrameTypeNativeInternal(frame.nativeFrame)
-                                                            if (type == ImageRawType.HwSurface) {
+                                                            if (type == ImageRawType.HwSurface) { // OES texture image
                                                                 frame.imageType = ImageRawType.HwSurface
                                                                 frame.width = player.getVideoWidthNativeInternal(frame.nativeFrame)
                                                                 frame.height = player.getVideoHeightNativeInternal(frame.nativeFrame)
@@ -179,25 +179,27 @@ internal class VideoFrameDecoder(
                                                                                 if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
                                                                                     frame.textureBuffer = textureBuffer
                                                                                     tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
-                                                                                    videoFrameQueue.enqueueReadable(frame)
+                                                                                    frame.isBadTextureBuffer = false
                                                                                 } else {
-                                                                                    videoFrameQueue.enqueueWritable(frame)
+                                                                                    frame.isBadTextureBuffer = true
                                                                                     tMediaPlayerLog.d(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
                                                                                 }
                                                                             } catch (e: Throwable) {
-                                                                                videoFrameQueue.enqueueWritable(frame)
+                                                                                frame.isBadTextureBuffer = true
                                                                                 tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
                                                                             }
                                                                         } else {
-                                                                            videoFrameQueue.enqueueWritable(frame)
+                                                                            frame.isBadTextureBuffer = true
                                                                             tMediaPlayerLog.e(TAG) { "Update hw frame fail: not in gl context thread." }
                                                                         }
+                                                                        videoFrameQueue.enqueueReadable(frame)
                                                                     }
                                                                 } else {
                                                                     tMediaPlayerLog.e(TAG) { "Can handle hw surface data, player view is null." }
-                                                                    videoFrameQueue.enqueueWritable(frame)
+                                                                    frame.isBadTextureBuffer = true
+                                                                    videoFrameQueue.enqueueReadable(frame)
                                                                 }
-                                                            } else {
+                                                            } else { // Bytes image
                                                                 videoFrameQueue.enqueueReadable(frame)
                                                             }
                                                         } else {
