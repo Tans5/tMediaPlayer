@@ -76,7 +76,11 @@ internal class VideoFrameDecoder(
             }
 
             override fun glContextDestroying() {
-                oesTextureAndBufferTextures = null
+                val textures = oesTextureAndBufferTextures
+                if (textures != null) {
+                    oesTextureAndBufferTextures = null
+                    player.getGLRenderer().destroyHwOesTextureAndBufferTextures(textures)
+                }
                 val surfaceTexture = player.getHwSurfaces()?.second
                 if (surfaceTexture != null) {
                     try {

@@ -12,15 +12,48 @@ import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
 import com.tans.tmediaplayer.player.playerview.offScreenRender
 import com.tans.tmediaplayer.player.playerview.toGlBuffer
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicReference
 
-internal class Yuv420pImageTextureConverter : ImageTextureConverter {
+internal class Yuv420pImageTextureConverter : ImageTextureConverter() {
 
-    private val renderData: AtomicReference<RenderData?> by lazy {
-        AtomicReference()
+    private var renderData: RenderData? = null
+
+    override fun glSurfaceCreated(context: Context) {
+        val program = compileShaderProgram(context, R.raw.t_media_player_yuv420p_vert, R.raw.t_media_player_yuv420p_frag)
+        if (program != null) {
+            val outputTexId = glGenTextureAndSetDefaultParams()
+            val yTexId = glGenTextureAndSetDefaultParams()
+            val uTexId = glGenTextureAndSetDefaultParams()
+            val vTexId = glGenTextureAndSetDefaultParams()
+            val vertices = floatArrayOf(
+                // 坐标(position 0)   // 纹理坐标
+                -1.0f, 1.0f,        0.0f, 1.0f,    // 左上角
+                1.0f, 1.0f,         1.0f, 1.0f,   // 右上角
+                1.0f, -1.0f,        1.0f, 0.0f,   // 右下角
+                -1.0f, -1.0f,       0.0f, 0.0f,   // 左下角
+            )
+            val vao = glGenVertexArrays()
+            val vbo = glGenBuffers()
+            GLES30.glBindVertexArray(vao)
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, vbo)
+            GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
+            GLES30.glEnableVertexAttribArray(0)
+            GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertices.toGlBuffer(), GLES30.GL_STATIC_DRAW)
+            this.renderData = RenderData(
+                yTexId = yTexId,
+                uTexId = uTexId,
+                vTexId = vTexId,
+                vao = vao,
+                vbo = vbo,
+                program = program,
+                outputTexId = outputTexId
+            )
+        } else {
+            tMediaPlayerLog.e(TAG) { "Compile program fail" }
+        }
+        tMediaPlayerLog.d(TAG) { "glSurfaceCreated" }
     }
 
-    override fun convertImageToTexture(
+    override fun drawFrame(
         context: Context,
         surfaceWidth: Int,
         surfaceHeight: Int,
@@ -33,8 +66,9 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
         uvBytes: ByteArray?,
         imageDataType: ImageDataType
     ): Int {
+
         return if (imageDataType == ImageDataType.Yuv420p) {
-            val renderData = ensureRenderData(context)
+            val renderData = this.renderData
             if (renderData != null) {
                 offScreenRender(
                     outputTexId = renderData.outputTexId,
@@ -78,10 +112,10 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
         }
     }
 
-    override fun recycle() {
-        val renderData = this.renderData.get()
+    override fun glSurfaceDestroying() {
+        val renderData = this.renderData
         if (renderData != null) {
-            this.renderData.set(null)
+            this.renderData = null
             GLES30.glDeleteTextures(1, intArrayOf(renderData.yTexId), 0)
             GLES30.glDeleteTextures(1, intArrayOf(renderData.uTexId), 0)
             GLES30.glDeleteTextures(1, intArrayOf(renderData.vTexId), 0)
@@ -89,49 +123,12 @@ internal class Yuv420pImageTextureConverter : ImageTextureConverter {
             GLES30.glDeleteTextures(1, intArrayOf(renderData.outputTexId), 0)
             GLES30.glDeleteProgram(renderData.program)
         }
-    }
-
-    private fun ensureRenderData(context: Context): RenderData? {
-        val renderData = renderData.get()
-        if (renderData != null) {
-            return renderData
-        } else {
-            val program = compileShaderProgram(context, R.raw.t_media_player_yuv420p_vert, R.raw.t_media_player_yuv420p_frag) ?: return null
-            val outputTexId = glGenTextureAndSetDefaultParams()
-            val yTexId = glGenTextureAndSetDefaultParams()
-            val uTexId = glGenTextureAndSetDefaultParams()
-            val vTexId = glGenTextureAndSetDefaultParams()
-            val vertices = floatArrayOf(
-                // 坐标(position 0)   // 纹理坐标
-                -1.0f, 1.0f,        0.0f, 1.0f,    // 左上角
-                1.0f, 1.0f,         1.0f, 1.0f,   // 右上角
-                1.0f, -1.0f,        1.0f, 0.0f,   // 右下角
-                -1.0f, -1.0f,       0.0f, 0.0f,   // 左下角
-            )
-            val vao = glGenVertexArrays()
-            val vbo = glGenBuffers()
-            GLES30.glBindVertexArray(vao)
-            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, vbo)
-            GLES30.glVertexAttribPointer(0, 4, GLES30.GL_FLOAT, false, 16, 0)
-            GLES30.glEnableVertexAttribArray(0)
-            GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertices.toGlBuffer(), GLES30.GL_STATIC_DRAW)
-            val result = RenderData(
-                yTexId = yTexId,
-                uTexId = uTexId,
-                vTexId = vTexId,
-                vao = vao,
-                vbo = vbo,
-                program = program,
-                outputTexId = outputTexId
-            )
-            this.renderData.set(result)
-            return result
-        }
+        tMediaPlayerLog.d(TAG) { "glSurfaceDestroying" }
     }
 
     companion object {
         private const val TAG = "Yuv420pImageTextureConverter"
-        data class RenderData(
+        private data class RenderData(
             val yTexId: Int,
             val uTexId: Int,
             val vTexId: Int,

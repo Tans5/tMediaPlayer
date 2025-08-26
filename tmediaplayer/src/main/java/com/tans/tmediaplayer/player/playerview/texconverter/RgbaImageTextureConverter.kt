@@ -6,15 +6,26 @@ import com.tans.tmediaplayer.player.playerview.ImageDataType
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicReference
 
-internal class RgbaImageTextureConverter : ImageTextureConverter {
+internal class RgbaImageTextureConverter : ImageTextureConverter() {
 
-    private val renderData: AtomicReference<RenderData?> by lazy {
-        AtomicReference()
+    private var renderData: RenderData? = null
+
+    override fun glSurfaceCreated(context: Context) {
+        val renderData = this.renderData
+        if (renderData != null) {
+            renderData
+        } else {
+            val outputTexId = glGenTextureAndSetDefaultParams()
+            val new = RenderData(
+                outputTexId = outputTexId
+            )
+            this.renderData = new
+        }
+        tMediaPlayerLog.d(TAG) { "glSurfaceCreated" }
     }
 
-    override fun convertImageToTexture(
+    override fun drawFrame(
         context: Context,
         surfaceWidth: Int,
         surfaceHeight: Int,
@@ -27,8 +38,8 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
         uvBytes: ByteArray?,
         imageDataType: ImageDataType
     ): Int {
-        return if (imageDataType == ImageDataType.Rgba) {
-            val renderData = ensureRenderData()
+        val renderData = renderData
+        return if (imageDataType == ImageDataType.Rgba && renderData != null) {
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, renderData.outputTexId)
             GLES30.glTexImage2D(
                 GLES30.GL_TEXTURE_2D,
@@ -48,31 +59,19 @@ internal class RgbaImageTextureConverter : ImageTextureConverter {
         }
     }
 
-    override fun recycle() {
-        val renderData = renderData.get()
+    override fun glSurfaceDestroying() {
+        val renderData = renderData
         if (renderData != null) {
-            this.renderData.set(null)
+            this.renderData = null
             GLES30.glDeleteTextures(1, intArrayOf(renderData.outputTexId), 0)
         }
-    }
-
-    private fun ensureRenderData(): RenderData {
-        val renderData = renderData.get()
-        return if (renderData != null) {
-            renderData
-        } else {
-            val outputTexId = glGenTextureAndSetDefaultParams()
-            val result = RenderData(
-                outputTexId = outputTexId
-            )
-            this.renderData.set(result)
-            result
-        }
+        tMediaPlayerLog.d(TAG) { "glSurfaceDestroying" }
     }
 
     companion object {
         private const val TAG = "RgbaImageTextureConverter"
-        data class RenderData(
+
+        private data class RenderData(
             val outputTexId: Int
         )
     }

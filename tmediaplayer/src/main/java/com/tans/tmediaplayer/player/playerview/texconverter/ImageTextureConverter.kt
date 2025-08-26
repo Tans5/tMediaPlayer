@@ -2,10 +2,21 @@ package com.tans.tmediaplayer.player.playerview.texconverter
 
 import android.content.Context
 import com.tans.tmediaplayer.player.playerview.ImageDataType
+import java.util.concurrent.atomic.AtomicBoolean
 
-internal interface ImageTextureConverter {
+internal abstract class ImageTextureConverter {
 
-    fun convertImageToTexture(
+    private val isDispatchCreated = AtomicBoolean(false)
+
+    internal fun dispatchGlSurfaceCreated(context: Context) {
+        if (isDispatchCreated.compareAndSet(false, true)) {
+            glSurfaceCreated(context)
+        }
+    }
+
+    abstract fun glSurfaceCreated(context: Context)
+
+    abstract fun drawFrame(
         context: Context,
         surfaceWidth: Int,
         surfaceHeight: Int,
@@ -19,5 +30,11 @@ internal interface ImageTextureConverter {
         imageDataType: ImageDataType
     ): Int
 
-    fun recycle()
+    internal fun dispatchGlSurfaceDestroying() {
+        if (isDispatchCreated.compareAndSet(true, false)) {
+            glSurfaceDestroying()
+        }
+    }
+
+    abstract fun glSurfaceDestroying()
 }

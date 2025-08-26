@@ -15,6 +15,7 @@ import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
 import com.tans.tmediaplayer.player.playerview.glGenVertexArrays
 import com.tans.tmediaplayer.player.playerview.offScreenRender
 import com.tans.tmediaplayer.player.playerview.toGlBuffer
+import com.tans.tmediaplayer.tMediaPlayerLog
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.util.concurrent.atomic.AtomicBoolean
@@ -214,7 +215,10 @@ class AsciiArtImageFilter : ImageFilter() {
                 charTexturesArray = charTextures
             )
             this.renderData = renderData
+        } else {
+            tMediaPlayerLog.e(TAG) { "Compile program fail." }
         }
+        tMediaPlayerLog.d(TAG) { "glSurfaceCreated" }
     }
 
     override fun drawFrame(
@@ -349,6 +353,7 @@ class AsciiArtImageFilter : ImageFilter() {
             GLES30.glDeleteBuffers(3, intArrayOf(renderData.charVertVbo, renderData.charOffsetVbo, renderData.charColorAndTextureVbo), 0)
             GLES30.glDeleteTextures(1, intArrayOf(renderData.charTexturesArray), 0)
         }
+        tMediaPlayerLog.d(TAG) { "glSurfaceDestroying" }
     }
 
     private var lumaImageCache: ByteArray? = null

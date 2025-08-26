@@ -13,6 +13,7 @@ import android.view.TextureView
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
 import com.tans.tmediaplayer.player.playerview.filter.ImageFilter
+import com.tans.tmediaplayer.player.playerview.texconverter.ImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420spImageTextureConverter
@@ -298,6 +299,13 @@ internal class GLRenderer {
         }
     }
 
+    fun destroyHwOesTextureAndBufferTextures(textures: Pair<Int, IntArray>) {
+        val oesTexture = textures.first
+        GLES30.glDeleteTextures(1, intArrayOf(oesTexture), 0)
+        val bufferTextures = textures.second
+        GLES30.glDeleteTextures(bufferTextures.size, bufferTextures, 0)
+    }
+
     fun addGLContextListener(l: GLContextListener) {
         if (glContextListeners.find { it.l === l } == null) {
             val new = GLContextListenerWrapper(l)
@@ -330,19 +338,7 @@ internal class GLRenderer {
             AtomicReference(ScaleType.CenterFit)
         }
 
-        // region ImageConverters
-        private val rgbaTexConverter: RgbaImageTextureConverter by lazy {
-            RgbaImageTextureConverter()
-        }
-
-        private val yuv420pTexConverter: Yuv420pImageTextureConverter by lazy {
-            Yuv420pImageTextureConverter()
-        }
-
-        private val yuv420spTexConverter: Yuv420spImageTextureConverter by lazy {
-            Yuv420spImageTextureConverter()
-        }
-        // endregion
+        private val textureConverters: MutableMap<ImageDataType, ImageTextureConverter> = hashMapOf()
 
         // region RenderImageData
         val requestRenderImageData = RequestRenderImageData()
@@ -455,14 +451,48 @@ internal class GLRenderer {
                 // tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
                 GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
                 val texConverter = when (imageDataType!!) {
-                    ImageDataType.Rgba -> rgbaTexConverter
-                    ImageDataType.Yuv420p -> yuv420pTexConverter
-                    ImageDataType.Nv12, ImageDataType.Nv21 -> yuv420spTexConverter
+                    ImageDataType.Rgba -> {
+                        textureConverters[ImageDataType.Rgba].let {
+                            if (it == null) {
+                                val new = RgbaImageTextureConverter()
+                                new.dispatchGlSurfaceCreated(context)
+                                textureConverters[ImageDataType.Rgba] = new
+                                new
+                            } else {
+                                it
+                            }
+                        }
+                    }
+                    ImageDataType.Yuv420p -> {
+                        textureConverters[ImageDataType.Yuv420p].let {
+                            if (it == null) {
+                                val new = Yuv420pImageTextureConverter()
+                                new.dispatchGlSurfaceCreated(context)
+                                textureConverters[ImageDataType.Yuv420p] = new
+                                new
+                            } else {
+                                it
+                            }
+                        }
+                    }
+                    ImageDataType.Nv12, ImageDataType.Nv21 -> {
+                        textureConverters[ImageDataType.Nv12].let {
+                            if (it == null) {
+                                val new = Yuv420spImageTextureConverter()
+                                new.dispatchGlSurfaceCreated(context)
+                                textureConverters[ImageDataType.Nv12] = new
+                                new
+                            } else {
+                                it
+                            }
+                        }
+                    }
+
                     else -> {
                         null
                     }
                 }
-                val convertTextureId = texConverter?.convertImageToTexture(
+                val convertTextureId = texConverter?.drawFrame(
                     context = context,
                     surfaceWidth = screenSize.first,
                     surfaceHeight = screenSize.second,
@@ -697,24 +727,29 @@ internal class GLRenderer {
         }
 
         fun glSurfaceDestroyed() {
-
+            // do nothing
         }
 
         fun glContextDestroying() {
             sizeCache = null
             val data = glRendererData
             if (data != null) {
+                glRendererData = null
                 GLES30.glDeleteBuffers(1, intArrayOf(data.VBO), 0)
+                GLES30.glDeleteProgram(data.program)
             }
-            glRendererData = null
+
             val oesData = oesGlRenderData
             if (oesData != null) {
+                oesGlRenderData = null
                 GLES30.glDeleteBuffers(1, intArrayOf(oesData.VBO), 0)
+                GLES30.glDeleteProgram(oesData.program)
             }
-            oesGlRenderData = null
-            rgbaTexConverter.recycle()
-            yuv420pTexConverter.recycle()
-            yuv420spTexConverter.recycle()
+
+            for ((_, texConverter) in textureConverters) {
+                texConverter.dispatchGlSurfaceDestroying()
+            }
+            textureConverters.clear()
             filter.get()?.dispatchGlSurfaceDestroying()
             tryRecycleUnhandledRequestImageData()
             for (l in glContextListeners) {
