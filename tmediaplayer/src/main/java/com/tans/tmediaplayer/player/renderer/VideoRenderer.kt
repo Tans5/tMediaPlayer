@@ -34,7 +34,7 @@ internal class VideoRenderer(
 
     // Video renderer thread.
     private val videoRendererThread: HandlerThread by lazy {
-        object : HandlerThread("tMP_VideoRenderer", Thread.MAX_PRIORITY) {
+        object : HandlerThread("tMP_VideoRenderer", MAX_PRIORITY) {
             override fun onLooperPrepared() {
                 super.onLooperPrepared()
                 isLooperPrepared.set(true)
@@ -226,7 +226,7 @@ internal class VideoRenderer(
             fun renderVideoFrame(frame: VideoFrame) {
                 val glRenderer = player.getGLRenderer()
                 val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
-                    if (isRendered) {
+                    if (lastRenderedFrame.serial < frame.serial || (lastRenderedFrame.serial == frame.serial && frame.pts > lastRenderedFrame.pts)) {
                         val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
                         renderedFrame.serial = frame.serial
                         renderedFrame.pts = frame.pts
