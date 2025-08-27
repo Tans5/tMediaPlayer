@@ -168,10 +168,10 @@ internal class AudioRenderer(
                                     if (state == RendererState.Playing) {
                                         this@AudioRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                     }
-                                    tMediaPlayerLog.d(TAG) { "Waiting readable audio frame." }
+                                    // tMediaPlayerLog.d(TAG) { "Waiting readable audio frame." }
                                 }
                             } else {
-                                tMediaPlayerLog.e(TAG) { "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo" }
+                                // tMediaPlayerLog.e(TAG) { "Render audio fail, playerState=$playerState, state=$state, mediaInfo=$mediaInfo" }
                             }
                         }
 
@@ -264,7 +264,7 @@ internal class AudioRenderer(
         if (state == RendererState.WaitingReadableFrameBuffer) {
             requestRender()
         } else {
-            tMediaPlayerLog.d(TAG) { "Skip handle readable audio frame ready, because of state: $state" }
+            // tMediaPlayerLog.d(TAG) { "Skip handle readable audio frame ready, because of state: $state" }
         }
     }
 

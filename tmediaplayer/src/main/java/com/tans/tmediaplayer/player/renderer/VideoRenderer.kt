@@ -179,7 +179,7 @@ internal class VideoRenderer(
                                         if (state == RendererState.Playing) {
                                             this@VideoRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                         }
-                                        tMediaPlayerLog.d(TAG) { "Waiting readable video frame." }
+                                        // tMediaPlayerLog.d(TAG) { "Waiting readable video frame." }
                                     }
                                 }
                             }
@@ -410,7 +410,7 @@ internal class VideoRenderer(
         if (state == RendererState.WaitingReadableFrameBuffer || renderForce.get()) {
             requestRender()
         } else {
-            tMediaPlayerLog.d(TAG) { "Skip handle readable video frame ready, because of state: $state" }
+            // tMediaPlayerLog.d(TAG) { "Skip handle readable video frame ready, because of state: $state" }
         }
     }
 

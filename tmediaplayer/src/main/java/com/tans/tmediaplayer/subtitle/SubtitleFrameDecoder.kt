@@ -90,11 +90,11 @@ internal class SubtitleFrameDecoder(
                                         this@SubtitleFrameDecoder.state.set(DecoderState.Ready)
                                     }
                                 } else {
-                                    tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
+                                    // tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                     this@SubtitleFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                 }
                             } else {
-                                tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
+                                // tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                 this@SubtitleFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                             }
                         }

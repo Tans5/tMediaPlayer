@@ -262,7 +262,5 @@ void tMediaFrameLoaderContext::release() {
     }
 
     video_stream = nullptr;
-
-    free(this);
     LOGD("Release media frame loader.");
 }

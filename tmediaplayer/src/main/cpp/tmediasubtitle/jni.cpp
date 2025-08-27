@@ -156,7 +156,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
         avsubtitle_free(buffer->subtitle_frame);
         av_freep(buffer->subtitle_frame);
     }
-    free(buffer);
+    delete buffer;
 }
 
 
@@ -167,4 +167,5 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseNative(
         jlong native_subtitle) {
     auto subtitleCtx = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
     subtitleCtx->release();
+    delete subtitleCtx;
 }

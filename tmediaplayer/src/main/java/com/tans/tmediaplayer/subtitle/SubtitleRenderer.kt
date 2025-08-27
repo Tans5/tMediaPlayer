@@ -102,7 +102,7 @@ internal class SubtitleRenderer(
                                 if (state == RendererState.Playing) {
                                     this@SubtitleRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
                                 }
-                                tMediaPlayerLog.d(TAG) { "Waiting readable subtitle frame." }
+                                // tMediaPlayerLog.d(TAG) { "Waiting readable subtitle frame." }
                             }
                         }
                     }

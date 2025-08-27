@@ -92,10 +92,11 @@ Java_com_tans_tmediaplayer_audiotrack_tMediaAudioTrack_releaseNative(
         jobject j_audio_track,
         jlong native_audio_track) {
     auto audioTrack = reinterpret_cast<tMediaAudioTrackContext *>(native_audio_track);
+    audioTrack->release();
     audioTrack->jvm = nullptr;
     env->DeleteGlobalRef(audioTrack->j_audioTrack);
     audioTrack->j_audioTrack = nullptr;
     audioTrack->j_callbackMethodId = nullptr;
-    return audioTrack->release();
+    delete audioTrack;
 }
 

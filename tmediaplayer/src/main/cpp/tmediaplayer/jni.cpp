@@ -176,9 +176,9 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseNative(
         jobject j_player,
         jlong native_player) {
     auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
-    player->jvm = nullptr;
     player->release();
-    free(player);
+    player->jvm = nullptr;
+    delete player;
 }
 // endregion
 
@@ -637,10 +637,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameRgbaBytesNative(
         jlong buffer_l,
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    j_bytes = reinterpret_cast<jbyteArray>(env->NewLocalRef((jobject) j_bytes));
     if (buffer->type == Rgba) {
         env->SetByteArrayRegion(j_bytes, 0, buffer->rgbaContentSize,
                                 reinterpret_cast<const jbyte *>(buffer->rgbaBuffer));
     }
+    env->DeleteLocalRef(j_bytes);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -663,10 +665,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameYBytesNative(
         jlong buffer_l,
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    j_bytes = reinterpret_cast<jbyteArray>(env->NewLocalRef((jobject) j_bytes));
     if (buffer->type == Nv12 || buffer->type == Nv21 || buffer->type == Yuv420p) {
         env->SetByteArrayRegion(j_bytes, 0, buffer->yContentSize,
                                 reinterpret_cast<const jbyte *>(buffer->yBuffer));
     }
+    env->DeleteLocalRef(j_bytes);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -689,10 +693,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameUBytesNative(
         jlong buffer_l,
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    j_bytes = reinterpret_cast<jbyteArray>(env->NewLocalRef((jobject) j_bytes));
     if (buffer->type == Yuv420p) {
         env->SetByteArrayRegion(j_bytes, 0, buffer->uContentSize,
                                 reinterpret_cast<const jbyte *>(buffer->uBuffer));
     }
+    env->DeleteLocalRef(j_bytes);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -715,10 +721,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameVBytesNative(
         jlong buffer_l,
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    j_bytes = reinterpret_cast<jbyteArray>(env->NewLocalRef((jobject) j_bytes));
     if (buffer->type == Yuv420p) {
         env->SetByteArrayRegion(j_bytes, 0, buffer->vContentSize,
                                 reinterpret_cast<const jbyte *>(buffer->vBuffer));
     }
+    env->DeleteLocalRef(j_bytes);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -741,10 +749,12 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameUVBytesNative(
         jlong buffer_l,
         jbyteArray j_bytes) {
     auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    j_bytes = reinterpret_cast<jbyteArray>(env->NewLocalRef((jobject) j_bytes));
     if (buffer->type == Nv12 || buffer->type == Nv21) {
         env->SetByteArrayRegion(j_bytes, 0, buffer->uvContentSize,
                                 reinterpret_cast<const jbyte *>(buffer->uvBuffer));
     }
+    env->DeleteLocalRef(j_bytes);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -768,7 +778,7 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseVideoBufferNative(
     if (buffer->uvBuffer != nullptr) {
         free(buffer->uvBuffer);
     }
-    free(buffer);
+    delete buffer;
 }
 
 // endregion
@@ -791,9 +801,11 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getAudioFrameBytesNative(
         jobject j_player,
         jlong buffer_l,
         jbyteArray j_bytes) {
+    j_bytes = reinterpret_cast<jbyteArray>(env->NewLocalRef((jobject) j_bytes));
     auto buffer = reinterpret_cast<tMediaAudioBuffer *>(buffer_l);
     env->SetByteArrayRegion(j_bytes, 0, buffer->contentSize,
                             reinterpret_cast<const jbyte *>(buffer->pcmBuffer));
+    env->DeleteLocalRef(j_bytes);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -832,6 +844,6 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_releaseAudioBufferNative(
     if (buffer->pcmBuffer != nullptr) {
         free(buffer->pcmBuffer);
     }
-    free(buffer);
+    delete buffer;
 }
 //endregion

@@ -62,4 +62,5 @@ Java_com_tans_tmediaplayer_subtitle_ExternalSubtitle_releaseNative(
         jlong native_reader) {
     auto readerCtx = reinterpret_cast<tMediaSubtitlePktReaderContext *>(native_reader);
     readerCtx->release();
+    delete readerCtx;
 }

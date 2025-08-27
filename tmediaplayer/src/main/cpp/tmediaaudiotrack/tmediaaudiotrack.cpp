@@ -226,6 +226,5 @@ void tMediaAudioTrackContext::release() {
         free(playerBufferQueueState);
         playerBufferQueueState = nullptr;
     }
-    free(this);
     LOGD("Audio track released.");
 }

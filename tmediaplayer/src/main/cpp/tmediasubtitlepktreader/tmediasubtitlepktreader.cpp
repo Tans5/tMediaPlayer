@@ -102,5 +102,4 @@ void tMediaSubtitlePktReaderContext::release() {
         av_packet_free(&pkt);
         pkt = nullptr;
     }
-    free(this);
 }

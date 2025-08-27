@@ -98,6 +98,5 @@ void tMediaSubtitleContext::release() {
         av_packet_free(&subtitle_pkt);
         subtitle_pkt = nullptr;
     }
-    free(this);
 }
 

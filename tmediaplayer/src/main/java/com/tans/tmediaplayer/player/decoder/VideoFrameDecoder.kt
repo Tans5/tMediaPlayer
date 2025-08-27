@@ -231,11 +231,11 @@ internal class VideoFrameDecoder(
                                             requestDecode()
                                         }
                                     } else { // Waiting for renderer.
-                                        tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
+                                        // tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                         this@VideoFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                     }
                                 } else { // Waiting for packet reader
-                                    tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
+                                    // tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                     this@VideoFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }
                             }
@@ -278,7 +278,7 @@ internal class VideoFrameDecoder(
             state == DecoderState.Eof) {
             requestDecode()
         } else {
-            tMediaPlayerLog.d(TAG) { "Skip handle readable package ready, because of state: $state" }
+            // tMediaPlayerLog.d(TAG) { "Skip handle readable package ready, because of state: $state" }
         }
     }
 
@@ -287,7 +287,7 @@ internal class VideoFrameDecoder(
         if (state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
         } else {
-            tMediaPlayerLog.d(TAG) { "Skip handle writable frame ready, because of state: $state" }
+            // tMediaPlayerLog.d(TAG) { "Skip handle writable frame ready, because of state: $state" }
         }
     }
 

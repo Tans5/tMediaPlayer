@@ -134,11 +134,11 @@ internal class AudioFrameDecoder(
                                             requestDecode()
                                         }
                                     } else {
-                                        tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
+                                        // tMediaPlayerLog.d(TAG) { "Waiting frame queue writeable buffer." }
                                         this@AudioFrameDecoder.state.set(DecoderState.WaitingWritableFrameBuffer)
                                     }
                                 } else {
-                                    tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
+                                    // tMediaPlayerLog.d(TAG) { "Waiting packet queue readable buffer." }
                                     this@AudioFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                                 }
                             }
@@ -175,7 +175,7 @@ internal class AudioFrameDecoder(
             state == DecoderState.Eof) {
             requestDecode()
         } else {
-            tMediaPlayerLog.d(TAG) { "Skip handle readable package ready, because of state: $state" }
+            // tMediaPlayerLog.d(TAG) { "Skip handle readable package ready, because of state: $state" }
         }
     }
 
@@ -184,7 +184,7 @@ internal class AudioFrameDecoder(
         if (state == DecoderState.WaitingWritableFrameBuffer) {
             requestDecode()
         } else {
-            tMediaPlayerLog.d(TAG) { "Skip handle writeable frame ready, because of state: $state" }
+            // tMediaPlayerLog.d(TAG) { "Skip handle writeable frame ready, because of state: $state" }
         }
     }
 

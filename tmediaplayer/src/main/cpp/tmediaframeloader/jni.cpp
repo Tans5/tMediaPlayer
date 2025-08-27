@@ -107,7 +107,8 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_releaseNative(
     if (loader == nullptr) {
         return;
     }
-    return loader->release();
+    loader->release();
+    delete loader;
 }
 
 

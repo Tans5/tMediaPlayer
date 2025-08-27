@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
+import com.tans.tmediaplayer.player.decoder.AudioFrameDecoder
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.ReadPacketResult
 import com.tans.tmediaplayer.player.model.OptResult
@@ -67,9 +68,9 @@ internal class PacketReader(
                                 val videoQueueIsFull = mediaInfo.videoStreamInfo == null || mediaInfo.videoStreamInfo.isAttachment || videoDuration > MAX_QUEUE_DURATION
                                 if (!mediaInfo.isRealTime && (videoSizeInBytes + audioSizeInBytes > MAX_QUEUE_SIZE_IN_BYTES || (audioQueueIsFull && videoQueueIsFull))) {
                                     // queue full, waiting for decoder.
-                                    tMediaPlayerLog.d(TAG) {
-                                        "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration"
-                                    }
+//                                    tMediaPlayerLog.d(TAG) {
+//                                        "Packet queue full, audioSize=${String.format(Locale.US, "%.2f", audioSizeInBytes.toFloat() / 1024.0f)}KB, videoSize=${String.format(Locale.US, "%.2f", videoSizeInBytes.toFloat() / 1024.0f)}KB, audioDuration=$audioDuration, videoDuration=$videoDuration"
+//                                    }
                                     this@PacketReader.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     if (state == ReaderState.WaitingWritableBuffer) {
@@ -205,6 +206,8 @@ internal class PacketReader(
         val state = getState()
         if (state == ReaderState.WaitingWritableBuffer) {
             requestReadPkt()
+        } else {
+            // tMediaPlayerLog.d(TAG) { "Skip handle writeable packet ready, because of state: $state" }
         }
     }
 
