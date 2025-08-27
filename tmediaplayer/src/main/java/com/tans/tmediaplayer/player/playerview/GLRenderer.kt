@@ -774,19 +774,17 @@ internal class GLRenderer {
 
         private val isStarted: AtomicBoolean = AtomicBoolean(false)
 
-        @Volatile
         private var requestQuit: Boolean = false
 
         @Volatile
         private var isQuited: Boolean = false
 
-        @Volatile
         private var surface: Surface? = null
 
-        @Volatile
-        private var surfaceSizeChange: Pair<Int, Int>? = null
+        private var surfaceSize: Pair<Int, Int>? = null
 
-        @Volatile
+        private var requestSurfaceSizeChange: Boolean = false
+
         private var requestRender: Boolean = false
 
         private val tasks: LinkedBlockingDeque<(Boolean) -> Unit> = LinkedBlockingDeque()
@@ -813,9 +811,11 @@ internal class GLRenderer {
 
         @Synchronized
         fun requestAttachSurface(s: Surface) {
-            tMediaPlayerLog.d(TAG) { "Request set surface: $s" }
-            surface = s
-            (this as Object).notifyAll()
+            if (surface == null) {
+                tMediaPlayerLog.d(TAG) { "Request set surface: $s" }
+                surface = s
+                (this as Object).notifyAll()
+            }
         }
 
         @Synchronized
@@ -829,7 +829,8 @@ internal class GLRenderer {
 
         @Synchronized
         fun requestSizeChange(width: Int, height: Int) {
-            surfaceSizeChange = width to height
+            surfaceSize = width to height
+            requestSurfaceSizeChange = true
             (this as Object).notifyAll()
         }
 
@@ -940,97 +941,176 @@ internal class GLRenderer {
 
             var isNotifyContextCreated = false
 
+            var doQuit = false
+            var doSurfaceCreate = false
+            var doSurfaceDestroy = false
+            var doSurfaceSizeChange = false
+            var doRender = false
+            var doTasks = false
             while (true) {
                 synchronized(this) {
-                    // Destroy
-                    if (requestQuit) {
-                        if (isNotifyContextCreated) {
-                            isNotifyContextCreated = false
-                            realRenderer.glContextDestroying()
+                    while (true) {
+                        // Request quit
+                        if (requestQuit) {
+                            requestQuit = false
+                            doQuit = true
+                            (this as Object).notifyAll()
+                            break
                         }
 
-                        EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
-                        // Destroy surface
-                        if (eglSurface != EGL14.EGL_NO_SURFACE) {
-                            EGL14.eglDestroySurface(display, eglSurface)
-                            eglSurface = EGL14.EGL_NO_SURFACE
-                        }
-                        // Destroy context
-                        EGL14.eglDestroyContext(display, eglContext)
-                        eglContext = EGL14.EGL_NO_CONTEXT
-
-                        // Destroy display
-                        EGL14.eglTerminate(display)
-                        display = EGL14.EGL_NO_DISPLAY
-                        surface = null
-                        requestQuit = false
-                        isQuited = true
-                        (this as Object).notifyAll()
-                        tMediaPlayerLog.d(TAG) { "GL thread quited." }
-                        break
-                    }
-
-                    // Check surface
-                    val sur = surface
-                    if (sur != null) {
+                        // check surface
                         if (eglSurface == EGL14.EGL_NO_SURFACE) {
-                            // Create new egl surface
-                            try {
-                                eglSurface = EGL14.eglCreateWindowSurface(display, chooseConfig, sur, intArrayOf(EGL14.EGL_NONE), 0)
-                                EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
-                                tMediaPlayerLog.d(TAG) { "GL surface created: eglSurface=$eglSurface, surface=$sur" }
-                                if (!isNotifyContextCreated) {
-                                    isNotifyContextCreated = true
-                                    realRenderer.glContextCreated()
-                                }
-                                realRenderer.glSurfaceCreated()
-                            } catch (e: Throwable) {
-                                if (eglSurface != EGL14.EGL_NO_SURFACE) {
-                                    EGL14.eglDestroySurface(display, eglSurface)
-                                    eglSurface = EGL14.EGL_NO_SURFACE
-                                }
-                                tMediaPlayerLog.e(TAG) { "GL surface create fail: ${e.message}, surface=$sur" }
+                            if (surface != null) {
+                                doSurfaceCreate = true
+                            }
+                        } else {
+                            if (surface == null) {
+                                doSurfaceDestroy = true
+                                (this as Object).notifyAll()
+                                break
                             }
                         }
+
+                        if (eglSurface != EGL14.EGL_NO_SURFACE || doSurfaceCreate) {
+                            // surface size change
+                            if (requestSurfaceSizeChange) {
+                                requestSurfaceSizeChange = false
+                                doSurfaceSizeChange = true
+                            }
+
+                            // Render
+                            if (requestRender) {
+                                requestRender = false
+                                doRender = true
+                            }
+
+                            // Task
+                            if (tasks.isNotEmpty()) {
+                                doTasks = true
+                            }
+
+                            if (doSurfaceCreate || doSurfaceSizeChange || doRender || doTasks) {
+                                (this as Object).notifyAll()
+                                break
+                            } else {
+                                tMediaPlayerLog.d(TAG) { "GL thread no task to do." }
+                                (this as Object).wait()
+                            }
+                        } else {
+                            tMediaPlayerLog.d(TAG) { "GL thread wait surface." }
+                            (this as Object).wait()
+                        }
+                    }
+                } // end synchronized
+
+                // Destroy
+                if (doQuit) {
+                    if (isNotifyContextCreated) {
+                        isNotifyContextCreated = false
+                        realRenderer.glContextDestroying()
+                    }
+                    EGL14.eglMakeCurrent(
+                        display,
+                        EGL14.EGL_NO_SURFACE,
+                        EGL14.EGL_NO_SURFACE,
+                        EGL14.EGL_NO_CONTEXT
+                    )
+                    // Destroy surface
+                    if (eglSurface != EGL14.EGL_NO_SURFACE) {
+                        EGL14.eglDestroySurface(display, eglSurface)
+                        eglSurface = EGL14.EGL_NO_SURFACE
+                    }
+                    // Destroy context
+                    EGL14.eglDestroyContext(display, eglContext)
+                    eglContext = EGL14.EGL_NO_CONTEXT
+
+                    // Destroy display
+                    EGL14.eglTerminate(display)
+                    display = EGL14.EGL_NO_DISPLAY
+                    surface = null
+                    requestQuit = false
+                    isQuited = true
+                    tMediaPlayerLog.d(TAG) { "GL thread quited." }
+                    doQuit = false
+                    synchronized(this) {
+                        (this as Object).notifyAll()
+                    }
+                    break
+                }
+
+                // Create surface
+                if (doSurfaceCreate) {
+                    doSurfaceCreate = false
+                    val sur = surface
+                    if (sur != null) {
+                        try {
+                            eglSurface = EGL14.eglCreateWindowSurface(
+                                display,
+                                chooseConfig,
+                                sur,
+                                intArrayOf(EGL14.EGL_NONE),
+                                0
+                            )
+                            EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
+                            tMediaPlayerLog.d(TAG) { "GL surface created: eglSurface=$eglSurface, surface=$sur" }
+                            if (!isNotifyContextCreated) {
+                                isNotifyContextCreated = true
+                                realRenderer.glContextCreated()
+                            }
+                            realRenderer.glSurfaceCreated()
+                        } catch (e: Throwable) {
+                            if (eglSurface != EGL14.EGL_NO_SURFACE) {
+                                EGL14.eglDestroySurface(display, eglSurface)
+                                eglSurface = EGL14.EGL_NO_SURFACE
+                            }
+                            tMediaPlayerLog.e(TAG) { "GL surface create fail: ${e.message}, surface=$sur" }
+                        }
                     } else {
-                        if (eglSurface != EGL14.EGL_NO_SURFACE) {
-                            // Destroy egl surface.
-                            EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
-                            EGL14.eglDestroySurface(display, eglSurface)
-                            realRenderer.glSurfaceDestroyed()
-                            tMediaPlayerLog.d(TAG) { "GL surface destroyed: eglSurface=$eglSurface" }
-                            eglSurface = EGL14.EGL_NO_SURFACE
-                        }
+                        tMediaPlayerLog.e(TAG) { "GL surface wrong surface, surface is null." }
                     }
+                }
 
-                    if (eglSurface == EGL14.EGL_NO_SURFACE) {
-                        tMediaPlayerLog.d(TAG) { "GL waiting surface..." }
-                        (this as Object).wait()
-                        continue
+                // Surface destroy
+                if (doSurfaceDestroy) {
+                    doSurfaceDestroy = false
+                    if (eglSurface != EGL14.EGL_NO_SURFACE) {
+                        // Destroy egl surface.
+                        EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
+                        EGL14.eglDestroySurface(display, eglSurface)
+                        realRenderer.glSurfaceDestroyed()
+                        tMediaPlayerLog.d(TAG) { "GL surface destroyed: eglSurface=$eglSurface" }
+                        eglSurface = EGL14.EGL_NO_SURFACE
                     }
+                }
 
-                    val size = surfaceSizeChange
+                // No surface
+                if (eglSurface == EGL14.EGL_NO_SURFACE) {
+                    tMediaPlayerLog.d(TAG) { "Gl surface no surface, to wait." }
+                    continue
+                }
+
+                // Surface size changed
+                if (doSurfaceSizeChange) {
+                    doSurfaceSizeChange = false
+                    val size = surfaceSize
                     if (size != null) {
-                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${size.first}x${size.second}"}
+                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${size.first}x${size.second}" }
                         realRenderer.surfaceSizeChanged(size.first, size.second)
-                        surfaceSizeChange = null
                     }
+                }
 
-                    // Draw frame
-                    if (requestRender) {
-                        requestRender = false
-                        realRenderer.drawFrame()
-                        if (!EGL14.eglSwapBuffers(display, eglSurface)) {
-                            tMediaPlayerLog.e(TAG) { "GL surface swap buffers fail: ${EGL14.eglGetError()}" }
-                        }
+                // Draw frame
+                if (doRender) {
+                    doRender = false
+                    realRenderer.drawFrame()
+                    if (!EGL14.eglSwapBuffers(display, eglSurface)) {
+                        tMediaPlayerLog.e(TAG) { "GL surface swap buffers fail: ${EGL14.eglGetError()}" }
                     }
+                }
 
-                    // Run tasks
-                    while (tasks.isNotEmpty()) {
-                        tasks.pollFirst()?.invoke(true)
-                    }
-
-                    (this as Object).wait()
+                // Run tasks
+                while (tasks.isNotEmpty()) {
+                    tasks.pollFirst()?.invoke(true)
                 }
             }
 
