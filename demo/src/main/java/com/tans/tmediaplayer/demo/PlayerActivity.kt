@@ -23,6 +23,7 @@ import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -248,14 +249,16 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
 
     override fun onPause() {
         super.onPause()
-//        if (mediaPlayer.getState() is tMediaPlayerState.Playing) {
-//            mediaPlayer.pause()
-//        }
+        if (mediaPlayer.getState() is tMediaPlayerState.Playing) {
+            mediaPlayer.pause()
+        }
     }
 
     override fun onViewModelCleared() {
         super.onViewModelCleared()
-        mediaPlayer.release()
+        Dispatchers.IO.asExecutor().execute {
+            mediaPlayer.release()
+        }
     }
 
     companion object {
