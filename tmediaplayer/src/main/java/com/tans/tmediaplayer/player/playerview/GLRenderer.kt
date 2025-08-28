@@ -704,9 +704,7 @@ internal class GLRenderer {
 
         private var surface: Surface? = null
 
-        private var surfaceSize: Pair<Int, Int>? = null
-
-        private var requestSurfaceSizeChange: Boolean = false
+        private var requestSurfaceSize: Pair<Int, Int>? = null
 
         private var requestRender: Boolean = false
 
@@ -752,8 +750,8 @@ internal class GLRenderer {
 
         @Synchronized
         fun requestSizeChange(width: Int, height: Int) {
-            surfaceSize = width to height
-            requestSurfaceSizeChange = true
+            requestSurfaceSize = width to height
+            requestRender = true
             (this as Object).notifyAll()
         }
 
@@ -863,6 +861,7 @@ internal class GLRenderer {
             var eglSurface = EGL14.EGL_NO_SURFACE
 
             var isNotifyContextCreated = false
+            var surfaceSize: Pair<Int, Int>? = null
 
             var doQuit = false
             var doSurfaceCreate = false
@@ -896,8 +895,9 @@ internal class GLRenderer {
 
                         if (eglSurface != EGL14.EGL_NO_SURFACE || doSurfaceCreate) {
                             // surface size change
-                            if (requestSurfaceSizeChange) {
-                                requestSurfaceSizeChange = false
+                            if (requestSurfaceSize != surfaceSize) {
+                                surfaceSize = requestSurfaceSize
+                                requestSurfaceSize = null
                                 doSurfaceSizeChange = true
                             }
 
@@ -1015,10 +1015,9 @@ internal class GLRenderer {
                 // Surface size changed
                 if (doSurfaceSizeChange) {
                     doSurfaceSizeChange = false
-                    val size = surfaceSize
-                    if (size != null) {
-                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${size.first}x${size.second}" }
-                        realRenderer.surfaceSizeChanged(size.first, size.second)
+                    if (surfaceSize != null) {
+                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${surfaceSize.first}x${surfaceSize.second}" }
+                        realRenderer.surfaceSizeChanged(surfaceSize.first, surfaceSize.second)
                     }
                 }
 
