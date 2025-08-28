@@ -1,7 +1,7 @@
 package com.tans.tmediaplayer.player.playerview.texconverter
 
 import android.content.Context
-import com.tans.tmediaplayer.player.playerview.ImageDataType
+import com.tans.tmediaplayer.player.model.ImageRawType
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal abstract class ImageTextureConverter {
@@ -27,7 +27,7 @@ internal abstract class ImageTextureConverter {
         uBytes: ByteArray?,
         vBytes: ByteArray?,
         uvBytes: ByteArray?,
-        imageDataType: ImageDataType
+        imageDataType: ImageRawType
     ): Int
 
     internal fun dispatchGlSurfaceDestroying() {

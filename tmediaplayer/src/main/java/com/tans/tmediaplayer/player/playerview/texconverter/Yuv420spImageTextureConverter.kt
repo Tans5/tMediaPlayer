@@ -4,7 +4,7 @@ import android.content.Context
 import android.opengl.GLES30
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.R
-import com.tans.tmediaplayer.player.playerview.ImageDataType
+import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.playerview.compileShaderProgram
 import com.tans.tmediaplayer.player.playerview.glGenBuffers
 import com.tans.tmediaplayer.player.playerview.glGenTextureAndSetDefaultParams
@@ -62,9 +62,9 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter() {
         uBytes: ByteArray?,
         vBytes: ByteArray?,
         uvBytes: ByteArray?,
-        imageDataType: ImageDataType
+        imageDataType: ImageRawType
     ): Int {
-        return if (imageDataType == ImageDataType.Nv12 || imageDataType == ImageDataType.Nv21) {
+        return if (imageDataType == ImageRawType.Nv12 || imageDataType == ImageRawType.Nv21) {
             val renderData = this.renderData
             if (renderData != null) {
                 offScreenRender(
@@ -90,7 +90,7 @@ internal class Yuv420spImageTextureConverter : ImageTextureConverter() {
                     GLES30.glUniform1i(
                         GLES30.glGetUniformLocation(renderData.program, "swapUv"),
                         when (imageDataType) {
-                            ImageDataType.Nv12 -> 0
+                            ImageRawType.Nv12 -> 0
                             else -> 1
                         }
                     )

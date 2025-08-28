@@ -10,7 +10,7 @@
     android:background="@color/black"
     tools:context=".PlayerActivity">
 
-    <TextureView
+    <SurfaceView
         android:id="@+id/player_view"
         android:layout_width="0dp"
         android:layout_height="0dp"

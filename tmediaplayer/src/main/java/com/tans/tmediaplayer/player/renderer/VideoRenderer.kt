@@ -5,13 +5,13 @@ import android.os.HandlerThread
 import android.os.Message
 import android.os.SystemClock
 import com.tans.tmediaplayer.tMediaPlayerLog
-import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.model.SYNC_FRAMEDUP_THRESHOLD
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MAX
 import com.tans.tmediaplayer.player.model.SYNC_THRESHOLD_MIN
 import com.tans.tmediaplayer.player.model.SyncType
 import com.tans.tmediaplayer.player.model.VIDEO_FRAME_QUEUE_SIZE
 import com.tans.tmediaplayer.player.model.VIDEO_REFRESH_RATE
+import com.tans.tmediaplayer.player.playerview.GLRenderer
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
 import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
@@ -59,7 +59,7 @@ internal class VideoRenderer(
     private val renderForce: AtomicBoolean = AtomicBoolean(false)
 
     private val videoRendererHandler: Handler by lazy {
-        object : Handler(videoRendererThread.looper) {
+        object : Handler(videoRendererThread.looper), GLRenderer.Companion.RenderListener {
 
             val lastRenderedFrame: LastRenderedFrame = LastRenderedFrame()
             var frameTimer: Long = 0
@@ -223,109 +223,22 @@ internal class VideoRenderer(
                 }
             }
 
+            override fun onFrameRenderStateUpdate(frame: VideoFrame, isRendered: Boolean) {
+                if (lastRenderedFrame.serial < frame.serial || (lastRenderedFrame.serial == frame.serial && frame.pts > lastRenderedFrame.pts)) {
+                    val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
+                    renderedFrame.serial = frame.serial
+                    renderedFrame.pts = frame.pts
+                    renderedFrame.duration = frame.duration
+                    msg.obj = renderedFrame
+                    sendMessage(msg)
+                }
+                enqueueWriteableFrame(frame)
+            }
+
             val renderedFrame: LastRenderedFrame = LastRenderedFrame() // For Message use.
             fun renderVideoFrame(frame: VideoFrame) {
                 val glRenderer = player.getGLRenderer()
-                // TODO: To opt this callback
-                val renderCallback: (isRendered: Boolean) -> Unit = { isRendered ->
-                    if (lastRenderedFrame.serial < frame.serial || (lastRenderedFrame.serial == frame.serial && frame.pts > lastRenderedFrame.pts)) {
-                        val msg = this.obtainMessage(RendererHandlerMsg.Rendered.ordinal)
-                        renderedFrame.serial = frame.serial
-                        renderedFrame.pts = frame.pts
-                        renderedFrame.duration = frame.duration
-                        msg.obj = renderedFrame
-                        sendMessage(msg)
-                    }
-                    enqueueWriteableFrame(frame)
-                }
-                when (frame.imageType) {
-                    ImageRawType.Yuv420p -> {
-                        val y = frame.yBuffer
-                        val u = frame.uBuffer
-                        val v = frame.vBuffer
-                        if (y != null && u != null && v != null) {
-                            glRenderer.requestRenderYuv420pFrame(
-                                width = frame.width,
-                                height = frame.height,
-                                yBytes = y,
-                                uBytes = u,
-                                vBytes = v,
-                                pts = frame.pts,
-                                callback = renderCallback
-                            )
-                        } else {
-                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                            renderCallback(false)
-                        }
-                    }
-                    ImageRawType.Nv12 -> {
-                        val y = frame.yBuffer
-                        val uv = frame.uvBuffer
-                        if (y != null && uv != null) {
-                            glRenderer.requestRenderNv12Frame(
-                                width = frame.width,
-                                height = frame.height,
-                                yBytes = y,
-                                uvBytes = uv,
-                                pts = frame.pts,
-                                callback = renderCallback
-                            )
-                        } else {
-                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                            renderCallback(false)
-                        }
-                    }
-                    ImageRawType.Nv21 -> {
-                        val y = frame.yBuffer
-                        val vu = frame.uvBuffer
-                        if (y != null && vu != null) {
-                            glRenderer.requestRenderNv21Frame(
-                                width = frame.width,
-                                height = frame.height,
-                                yBytes = y,
-                                vuBytes = vu,
-                                pts = frame.pts,
-                                callback = renderCallback
-                            )
-                        } else {
-                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                            renderCallback(false)
-                        }
-                    }
-                    ImageRawType.Rgba -> {
-                        val rgba = frame.rgbaBuffer
-                        if (rgba != null) {
-                            glRenderer.requestRenderRgbaFrame(
-                                width = frame.width,
-                                height = frame.height,
-                                imageBytes = rgba,
-                                pts = frame.pts,
-                                callback = renderCallback
-                            )
-                        } else {
-                            tMediaPlayerLog.e(TAG) { "Wrong ${frame.imageType} image." }
-                            renderCallback(false)
-                        }
-                    }
-                    ImageRawType.HwSurface -> {
-                        val textureId = frame.textureBuffer
-                        if (textureId != null && !frame.isBadTextureBuffer) {
-                            glRenderer.requestRenderGlTexture(
-                                width = frame.width,
-                                height = frame.height,
-                                textureId = textureId,
-                                pts = frame.pts,
-                                callback = renderCallback
-                            )
-                        } else {
-                            tMediaPlayerLog.e(TAG) { "Bad texture frame: $frame" }
-                            renderCallback(false)
-                        }
-                    }
-                    ImageRawType.Unknown -> {
-                        renderCallback(false)
-                    }
-                }
+                glRenderer.requestRender(frame)
             }
 
             fun frameDuration(
@@ -376,6 +289,7 @@ internal class VideoRenderer(
         while (!isLooperPrepared.get()) {}
         videoRendererHandler
         videoFrameQueue.addListener(frameQueueListener)
+        player.getGLRenderer().addRenderListener(videoRendererHandler as GLRenderer.Companion.RenderListener)
         state.set(RendererState.Paused)
         tMediaPlayerLog.d(TAG) { "Video renderer inited." }
     }
@@ -435,6 +349,7 @@ internal class VideoRenderer(
                 videoRendererThread.quit()
                 videoRendererThread.quitSafely()
                 videoFrameQueue.removeListener(frameQueueListener)
+                player.getGLRenderer().removeRenderListener(videoRendererHandler as GLRenderer.Companion.RenderListener)
                 tMediaPlayerLog.d(TAG) { "Video renderer released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }

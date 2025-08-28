@@ -11,12 +11,14 @@ import android.view.Surface
 import android.view.SurfaceView
 import android.view.TextureView
 import com.tans.tmediaplayer.R
+import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
 import com.tans.tmediaplayer.player.playerview.filter.ImageFilter
 import com.tans.tmediaplayer.player.playerview.texconverter.ImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420spImageTextureConverter
+import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.tMediaPlayerLog
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
@@ -60,6 +62,10 @@ internal class GLRenderer {
         LinkedBlockingDeque()
     }
 
+    private val renderListeners: LinkedBlockingDeque<RenderListener> by lazy {
+        LinkedBlockingDeque()
+    }
+
     // region Opt
     fun setScaleType(scaleType: ScaleType) {
         this.realRenderer.scaleType.set(scaleType)
@@ -76,165 +82,40 @@ internal class GLRenderer {
     fun getScaleType(): ScaleType = this.realRenderer.scaleType.get()
     // endregion
 
-    // region RequestRenderImage
 
     fun refreshFrame() {
         glThread.requestRender()
     }
 
-    fun requestRenderRgbaFrame(
-        width: Int,
-        height: Int,
-        imageBytes: ByteArray,
-        pts: Long,
-        callback: ((isRendered: Boolean) -> Unit)?,
-    ) {
-        requestRender(
-            width = width,
-            height = height,
-            rgbaBytes = imageBytes,
-            yBytes = null,
-            uBytes = null,
-            vBytes = null,
-            uvBytes = null,
-            textureId = null,
-            pts = pts,
-            callback = callback,
-            imageDataType = ImageDataType.Rgba
-        )
-    }
-
-    fun requestRenderYuv420pFrame(
-        width: Int,
-        height: Int,
-        yBytes: ByteArray,
-        uBytes: ByteArray,
-        vBytes: ByteArray,
-        pts: Long,
-        callback: ((isRendered: Boolean) -> Unit)?,
-    ) {
-        requestRender(
-            width = width,
-            height = height,
-            rgbaBytes = null,
-            yBytes = yBytes,
-            uBytes = uBytes,
-            vBytes = vBytes,
-            uvBytes = null,
-            textureId = null,
-            pts = pts,
-            callback = callback,
-            imageDataType = ImageDataType.Yuv420p
-        )
-    }
-
-    fun requestRenderNv12Frame(
-        width: Int,
-        height: Int,
-        yBytes: ByteArray,
-        uvBytes: ByteArray,
-        pts: Long,
-        callback: ((isRendered: Boolean) -> Unit)?,
-    ) {
-        requestRender(
-            width = width,
-            height = height,
-            rgbaBytes = null,
-            yBytes = yBytes,
-            uBytes = null,
-            vBytes = null,
-            uvBytes = uvBytes,
-            textureId = null,
-            pts = pts,
-            callback = callback,
-            imageDataType = ImageDataType.Nv12
-        )
-    }
-
-    fun requestRenderNv21Frame(
-        width: Int,
-        height: Int,
-        yBytes: ByteArray,
-        vuBytes: ByteArray,
-        pts: Long,
-        callback: ((isRendered: Boolean) -> Unit)?,
-    ) {
-        requestRender(
-            width = width,
-            height = height,
-            rgbaBytes = null,
-            yBytes = yBytes,
-            uBytes = null,
-            vBytes = null,
-            uvBytes = vuBytes,
-            textureId = null,
-            pts = pts,
-            callback = callback,
-            imageDataType = ImageDataType.Nv21
-        )
-    }
-
-    fun requestRenderGlTexture(
-        width: Int,
-        height: Int,
-        textureId: Int,
-        pts: Long,
-        callback: ((isRendered: Boolean) -> Unit)?,
-    ) {
-        requestRender(
-            width = width,
-            height = height,
-            rgbaBytes = null,
-            yBytes = null,
-            uBytes = null,
-            vBytes = null,
-            uvBytes = null,
-            textureId = textureId,
-            pts = pts,
-            callback = callback,
-            imageDataType = ImageDataType.GlTexture
-        )
-    }
-
-    private fun requestRender(
-        width: Int,
-        height: Int,
-        rgbaBytes: ByteArray?,
-        yBytes: ByteArray?,
-        uBytes: ByteArray?,
-        vBytes: ByteArray?,
-        uvBytes: ByteArray?,
-        textureId: Int?,
-        pts: Long,
-        callback: ((isRendered: Boolean) -> Unit)?,
-        imageDataType: ImageDataType
-    ) {
+    fun requestRender(frame: VideoFrame) {
+        if (frame.imageType == ImageRawType.Unknown || (frame.imageType == ImageRawType.HwSurface && frame.isBadTextureBuffer)) {
+            tMediaPlayerLog.e(TAG) { "Drop video frame: ${frame.pts}, bad frame: $frame" }
+            dispatchFrameRenderState(frame, false)
+            return
+        }
         realRenderer.apply {
-            if (!isReleased && glThread.isSurfaceAlive() && isWritingRenderImageData.compareAndSet(false, true)) {
-                if (requestRenderImageData.imageDataType != null) {
-                    requestRenderImageData.callback?.invoke(false)
-                    tMediaPlayerLog.e(TAG) { "Drop video frame: ${requestRenderImageData.pts}, because out of date." }
+            if (!isReleased && glThread.isSurfaceAlive()) {
+                if (isWritingRequestRenderData.compareAndSet(false, true)) {
+                    if (requestRenderData.containsRenderData()) {
+                        val lastFrame = requestRenderData.refVideoFrame
+                        if (lastFrame != null) {
+                            tMediaPlayerLog.e(TAG) { "Drop video frame: ${lastFrame.pts}, because out of date." }
+                            dispatchFrameRenderState(lastFrame, false)
+                        }
+                    }
+                    requestRenderData.refVideoFrame = frame
+                    isWritingRequestRenderData.set(false)
+                    glThread.requestRender()
+                } else {
+                    tMediaPlayerLog.e(TAG) { "Drop video frame: ${frame.pts}, renderer is writing render data." }
+                    dispatchFrameRenderState(frame, false)
                 }
-                requestRenderImageData.imageWidth = width
-                requestRenderImageData.imageHeight = height
-                requestRenderImageData.rgbaBytes = rgbaBytes
-                requestRenderImageData.yBytes = yBytes
-                requestRenderImageData.uBytes = uBytes
-                requestRenderImageData.vBytes = vBytes
-                requestRenderImageData.uvBytes = uvBytes
-                requestRenderImageData.textureId = textureId
-                requestRenderImageData.pts = pts
-                requestRenderImageData.callback = callback
-                requestRenderImageData.imageDataType = imageDataType
-                isWritingRenderImageData.set(false)
-                glThread.requestRender()
             } else {
-                callback?.invoke(false)
-                tMediaPlayerLog.e(TAG) { "Drop video frame: $pts, under rendering or gl surface not ready." }
+                tMediaPlayerLog.e(TAG) { "Drop video frame: ${frame.pts}, under rendering or gl surface not ready." }
+                dispatchFrameRenderState(frame, false)
             }
         }
     }
-    // endregion
 
     // region OptRenderView
     @Synchronized
@@ -286,6 +167,8 @@ internal class GLRenderer {
             renderSurfaceAdapter?.release()
             renderSurfaceAdapter = null
             glContextListeners.clear()
+            realRenderer.tryRecycleUnhandledRequestImageData()
+            renderListeners.clear()
         }
     }
 
@@ -307,11 +190,13 @@ internal class GLRenderer {
     }
 
     fun addGLContextListener(l: GLContextListener) {
-        if (glContextListeners.find { it.l === l } == null) {
-            val new = GLContextListenerWrapper(l)
-            glContextListeners.add(new)
-            if (glThread.isSurfaceAlive()) {
-                enqueueTask { new.dispatchGLContextCreated() }
+        if (!isReleased) {
+            if (glContextListeners.find { it.l === l } == null) {
+                val new = GLContextListenerWrapper(l)
+                glContextListeners.add(new)
+                if (glThread.isSurfaceAlive()) {
+                    enqueueTask { new.dispatchGLContextCreated() }
+                }
             }
         }
     }
@@ -328,6 +213,24 @@ internal class GLRenderer {
         }
     }
 
+    fun addRenderListener(l: RenderListener) {
+        if (!isReleased) {
+            if (!renderListeners.contains(l)) {
+                renderListeners.add(l)
+            }
+        }
+    }
+
+    fun removeRenderListener(l: RenderListener) {
+        renderListeners.remove(l)
+    }
+
+    private fun dispatchFrameRenderState(frame: VideoFrame, isRendered: Boolean) {
+        for (l in renderListeners) {
+            l.onFrameRenderStateUpdate(frame, isRendered)
+        }
+    }
+
     private inner class RealRenderer {
 
         val filter: AtomicReference<ImageFilter?> by lazy {
@@ -338,14 +241,14 @@ internal class GLRenderer {
             AtomicReference(ScaleType.CenterFit)
         }
 
-        private val textureConverters: MutableMap<ImageDataType, ImageTextureConverter> = hashMapOf()
+        private val textureConverters: MutableMap<ImageRawType, ImageTextureConverter> = hashMapOf()
 
         // region RenderImageData
-        val requestRenderImageData = RequestRenderImageData()
+        val requestRenderData = RequestRenderData()
 
-        val lastRenderedImageData = LastRenderedImageData()
+        val lastRenderedData = LastRenderedData()
 
-        val isWritingRenderImageData = AtomicBoolean(false)
+        val isWritingRequestRenderData = AtomicBoolean(false)
         // endregion
 
         private var sizeCache: Pair<Int, Int>? = null
@@ -385,7 +288,7 @@ internal class GLRenderer {
         }
 
         fun glSurfaceCreated() {
-            if (lastRenderedImageData.containRenderData() || requestRenderImageData.containRenderData()) {
+            if (requestRenderData.containsRenderData() || lastRenderedData.containsRenderData()) {
                 glThread.requestRender()
             }
         }
@@ -408,259 +311,276 @@ internal class GLRenderer {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
             val context = RenderSurfaceAdapter.getAndroidApplicationContext()!!
-            if (rendererData != null && screenSize != null && isWritingRenderImageData.compareAndSet(false, true)) {
-                if (!requestRenderImageData.containRenderData() && !lastRenderedImageData.containRenderData()) {
-                    isWritingRenderImageData.set(false)
-                    return
-                }
-                val imageWidth: Int
-                val imageHeight: Int
-                val rgbaBytes: ByteArray?
-                val yBytes: ByteArray?
-                val uBytes: ByteArray?
-                val vBytes: ByteArray?
-                val uvBytes: ByteArray?
-                val textureId: Int?
-                val pts: Long?
-                val imageDataType: ImageDataType?
-
-                if (requestRenderImageData.containRenderData()) {
-                    imageWidth = requestRenderImageData.imageWidth
-                    imageHeight = requestRenderImageData.imageHeight
-                    rgbaBytes = requestRenderImageData.rgbaBytes
-                    yBytes = requestRenderImageData.yBytes
-                    uBytes = requestRenderImageData.uBytes
-                    vBytes = requestRenderImageData.vBytes
-                    uvBytes = requestRenderImageData.uvBytes
-                    textureId = requestRenderImageData.textureId
-                    pts = requestRenderImageData.pts
-                    imageDataType = requestRenderImageData.imageDataType
-                } else {
-                    imageWidth = lastRenderedImageData.imageWidth
-                    imageHeight = lastRenderedImageData.imageHeight
-                    rgbaBytes = lastRenderedImageData.rgbaBytes
-                    yBytes = lastRenderedImageData.yBytes
-                    uBytes = lastRenderedImageData.uBytes
-                    vBytes = lastRenderedImageData.vBytes
-                    uvBytes = lastRenderedImageData.uvBytes
-                    textureId = lastRenderedImageData.textureId
-                    pts = lastRenderedImageData.pts
-                    imageDataType = lastRenderedImageData.imageDataType
-                    // tMediaPlayerLog.d(TAG) { "Draw last frame" }
-                }
-                // tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
-                GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
-                val texConverter = when (imageDataType!!) {
-                    ImageDataType.Rgba -> {
-                        textureConverters[ImageDataType.Rgba].let {
-                            if (it == null) {
-                                val new = RgbaImageTextureConverter()
-                                new.dispatchGlSurfaceCreated(context)
-                                textureConverters[ImageDataType.Rgba] = new
-                                new
-                            } else {
-                                it
-                            }
-                        }
-                    }
-                    ImageDataType.Yuv420p -> {
-                        textureConverters[ImageDataType.Yuv420p].let {
-                            if (it == null) {
-                                val new = Yuv420pImageTextureConverter()
-                                new.dispatchGlSurfaceCreated(context)
-                                textureConverters[ImageDataType.Yuv420p] = new
-                                new
-                            } else {
-                                it
-                            }
-                        }
-                    }
-                    ImageDataType.Nv12, ImageDataType.Nv21 -> {
-                        textureConverters[ImageDataType.Nv12].let {
-                            if (it == null) {
-                                val new = Yuv420spImageTextureConverter()
-                                new.dispatchGlSurfaceCreated(context)
-                                textureConverters[ImageDataType.Nv12] = new
-                                new
-                            } else {
-                                it
-                            }
-                        }
-                    }
-
-                    else -> {
-                        null
-                    }
-                }
-                val convertTextureId = texConverter?.drawFrame(
-                    context = context,
-                    surfaceWidth = screenSize.first,
-                    surfaceHeight = screenSize.second,
-                    imageWidth = imageWidth,
-                    imageHeight = imageHeight,
-                    rgbaBytes = rgbaBytes,
-                    yBytes = yBytes,
-                    uBytes = uBytes,
-                    vBytes = vBytes,
-                    uvBytes = uvBytes,
-                    imageDataType = imageDataType
-                ) ?: textureId!!
-
-                filterInput.width = imageWidth
-                filterInput.height = imageHeight
-                filterInput.texture = convertTextureId
-
-                filter.get().let {
-                    if (it != null) {
-                        it.dispatchGlSurfaceCreated(context)
-                        it.dispatchDrawFrame(
-                            context = context,
-                            surfaceWidth = screenSize.first,
-                            surfaceHeight = screenSize.second,
-                            input = filterInput,
-                            output = filterOutput
-                        )
-                    } else {
-                        filterOutput.width = filterInput.width
-                        filterOutput.height = filterInput.height
-                        filterOutput.texture = filterInput.texture
-                    }
-                }
-
-                GLES30.glUseProgram(rendererData.program)
-                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, filterOutput.texture)
-                GLES30.glUniform1i(GLES30.glGetUniformLocation(rendererData.program, "Texture"), 0)
-                val imageRatio = filterOutput.width.toFloat() / filterOutput.height.toFloat()
-                val renderRatio = screenSize.first.toFloat() / screenSize.second.toFloat()
-                val scaleType = this.scaleType.get()
-
-                var textureTlX = 0.0f
-                var textureTlY = 0.0f
-
-                var textureRbX = 1.0f
-                var textureRbY = 1.0f
-
-                when (scaleType) {
-                    ScaleType.CenterFit -> {
-                        // Do nothing.
-                    }
-                    ScaleType.CenterCrop -> {
-                        val inputTopLeftPoint = pointBuffer1
-                        inputTopLeftPoint.x = 0.0f
-                        inputTopLeftPoint.y = 0.0f
-                        val inputBottomRightPoint = pointBuffer2
-                        inputBottomRightPoint.x = 1.0f
-                        inputBottomRightPoint.y = 1.0f
-
-                        val outputTopLeftPoint = pointBuffer3
-                        val outputBottomRightPoint = pointBuffer4
-                        centerCropTextureRect(
-                            targetRatio = renderRatio / imageRatio,
-                            inputTopLeftPoint = inputTopLeftPoint,
-                            inputBottomRightPoint = inputBottomRightPoint,
-                            outputTopLeftPoint = outputTopLeftPoint,
-                            outputBottomRightPoint = outputBottomRightPoint
-                        )
-                        textureTlX = outputTopLeftPoint.x
-                        textureTlY = outputTopLeftPoint.y
-                        textureRbX = outputBottomRightPoint.x
-                        textureRbY = outputBottomRightPoint.y
-                    }
-                }
-
-                var positionTlX = 0.0f
-                var positionTlY = 0.0f
-                var positionRbX = 0.0f
-                var positionRbY = 0.0f
-
-                when (scaleType) {
-                    ScaleType.CenterFit -> {
-                        val inputTopLeftPoint = pointBuffer1
-                        inputTopLeftPoint.x = -1.0f * renderRatio
-                        inputTopLeftPoint.y = 1.0f
-                        val inputBottomRightPoint = pointBuffer2
-                        inputBottomRightPoint.x = 1.0f * renderRatio
-                        inputBottomRightPoint.y = -1.0f
-
-                        val outputTopLeftPoint = pointBuffer3
-                        val outputBottomRightPoint = pointBuffer4
-                        centerCropPositionRect(
-                            targetRatio = imageRatio,
-                            inputTopLeftPoint = inputTopLeftPoint,
-                            inputBottomRightPoint = inputBottomRightPoint,
-                            outputTopLeftPoint = outputTopLeftPoint,
-                            outputBottomRightPoint = outputBottomRightPoint
-                        )
-                        positionTlX = outputTopLeftPoint.x
-                        positionTlY = outputTopLeftPoint.y
-                        positionRbX = outputBottomRightPoint.x
-                        positionRbY = outputBottomRightPoint.y
-                    }
-
-                    ScaleType.CenterCrop -> {
-                        positionTlX = -1.0f * renderRatio
-                        positionTlY = 1.0f
-                        positionRbX = 1.0f * renderRatio
-                        positionRbY = -1.0f
-                    }
-                }
-
-                val vertex = vertexArray
-                vertex[0] = positionTlX; vertex[1] = positionTlY; vertex[2] = 0.0f;         vertex[3] = textureTlX; vertex[4] = textureTlY // 左上
-                vertex[5] = positionRbX; vertex[6] = positionTlY; vertex[7] = 0.0f;         vertex[8] = textureRbX; vertex[9] = textureTlY // 右上
-                vertex[10] = positionRbX; vertex[11] = positionRbY; vertex[12] = 0.0f;      vertex[13] = textureRbX; vertex[14] = textureRbY // 右下
-                vertex[15] = positionTlX; vertex[16] = positionRbY; vertex[17] = 0.0f;      vertex[18] = textureTlX; vertex[19] = textureRbY // 左下
-                val vertexBuffer = vertexBuffer
-                vertexBuffer.position(0)
-                vertexBuffer.put(vertex)
-                vertexBuffer.position(0)
-                GLES30.glBindVertexArray(rendererData.VAO)
-                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
-                GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertex.size * 4, vertexBuffer)
-
-                fun resetMatrix(m: FloatArray) {
-                    for (i in m.indices) {
-                        val x = i / 4
-                        val y = i % 4
-                        if (x == y) {
-                            m[i] = 1.0f
-                        } else {
-                            m[i] = 0.0f
-                        }
-                    }
-                }
-                // view
-                val viewMatrix = matrixBuffer
-                resetMatrix(viewMatrix)
-                Matrix.scaleM(viewMatrix, 0, 1 / renderRatio, 1.0f, 1.0f)
-                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "view"), 1, false, viewMatrix, 0)
-
-                // model
-                val modelMatrix = matrixBuffer
-                resetMatrix(modelMatrix)
-                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "model"), 1, false, modelMatrix, 0)
-
-                // transform
-                val transformMatrix = matrixBuffer
-                resetMatrix(transformMatrix)
-                GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "transform"), 1, false, transformMatrix, 0)
-
-                GLES30.glBindVertexArray(rendererData.VAO)
-                GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
-                GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
-
-                if (requestRenderImageData.containRenderData()) {
-                    requestRenderImageData.callback?.invoke(true)
-                    lastRenderedImageData.update(requestRenderImageData)
-                    requestRenderImageData.reset()
-                }
-                isWritingRenderImageData.set(false)
-
-                // tMediaPlayerLog.d(TAG) { "Rendered video frame: pts=$pts, textureId=${textureId}" }
-            } else {
-                tMediaPlayerLog.e(TAG) { "Skip render, because is writing render data." }
+            if (rendererData == null || screenSize == null) {
+                tMediaPlayerLog.e(TAG) { "Skip render, gl surface not active." }
+                return
             }
+            var frame: VideoFrame? = null
+            if (isWritingRequestRenderData.compareAndSet(false, true)) {
+                frame = requestRenderData.refVideoFrame
+                requestRenderData.refVideoFrame = null
+                isWritingRequestRenderData.set(false)
+            } else {
+                tMediaPlayerLog.d(TAG) { "Skip render, is writing request render data." }
+                return
+            }
+
+            if (!lastRenderedData.containsRenderData() && frame == null) {
+                tMediaPlayerLog.d(TAG) { "Skip render, no data to render." }
+                return
+            }
+
+            val imageWidth: Int
+            val imageHeight: Int
+            val rgbaBytes: ByteArray?
+            val yBytes: ByteArray?
+            val uBytes: ByteArray?
+            val vBytes: ByteArray?
+            val uvBytes: ByteArray?
+            val textureId: Int?
+            val pts: Long?
+            val imageDataType: ImageRawType?
+
+            if (frame != null) {
+                imageWidth = frame.width
+                imageHeight = frame.height
+                rgbaBytes = frame.rgbaBuffer
+                yBytes = frame.yBuffer
+                uBytes = frame.uBuffer
+                vBytes = frame.vBuffer
+                uvBytes = frame.uvBuffer
+                textureId = frame.textureBuffer
+                pts = frame.pts
+                imageDataType = frame.imageType
+            } else {
+                imageWidth = lastRenderedData.imageWidth!!
+                imageHeight = lastRenderedData.imageHeight!!
+                rgbaBytes = lastRenderedData.rgbaBytes
+                yBytes = lastRenderedData.yBytes
+                uBytes = lastRenderedData.uBytes
+                vBytes = lastRenderedData.vBytes
+                uvBytes = lastRenderedData.uvBytes
+                textureId = lastRenderedData.textureId
+                pts = lastRenderedData.pts
+                imageDataType = lastRenderedData.imageDataType
+                // tMediaPlayerLog.d(TAG) { "Draw last frame" }
+            }
+            // tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
+            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+            val texConverter = when (imageDataType!!) {
+                ImageRawType.Rgba -> {
+                    textureConverters[ImageRawType.Rgba].let {
+                        if (it == null) {
+                            val new = RgbaImageTextureConverter()
+                            new.dispatchGlSurfaceCreated(context)
+                            textureConverters[ImageRawType.Rgba] = new
+                            new
+                        } else {
+                            it
+                        }
+                    }
+                }
+                ImageRawType.Yuv420p -> {
+                    textureConverters[ImageRawType.Yuv420p].let {
+                        if (it == null) {
+                            val new = Yuv420pImageTextureConverter()
+                            new.dispatchGlSurfaceCreated(context)
+                            textureConverters[ImageRawType.Yuv420p] = new
+                            new
+                        } else {
+                            it
+                        }
+                    }
+                }
+                ImageRawType.Nv12, ImageRawType.Nv21 -> {
+                    textureConverters[ImageRawType.Nv12].let {
+                        if (it == null) {
+                            val new = Yuv420spImageTextureConverter()
+                            new.dispatchGlSurfaceCreated(context)
+                            textureConverters[ImageRawType.Nv12] = new
+                            new
+                        } else {
+                            it
+                        }
+                    }
+                }
+
+                else -> {
+                    null
+                }
+            }
+            val convertTextureId = texConverter?.drawFrame(
+                context = context,
+                surfaceWidth = screenSize.first,
+                surfaceHeight = screenSize.second,
+                imageWidth = imageWidth,
+                imageHeight = imageHeight,
+                rgbaBytes = rgbaBytes,
+                yBytes = yBytes,
+                uBytes = uBytes,
+                vBytes = vBytes,
+                uvBytes = uvBytes,
+                imageDataType = imageDataType
+            ) ?: textureId!!
+
+            filterInput.width = imageWidth
+            filterInput.height = imageHeight
+            filterInput.texture = convertTextureId
+
+            filter.get().let {
+                if (it != null) {
+                    it.dispatchGlSurfaceCreated(context)
+                    it.dispatchDrawFrame(
+                        context = context,
+                        surfaceWidth = screenSize.first,
+                        surfaceHeight = screenSize.second,
+                        input = filterInput,
+                        output = filterOutput
+                    )
+                } else {
+                    filterOutput.width = filterInput.width
+                    filterOutput.height = filterInput.height
+                    filterOutput.texture = filterInput.texture
+                }
+            }
+
+            GLES30.glUseProgram(rendererData.program)
+            GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, filterOutput.texture)
+            GLES30.glUniform1i(GLES30.glGetUniformLocation(rendererData.program, "Texture"), 0)
+            val imageRatio = filterOutput.width.toFloat() / filterOutput.height.toFloat()
+            val renderRatio = screenSize.first.toFloat() / screenSize.second.toFloat()
+            val scaleType = this.scaleType.get()
+
+            var textureTlX = 0.0f
+            var textureTlY = 0.0f
+
+            var textureRbX = 1.0f
+            var textureRbY = 1.0f
+
+            when (scaleType) {
+                ScaleType.CenterFit -> {
+                    // Do nothing.
+                }
+                ScaleType.CenterCrop -> {
+                    val inputTopLeftPoint = pointBuffer1
+                    inputTopLeftPoint.x = 0.0f
+                    inputTopLeftPoint.y = 0.0f
+                    val inputBottomRightPoint = pointBuffer2
+                    inputBottomRightPoint.x = 1.0f
+                    inputBottomRightPoint.y = 1.0f
+
+                    val outputTopLeftPoint = pointBuffer3
+                    val outputBottomRightPoint = pointBuffer4
+                    centerCropTextureRect(
+                        targetRatio = renderRatio / imageRatio,
+                        inputTopLeftPoint = inputTopLeftPoint,
+                        inputBottomRightPoint = inputBottomRightPoint,
+                        outputTopLeftPoint = outputTopLeftPoint,
+                        outputBottomRightPoint = outputBottomRightPoint
+                    )
+                    textureTlX = outputTopLeftPoint.x
+                    textureTlY = outputTopLeftPoint.y
+                    textureRbX = outputBottomRightPoint.x
+                    textureRbY = outputBottomRightPoint.y
+                }
+            }
+
+            var positionTlX = 0.0f
+            var positionTlY = 0.0f
+            var positionRbX = 0.0f
+            var positionRbY = 0.0f
+
+            when (scaleType) {
+                ScaleType.CenterFit -> {
+                    val inputTopLeftPoint = pointBuffer1
+                    inputTopLeftPoint.x = -1.0f * renderRatio
+                    inputTopLeftPoint.y = 1.0f
+                    val inputBottomRightPoint = pointBuffer2
+                    inputBottomRightPoint.x = 1.0f * renderRatio
+                    inputBottomRightPoint.y = -1.0f
+
+                    val outputTopLeftPoint = pointBuffer3
+                    val outputBottomRightPoint = pointBuffer4
+                    centerCropPositionRect(
+                        targetRatio = imageRatio,
+                        inputTopLeftPoint = inputTopLeftPoint,
+                        inputBottomRightPoint = inputBottomRightPoint,
+                        outputTopLeftPoint = outputTopLeftPoint,
+                        outputBottomRightPoint = outputBottomRightPoint
+                    )
+                    positionTlX = outputTopLeftPoint.x
+                    positionTlY = outputTopLeftPoint.y
+                    positionRbX = outputBottomRightPoint.x
+                    positionRbY = outputBottomRightPoint.y
+                }
+
+                ScaleType.CenterCrop -> {
+                    positionTlX = -1.0f * renderRatio
+                    positionTlY = 1.0f
+                    positionRbX = 1.0f * renderRatio
+                    positionRbY = -1.0f
+                }
+            }
+
+            val vertex = vertexArray
+            vertex[0] = positionTlX; vertex[1] = positionTlY; vertex[2] = 0.0f;         vertex[3] = textureTlX; vertex[4] = textureTlY // 左上
+            vertex[5] = positionRbX; vertex[6] = positionTlY; vertex[7] = 0.0f;         vertex[8] = textureRbX; vertex[9] = textureTlY // 右上
+            vertex[10] = positionRbX; vertex[11] = positionRbY; vertex[12] = 0.0f;      vertex[13] = textureRbX; vertex[14] = textureRbY // 右下
+            vertex[15] = positionTlX; vertex[16] = positionRbY; vertex[17] = 0.0f;      vertex[18] = textureTlX; vertex[19] = textureRbY // 左下
+            val vertexBuffer = vertexBuffer
+            vertexBuffer.position(0)
+            vertexBuffer.put(vertex)
+            vertexBuffer.position(0)
+            GLES30.glBindVertexArray(rendererData.VAO)
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
+            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, vertex.size * 4, vertexBuffer)
+
+            fun resetMatrix(m: FloatArray) {
+                for (i in m.indices) {
+                    val x = i / 4
+                    val y = i % 4
+                    if (x == y) {
+                        m[i] = 1.0f
+                    } else {
+                        m[i] = 0.0f
+                    }
+                }
+            }
+            // view
+            val viewMatrix = matrixBuffer
+            resetMatrix(viewMatrix)
+            Matrix.scaleM(viewMatrix, 0, 1 / renderRatio, 1.0f, 1.0f)
+            GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "view"), 1, false, viewMatrix, 0)
+
+            // model
+            val modelMatrix = matrixBuffer
+            resetMatrix(modelMatrix)
+            GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "model"), 1, false, modelMatrix, 0)
+
+            // transform
+            val transformMatrix = matrixBuffer
+            resetMatrix(transformMatrix)
+            GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "transform"), 1, false, transformMatrix, 0)
+
+            GLES30.glBindVertexArray(rendererData.VAO)
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
+            GLES30.glDrawArrays(GLES30.GL_TRIANGLE_FAN, 0, 4)
+
+            if (frame != null) {
+                dispatchFrameRenderState(frame, true)
+            }
+            lastRenderedData.imageWidth = imageWidth
+            lastRenderedData.imageHeight = imageHeight
+            lastRenderedData.rgbaBytes = rgbaBytes
+            lastRenderedData.yBytes = yBytes
+            lastRenderedData.uBytes = uBytes
+            lastRenderedData.vBytes = vBytes
+            lastRenderedData.uvBytes = uvBytes
+            lastRenderedData.textureId = textureId
+            lastRenderedData.pts = pts
+            lastRenderedData.imageDataType = imageDataType
+            // tMediaPlayerLog.d(TAG) { "Rendered video frame: pts=$pts, textureId=${textureId}" }
         }
 
         var oesGlRenderData: OESGLRenderData? = null
@@ -757,11 +677,14 @@ internal class GLRenderer {
             }
         }
 
-        private fun tryRecycleUnhandledRequestImageData() {
-            if (isWritingRenderImageData.compareAndSet(false, true)) {
-                requestRenderImageData.callback?.invoke(false)
-                requestRenderImageData.reset()
-                isWritingRenderImageData.set(false)
+        fun tryRecycleUnhandledRequestImageData() {
+            if (isWritingRequestRenderData.compareAndSet(false, true)) {
+                val frame = requestRenderData.refVideoFrame
+                requestRenderData.refVideoFrame = null
+                isWritingRequestRenderData.set(false)
+                if (frame != null) {
+                    dispatchFrameRenderState(frame, false)
+                }
             }
         }
     }
@@ -1122,42 +1045,15 @@ internal class GLRenderer {
 
     companion object {
 
-        class RequestRenderImageData {
-            var imageWidth: Int = 0
-            var imageHeight: Int = 0
-            var callback: ((isRendered: Boolean) -> Unit)? = null
-            var rgbaBytes: ByteArray? = null
-            var yBytes: ByteArray? = null
-            var uBytes: ByteArray? = null
-            var vBytes: ByteArray? = null
-            var uvBytes: ByteArray? = null
-            var textureId: Int? = null
-            var pts: Long? = null
-            var imageDataType: ImageDataType? = null
+        private class RequestRenderData {
+            var refVideoFrame: VideoFrame? = null
 
-            fun reset() {
-                imageWidth = 0
-                imageHeight = 0
-                callback = null
-                rgbaBytes = null
-                yBytes = null
-                uBytes = null
-                vBytes = null
-                uvBytes = null
-                textureId = null
-                pts = null
-                imageDataType = null
-            }
-
-            fun containRenderData(): Boolean {
-                return imageDataType != null
-            }
+            fun containsRenderData(): Boolean = refVideoFrame != null
         }
 
-        class LastRenderedImageData {
-
-            var imageWidth: Int = 0
-            var imageHeight: Int = 0
+        private class LastRenderedData {
+            var imageWidth: Int? = null
+            var imageHeight: Int? = null
             var rgbaBytes: ByteArray? = null
             var yBytes: ByteArray? = null
             var uBytes: ByteArray? = null
@@ -1165,24 +1061,9 @@ internal class GLRenderer {
             var uvBytes: ByteArray? = null
             var textureId: Int? = null
             var pts: Long? = null
-            var imageDataType: ImageDataType? = null
+            var imageDataType: ImageRawType? = null
 
-            fun containRenderData(): Boolean {
-                return imageDataType != null
-            }
-
-            fun update(imageData: RequestRenderImageData) {
-                imageWidth = imageData.imageWidth
-                imageHeight = imageData.imageHeight
-                rgbaBytes = imageData.rgbaBytes
-                yBytes = imageData.yBytes
-                uBytes = imageData.uBytes
-                vBytes = imageData.vBytes
-                uvBytes = imageData.uvBytes
-                textureId = imageData.textureId
-                pts = imageData.pts
-                imageDataType = imageData.imageDataType
-            }
+            fun containsRenderData(): Boolean = imageDataType != null
         }
 
         private class Point {
@@ -1336,6 +1217,10 @@ internal class GLRenderer {
             fun glContextCreated()
 
             fun glContextDestroying()
+        }
+
+        interface RenderListener {
+            fun onFrameRenderStateUpdate(frame: VideoFrame, isRendered: Boolean)
         }
 
         private const val TAG = "GLRenderer"
