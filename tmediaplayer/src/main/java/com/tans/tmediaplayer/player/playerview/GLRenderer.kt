@@ -31,18 +31,18 @@ internal class GLRenderer {
     private val surfaceListener: RenderSurfaceAdapter.Listener by lazy {
         object : RenderSurfaceAdapter.Listener {
             override fun onSurfaceCreated(surface: Surface, width: Int, height: Int) {
-                tMediaPlayerLog.d(TAG) { "Surface created: ${surface.isValid}, ${width}x$height" }
+                tMediaPlayerLog.d(TAG) { "Android surface created: ${surface.isValid}, ${width}x$height" }
                 glThread.requestAttachSurface(surface)
                 glThread.requestSizeChange(width, height)
             }
 
             override fun onSurfaceSizeChanged(width: Int, height: Int) {
-                tMediaPlayerLog.d(TAG) { "Surface size changed: ${width}x$height" }
+                tMediaPlayerLog.d(TAG) { "Android surface size changed: ${width}x$height" }
                 glThread.requestSizeChange(width, height)
             }
 
             override fun onSurfaceDestroyed() {
-                tMediaPlayerLog.d(TAG) { "Surface destroyed." }
+                tMediaPlayerLog.d(TAG) { "Andorid surface destroyed." }
                 glThread.requestDetachSurface()
             }
         }
@@ -784,14 +784,14 @@ internal class GLRenderer {
         fun isSurfaceAlive(): Boolean = isThreadAlive() && surface != null
 
         override fun run() {
-            tMediaPlayerLog.d(TAG) { "GLThread start run!!!" }
+            tMediaPlayerLog.d(TAG) { "Gl thread start run!!!" }
             // 1. Display
             var display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
             val version = IntArray(2)
             if (!EGL14.eglInitialize(display, version, 0, version, 1)) {
-                error("Init egl display fail.")
+                error("Gl thread init egl display fail.")
             }
-            tMediaPlayerLog.d(TAG) { "EGL display inited, major version: ${version[0]}, minor version: ${version[1]}" }
+            tMediaPlayerLog.d(TAG) { "Gl thread egl display inited, major version: ${version[0]}, minor version: ${version[1]}" }
 
 
             // 2. Choose configure
@@ -812,16 +812,16 @@ internal class GLRenderer {
                 null, 0, 0,
                 configNum, 0
             )) {
-                error("eglChooseConfig fail.")
+                error("Gl thread eglChooseConfig fail.")
             }
-            tMediaPlayerLog.d(TAG) { "All configure size: ${configNum[0]}" }
+            tMediaPlayerLog.d(TAG) { "Gl thread all configure size: ${configNum[0]}" }
             val allConfigs = Array<EGLConfig?>(configNum[0]) { null }
             if (!EGL14.eglChooseConfig(display,
                 eglConfigureSpec, 0,
                 allConfigs, 0, allConfigs.size,
                 configNum, 0
             )) {
-                error("eglChooseConfig fail.")
+                error("Gl thread eglChooseConfig fail.")
             }
             var chooseConfig: EGLConfig? = null
             val v = intArrayOf(0)
@@ -848,7 +848,7 @@ internal class GLRenderer {
                 }
             }
 
-            tMediaPlayerLog.d(TAG) { "Choose egl configure: $chooseConfig" }
+            tMediaPlayerLog.d(TAG) { "Gl thread choose egl configure: $chooseConfig" }
 
             // 3. Create egl context.
             val eglContextAttrs = intArrayOf(
@@ -856,7 +856,7 @@ internal class GLRenderer {
                 EGL14.EGL_NONE
             )
             var eglContext = EGL14.eglCreateContext(display, chooseConfig, EGL14.EGL_NO_CONTEXT, eglContextAttrs, 0)
-            tMediaPlayerLog.d(TAG) { "Create egl context: $eglContext" }
+            tMediaPlayerLog.d(TAG) { "Gl thread create egl context: $eglContext" }
 
             // 4. Wait create surface.
             var eglSurface = EGL14.EGL_NO_SURFACE
@@ -919,11 +919,11 @@ internal class GLRenderer {
                                 (this as Object).notifyAll()
                                 break
                             } else {
-                                tMediaPlayerLog.d(TAG) { "GL thread no task to do." }
+                                tMediaPlayerLog.d(TAG) { "Gl thread no task to do." }
                                 (this as Object).wait()
                             }
                         } else {
-                            tMediaPlayerLog.d(TAG) { "GL thread wait surface." }
+                            tMediaPlayerLog.d(TAG) { "Gl thread wait surface." }
                             (this as Object).wait()
                         }
                     }
@@ -956,7 +956,7 @@ internal class GLRenderer {
                     surface = null
                     requestQuit = false
                     isQuited = true
-                    tMediaPlayerLog.d(TAG) { "GL thread quited." }
+                    tMediaPlayerLog.d(TAG) { "Gl thread quited." }
                     doQuit = false
                     surfaceSize = null
                     lastSurfaceSize = null
@@ -980,7 +980,7 @@ internal class GLRenderer {
                                 0
                             )
                             EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
-                            tMediaPlayerLog.d(TAG) { "GL surface created: eglSurface=$eglSurface, surface=$sur" }
+                            tMediaPlayerLog.d(TAG) { "Gl thread surface created: eglSurface=$eglSurface, surface=$sur" }
                             if (!isNotifyContextCreated) {
                                 isNotifyContextCreated = true
                                 realRenderer.glContextCreated()
@@ -991,10 +991,10 @@ internal class GLRenderer {
                                 EGL14.eglDestroySurface(display, eglSurface)
                                 eglSurface = EGL14.EGL_NO_SURFACE
                             }
-                            tMediaPlayerLog.e(TAG) { "GL surface create fail: ${e.message}, surface=$sur" }
+                            tMediaPlayerLog.e(TAG) { "Gl thread surface create fail: ${e.message}, surface=$sur" }
                         }
                     } else {
-                        tMediaPlayerLog.e(TAG) { "GL surface wrong surface, surface is null." }
+                        tMediaPlayerLog.e(TAG) { "Gl thread wrong surface, surface is null." }
                     }
                 }
 
@@ -1008,14 +1008,14 @@ internal class GLRenderer {
                         EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
                         EGL14.eglDestroySurface(display, eglSurface)
                         realRenderer.glSurfaceDestroyed()
-                        tMediaPlayerLog.d(TAG) { "GL surface destroyed: eglSurface=$eglSurface" }
+                        tMediaPlayerLog.d(TAG) { "Gl thread surface destroyed: eglSurface=$eglSurface" }
                         eglSurface = EGL14.EGL_NO_SURFACE
                     }
                 }
 
                 // No surface
                 if (eglSurface == EGL14.EGL_NO_SURFACE) {
-                    tMediaPlayerLog.d(TAG) { "Gl surface no surface, to wait." }
+                    tMediaPlayerLog.d(TAG) { "Gl thread no surface, waiting." }
                     continue
                 }
 
@@ -1025,13 +1025,13 @@ internal class GLRenderer {
                     if (surfaceSize != null) {
                         val sur = surface
                         if (lastSurfaceSize != null && sur != null) {
-                            tMediaPlayerLog.d(TAG) { "Do recreate surface." }
+                            tMediaPlayerLog.d(TAG) { "Gl thread do recreate surface: lastSurfaceSize=${lastSurfaceSize.first}x${lastSurfaceSize.second}" }
                             EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
                             EGL14.eglDestroySurface(display, eglSurface)
                             eglSurface = EGL14.eglCreateWindowSurface(display, chooseConfig, sur, intArrayOf(EGL14.EGL_NONE), 0)
                             EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
                         }
-                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${surfaceSize.first}x${surfaceSize.second}, lastSurfaceSize=${lastSurfaceSize}" }
+                        tMediaPlayerLog.d(TAG) { "Gl thread surface size changed: newSurfaceSize=${surfaceSize.first}x${surfaceSize.second}" }
                         realRenderer.surfaceSizeChanged(surfaceSize.first, surfaceSize.second)
                     }
                 }
@@ -1041,7 +1041,7 @@ internal class GLRenderer {
                     doRender = false
                     realRenderer.drawFrame()
                     if (!EGL14.eglSwapBuffers(display, eglSurface)) {
-                        tMediaPlayerLog.e(TAG) { "GL surface swap buffers fail: ${EGL14.eglGetError()}" }
+                        tMediaPlayerLog.e(TAG) { "Gl thread surface swap buffers fail: ${EGL14.eglGetError()}" }
                     }
                 }
 
