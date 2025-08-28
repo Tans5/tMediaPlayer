@@ -14,6 +14,7 @@ import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
 import com.tans.tmediaplayer.player.rwqueue.VideoFrameQueue
 import com.tans.tmediaplayer.player.tMediaPlayer
+import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -101,12 +102,50 @@ internal class VideoFrameDecoder(
         DecoderState.WaitingReadablePacketBuffer
     )
 
+    private val waitingGLRendererFramesLazyDelete = lazy { LinkedBlockingDeque<VideoFrame>() }
+    private val waitingGLRendererFrames: LinkedBlockingDeque<VideoFrame> by waitingGLRendererFramesLazyDelete
+
     private val videoDecoderHandler: Handler by lazy {
         object : Handler(videoDecoderThread.looper) {
 
             private var skipNextPktRead: Boolean = false
 
             private var packetSerial: Int = -1
+
+            // GL render task: move oes texture to texture buffer.
+            fun glRenderTaskCallback(containGLContext: Boolean) {
+                val frame = waitingGLRendererFrames.poll()
+                if (frame != null) {
+                    if (containGLContext) {
+                        try {
+                            val surfaceTexture = player.getHwSurfaces()!!.second
+                            val oesTexture = oesTextureAndBufferTextures!!.first
+                            val textureBuffers = oesTextureAndBufferTextures!!.second
+                            surfaceTexture.updateTexImage()
+                            textureBufferIndex ++
+                            val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
+                            // tMediaPlayerLog.d(TAG) { "Request write texture: pts=${frame.pts}, texture=$textureBuffer" }
+                            if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
+                                frame.textureBuffer = textureBuffer
+                                // tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
+                                frame.isBadTextureBuffer = false
+                            } else {
+                                frame.isBadTextureBuffer = true
+                                tMediaPlayerLog.e(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
+                            }
+                        } catch (e: Throwable) {
+                            frame.isBadTextureBuffer = true
+                            tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
+                        }
+                    } else {
+                        frame.isBadTextureBuffer = true
+                        tMediaPlayerLog.e(TAG) { "Update hw frame fail: not in gl context thread." }
+                    }
+                    videoFrameQueue.enqueueReadable(frame)
+                } else {
+                    tMediaPlayerLog.e(TAG) { "Waiting gl frames is empty." }
+                }
+            }
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -170,31 +209,8 @@ internal class VideoFrameDecoder(
                                                                 val oesTexture = oesTextureAndBufferTextures?.first
                                                                 val textureBuffers = oesTextureAndBufferTextures?.second
                                                                 if (surfaceTexture != null && oesTexture != null && textureBuffers != null) {
-                                                                    player.getGLRenderer().enqueueTask {
-                                                                        if (it) {
-                                                                            try {
-                                                                                surfaceTexture.updateTexImage()
-                                                                                textureBufferIndex ++
-                                                                                val textureBuffer = textureBuffers[(textureBufferIndex % textureBuffers.size).toInt()]
-                                                                                // tMediaPlayerLog.d(TAG) { "Request write texture: pts=${frame.pts}, texture=$textureBuffer" }
-                                                                                if (player.getGLRenderer().oesTexture2Texture2D(surfaceTexture, oesTexture, textureBuffer, frame.width, frame.height)) {
-                                                                                    frame.textureBuffer = textureBuffer
-                                                                                    // tMediaPlayerLog.d(TAG) { "Write texture success: pts=${frame.pts}, texture=$textureBuffer" }
-                                                                                    frame.isBadTextureBuffer = false
-                                                                                } else {
-                                                                                    frame.isBadTextureBuffer = true
-                                                                                    tMediaPlayerLog.e(TAG) { "Update hw frame fail: oes texture to 2d fail, pts=${frame.pts}, texture=$textureBuffer" }
-                                                                                }
-                                                                            } catch (e: Throwable) {
-                                                                                frame.isBadTextureBuffer = true
-                                                                                tMediaPlayerLog.e(TAG) { "Update hw frame fail: ${e.message}" }
-                                                                            }
-                                                                        } else {
-                                                                            frame.isBadTextureBuffer = true
-                                                                            tMediaPlayerLog.e(TAG) { "Update hw frame fail: not in gl context thread." }
-                                                                        }
-                                                                        videoFrameQueue.enqueueReadable(frame)
-                                                                    }
+                                                                    waitingGLRendererFrames.offer(frame)
+                                                                    player.getGLRenderer().enqueueTask(::glRenderTaskCallback)
                                                                 } else {
                                                                     tMediaPlayerLog.e(TAG) { "Can't handle hw surface data, no oes textures." }
                                                                     frame.isBadTextureBuffer = true
@@ -301,6 +317,17 @@ internal class VideoFrameDecoder(
                 videoPacketQueue.removeListener(packetQueueListener)
                 videoFrameQueue.removeListener(frameQueueListener)
                 player.getGLRenderer().removeGLContextListener(glContextListener)
+                if (waitingGLRendererFramesLazyDelete.isInitialized()) {
+                    if (waitingGLRendererFrames.isNotEmpty()) { // should not be here
+                        tMediaPlayerLog.e(TAG) { "Waiting gl render queue not empty, size=${waitingGLRendererFrames.size}" }
+                        while (waitingGLRendererFrames.isNotEmpty()) {
+                            val f = waitingGLRendererFrames.poll()
+                            if (f != null) {
+                                videoFrameQueue.enqueueWritable(f)
+                            }
+                        }
+                    }
+                }
                 tMediaPlayerLog.d(TAG) { "Video decoder released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release fail, wrong state: $oldState" }
