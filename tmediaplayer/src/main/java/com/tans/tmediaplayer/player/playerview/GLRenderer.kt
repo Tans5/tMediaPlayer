@@ -702,6 +702,7 @@ internal class GLRenderer {
         @Volatile
         private var isQuited: Boolean = false
 
+        @Volatile
         private var surface: Surface? = null
 
         private var requestSurfaceSize: Pair<Int, Int>? = null
@@ -862,6 +863,7 @@ internal class GLRenderer {
 
             var isNotifyContextCreated = false
             var surfaceSize: Pair<Int, Int>? = null
+            var lastSurfaceSize: Pair<Int, Int>? = null
 
             var doQuit = false
             var doSurfaceCreate = false
@@ -895,7 +897,8 @@ internal class GLRenderer {
 
                         if (eglSurface != EGL14.EGL_NO_SURFACE || doSurfaceCreate) {
                             // surface size change
-                            if (requestSurfaceSize != surfaceSize) {
+                            if (requestSurfaceSize != surfaceSize && requestSurfaceSize != null) {
+                                lastSurfaceSize = surfaceSize
                                 surfaceSize = requestSurfaceSize
                                 requestSurfaceSize = null
                                 doSurfaceSizeChange = true
@@ -955,6 +958,8 @@ internal class GLRenderer {
                     isQuited = true
                     tMediaPlayerLog.d(TAG) { "GL thread quited." }
                     doQuit = false
+                    surfaceSize = null
+                    lastSurfaceSize = null
                     synchronized(this) {
                         (this as Object).notifyAll()
                     }
@@ -997,6 +1002,8 @@ internal class GLRenderer {
                 if (doSurfaceDestroy) {
                     doSurfaceDestroy = false
                     if (eglSurface != EGL14.EGL_NO_SURFACE) {
+                        surfaceSize = null
+                        lastSurfaceSize = null
                         // Destroy egl surface.
                         EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
                         EGL14.eglDestroySurface(display, eglSurface)
@@ -1016,7 +1023,15 @@ internal class GLRenderer {
                 if (doSurfaceSizeChange) {
                     doSurfaceSizeChange = false
                     if (surfaceSize != null) {
-                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${surfaceSize.first}x${surfaceSize.second}" }
+                        val sur = surface
+                        if (lastSurfaceSize != null && sur != null) {
+                            tMediaPlayerLog.d(TAG) { "Do recreate surface." }
+                            EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
+                            EGL14.eglDestroySurface(display, eglSurface)
+                            eglSurface = EGL14.eglCreateWindowSurface(display, chooseConfig, sur, intArrayOf(EGL14.EGL_NONE), 0)
+                            EGL14.eglMakeCurrent(display, eglSurface, eglSurface, eglContext)
+                        }
+                        tMediaPlayerLog.d(TAG) { "GL surface size changed: ${surfaceSize.first}x${surfaceSize.second}, lastSurfaceSize=${lastSurfaceSize}" }
                         realRenderer.surfaceSizeChanged(surfaceSize.first, surfaceSize.second)
                     }
                 }
