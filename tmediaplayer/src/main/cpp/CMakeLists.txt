@@ -89,7 +89,25 @@ add_library( librtmp
 set_target_properties( librtmp
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/librtmp.so )
+
+# libass
+add_library( libass
+        SHARED
+        IMPORTED )
+set_target_properties( libass
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libass.so )
+
+# libc++_shared
+add_library( libcpp_shared
+        SHARED
+        IMPORTED )
+set_target_properties( libcpp_shared
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libc++_shared.so )
+
 # endregion
+
 
 # region android
 find_library(
@@ -134,7 +152,9 @@ target_link_libraries(
         libssl
         libcrypto
         libsrt
-        librtmp)
+        librtmp
+        libass
+        libcpp_shared)
 # endregion
 
 # region tmediaframeloader
