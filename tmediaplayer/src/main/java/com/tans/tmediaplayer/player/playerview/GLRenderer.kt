@@ -1049,6 +1049,7 @@ internal class GLRenderer {
                 while (tasks.isNotEmpty()) {
                     tasks.pollFirst()?.invoke(true)
                 }
+                doTasks = false
             }
 
             while (tasks.isNotEmpty()) {
