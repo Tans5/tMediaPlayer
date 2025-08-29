@@ -138,6 +138,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
                 LOGE("Don't support subtitle format: %d", rect->type);
                 break;
         }
+        LOGD("ReadSubtitle: x=%d, y=%d, w=%d, h=%d, lineSize=%d", rect->x, rect->y, rect->w, rect->h, rect->linesize[0]);
         auto j_string_ref = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(line)));
         env->SetObjectArrayElement(jarray_ref, i, j_string_ref);
         env->DeleteLocalRef(j_string_ref);

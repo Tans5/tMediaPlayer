@@ -133,7 +133,8 @@ add_library(
 
 target_include_directories(tmediaplayer PUBLIC
         ffmpeg/header
-        tmediaplayer/header)
+        tmediaplayer/header
+        ass/header)
 
 target_link_libraries(
         tmediaplayer
@@ -230,11 +231,13 @@ target_include_directories(
         tmediaplayer/header
         tmediasubtitlepktreader/header
         ffmpeg/header
+        ass/header
 )
 
 target_link_libraries(
         tmediasubtitle
         tmediaplayer
         tmediasubtitlepktreader
+        libass
 )
 #endregion

@@ -5,6 +5,9 @@
 
 #ifndef TMEDIAPLAYER_TMEDIASUBTITLE_H
 #define TMEDIAPLAYER_TMEDIASUBTITLE_H
+extern "C" {
+#include "ass/ass.h"
+}
 #include "tmediaplayer.h"
 
 typedef struct tMediaSubtitleBuffer {
