@@ -18,6 +18,7 @@ import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.tMediaPlayer
 import com.tans.tmediaplayer.player.tMediaPlayerListener
 import com.tans.tmediaplayer.player.tMediaPlayerState
+import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tuiutils.activity.BaseCoroutineStateActivity
 import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks
@@ -65,17 +66,8 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
     }
 
     override fun CoroutineScope.firstLaunchInitDataCoroutine() {
+        tMediaPlayerLog.logLevel = tMediaPlayerLog.LogLevel.Error
         launch(Dispatchers.IO) {
-
-            mediaPlayer.setListener(object : tMediaPlayerListener {
-                override fun onPlayerState(state: tMediaPlayerState) {
-                    updateState { it.copy(playerState = state) }
-                }
-
-                override fun onProgressUpdate(progress: Long, duration: Long) {
-                    updateState { it.copy(progress = Progress(progress = progress, duration = duration)) }
-                }
-            })
 
             // val loadResult = mediaPlayer.prepare("rtmp://liteavapp.qcloud.com/live/liteavdemoplayerstreamid")
             val loadResult = mediaPlayer.prepare(intent.getMediaFileExtra())
@@ -94,7 +86,17 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
     override fun CoroutineScope.bindContentViewCoroutine(contentView: View) {
         tMediaFrameLoader
         val viewBinding = PlayerActivityBinding.bind(contentView)
+        mediaPlayer.setListener(object : tMediaPlayerListener {
+            override fun onPlayerState(state: tMediaPlayerState) {
+                updateState { it.copy(playerState = state) }
+            }
 
+            override fun onProgressUpdate(progress: Long, duration: Long) {
+                if (viewBinding.actionLayout.isVisible()) {
+                    updateState { it.copy(progress = Progress(progress = progress, duration = duration)) }
+                }
+            }
+        })
         launch {
             // Waiting player load active.
             stateFlow.filter {
