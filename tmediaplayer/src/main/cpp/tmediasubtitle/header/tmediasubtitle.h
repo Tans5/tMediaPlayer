@@ -25,6 +25,7 @@ typedef struct tMediaSubtitleContext {
     // Ass
     ASS_Library *ass_library = nullptr;
     ASS_Renderer *ass_renderer = nullptr;
+    ASS_Track *ass_track = nullptr;
 
     tMediaOptResult setupNewSubtitleStream(AVStream *stream, int32_t frame_width, int32_t frame_height);
 

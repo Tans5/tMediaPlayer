@@ -799,8 +799,8 @@ internal class GLRenderer {
                 EGL14.EGL_RED_SIZE, 8,
                 EGL14.EGL_GREEN_SIZE, 8,
                 EGL14.EGL_BLUE_SIZE, 8,
-                EGL14.EGL_ALPHA_SIZE, 0,
-                EGL14.EGL_DEPTH_SIZE, 16,
+                EGL14.EGL_ALPHA_SIZE, 8,
+                EGL14.EGL_DEPTH_SIZE, 0,
                 EGL14.EGL_STENCIL_SIZE, 0,
                 // EGL14.EGL_SURFACE_TYPE, EGL14.EGL_WINDOW_BIT,
                 EGL14.EGL_RENDERABLE_TYPE, EGLExt.EGL_OPENGL_ES3_BIT_KHR,
@@ -835,12 +835,12 @@ internal class GLRenderer {
             for (c in allConfigs) {
                 if (c != null) {
                     val d = eglGetConfigAttr(c, EGL14.EGL_DEPTH_SIZE)
-                    if (d >= 16) {
+                    if (d >= 0) {
                         val r = eglGetConfigAttr(c, EGL14.EGL_RED_SIZE)
                         val g = eglGetConfigAttr(c, EGL14.EGL_GREEN_SIZE)
                         val b = eglGetConfigAttr(c, EGL14.EGL_BLUE_SIZE)
                         val a = eglGetConfigAttr(c, EGL14.EGL_ALPHA_SIZE)
-                        if (r == 8 && g == 8 && b == 8 && a == 0) {
+                        if (r == 8 && g == 8 && b == 8 && a == 8) {
                             chooseConfig = c
                             break
                         }
