@@ -49,24 +49,48 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
         renderer = SubtitleRenderer(player, this, subtitleThread.looper)
     }
 
-    fun getNativeSubtitle(): Long? = subtitleNative.get()
-
-
     fun setupSubtitleStreamFromPlayer(streamIndex: Int): OptResult {
-        val nativePlayer = player.getMediaInfo()?.nativePlayer
+        val mediaInfo = player.getMediaInfo()
+        val nativePlayer = mediaInfo?.nativePlayer
         val nativeSubtitle = subtitleNative.get()
-        return if (nativePlayer != null && nativeSubtitle != null) {
+        val frameWidth = mediaInfo?.videoStreamInfo?.videoWidth
+        val frameHeight = mediaInfo?.videoStreamInfo?.videoHeight
+        return if (nativePlayer != null && nativeSubtitle != null && frameWidth != null && frameHeight != null) {
             setupSubtitleStreamFromPlayerNative(
                 subtitleNative = nativeSubtitle,
                 playerNative = nativePlayer,
-                streamIndex = streamIndex
+                streamIndex = streamIndex,
+                frameWidth = frameWidth,
+                frameHeight = frameHeight
             ).toOptResult().apply {
                 if (this == OptResult.Fail) {
-                    tMediaPlayerLog.e(TAG) { "Setup subtitle stream fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex" }
+                    tMediaPlayerLog.e(TAG) { "Setup subtitle stream from player fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex" }
                 }
             }
         } else {
-            tMediaPlayerLog.e(TAG) { "Setup subtitle stream fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex" }
+            tMediaPlayerLog.e(TAG) { "Setup subtitle stream from player fail, nativePlayer=$nativePlayer, nativeSubtitle=$nativeSubtitle, streamIndex=$streamIndex" }
+            OptResult.Fail
+        }
+    }
+
+    internal fun setupSubtitleStreamFromPktReader(readerNative: Long): OptResult {
+        val mediaInfo = player.getMediaInfo()
+        val nativeSubtitle = subtitleNative.get()
+        val frameWidth = mediaInfo?.videoStreamInfo?.videoWidth
+        val frameHeight = mediaInfo?.videoStreamInfo?.videoHeight
+        return if (nativeSubtitle != null && frameWidth != null && frameHeight != null) {
+            setupSubtitleStreamFromPktReaderNative(
+                subtitleNative = nativeSubtitle,
+                readerNative = readerNative,
+                frameWidth = frameWidth,
+                frameHeight = frameHeight
+            ).toOptResult().apply {
+                if (this == OptResult.Fail) {
+                    tMediaPlayerLog.e(TAG) { "Setup subtitle stream from pkt reader fail, readerNative=$readerNative, nativeSubtitle=$nativeSubtitle" }
+                }
+            }
+        } else {
+            tMediaPlayerLog.e(TAG) { "Setup subtitle stream from pkt reader fail, readerNative=$readerNative, nativeSubtitle=$nativeSubtitle" }
             OptResult.Fail
         }
     }
@@ -113,11 +137,9 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private external fun createSubtitleNative(): Long
 
-    private external fun setupSubtitleStreamFromPlayerNative(subtitleNative: Long, playerNative: Long, streamIndex: Int): Int
+    private external fun setupSubtitleStreamFromPlayerNative(subtitleNative: Long, playerNative: Long, streamIndex: Int, frameWidth: Int, frameHeight: Int): Int
 
-    internal fun setupSubtitleStreamFromPktReaderInternal(subtitleNative: Long, readerNative: Long): OptResult = setupSubtitleStreamFromPktReaderNative(subtitleNative, readerNative).toOptResult()
-
-    private external fun setupSubtitleStreamFromPktReaderNative(subtitleNative: Long, readerNative: Long): Int
+    private external fun setupSubtitleStreamFromPktReaderNative(subtitleNative: Long, readerNative: Long, frameWidth: Int, frameHeight: Int): Int
 
     internal fun decodeSubtitleInternal(pktNative: Long, bufferNative: Long): DecodeResult {
         val subtitleNative = subtitleNative.get()

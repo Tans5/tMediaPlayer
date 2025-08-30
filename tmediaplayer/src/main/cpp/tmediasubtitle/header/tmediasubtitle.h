@@ -19,9 +19,16 @@ typedef struct tMediaSubtitleContext {
     AVCodecContext *subtitle_decoder_ctx = nullptr;
     AVPacket *subtitle_pkt = nullptr;
 
-    tMediaOptResult setupNewSubtitleStream(AVStream *stream);
+    int32_t frame_width = 0;
+    int32_t frame_height = 0;
 
-    tMediaDecodeResult decodeSubtitle(AVPacket* pkt, AVSubtitle *subtitleFrame) const;
+    // Ass
+    ASS_Library *ass_library = nullptr;
+    ASS_Renderer *ass_renderer = nullptr;
+
+    tMediaOptResult setupNewSubtitleStream(AVStream *stream, int32_t frame_width, int32_t frame_height);
+
+    tMediaDecodeResult decodeSubtitle(AVPacket* pkt, AVSubtitle *subtitleFrame);
 
     void flushDecoder() const;
 

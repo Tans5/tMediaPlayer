@@ -50,9 +50,8 @@ internal class SubtitleFrameDecoder(
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
             synchronized(this@SubtitleFrameDecoder) {
-                val nativeSubtitle = subtitle.getNativeSubtitle()
                 val state = getState()
-                if (nativeSubtitle != null && state in activeStates) {
+                if (state in activeStates) {
                     when (msg.what) {
                         DecoderHandlerMsg.RequestDecode.ordinal -> {
                             if (skipNextPktRead || packetQueue.isCanRead()) {
@@ -127,7 +126,7 @@ internal class SubtitleFrameDecoder(
                                 skipNextPktRead = false
                                 frameQueue.flushReadableBuffer()
                                 packetQueue.flushReadableBuffer()
-                                val result = subtitle.setupSubtitleStreamFromPktReaderInternal(subtitleNative = nativeSubtitle, readerNative = readerNative)
+                                val result = subtitle.setupSubtitleStreamFromPktReader(readerNative = readerNative)
                                 if (result == OptResult.Success) {
                                     tMediaPlayerLog.d(TAG) { "Setup external subtitle stream success." }
                                     requestDecode()

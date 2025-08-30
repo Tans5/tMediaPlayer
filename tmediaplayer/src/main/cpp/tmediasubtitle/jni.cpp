@@ -21,7 +21,9 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_setupSubtitleStreamFromPlayer
         jobject j_subtitle,
         jlong native_subtitle,
         jlong native_player,
-        jint stream_index) {
+        jint stream_index,
+        jint frame_width,
+        jint frame_height) {
     auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
     auto player = reinterpret_cast<tMediaPlayerContext *>(native_player);
     AVStream *targetStream = nullptr;
@@ -33,7 +35,7 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_setupSubtitleStreamFromPlayer
         }
     }
     if (targetStream != nullptr) {
-        return subtitle->setupNewSubtitleStream(targetStream);
+        return subtitle->setupNewSubtitleStream(targetStream, frame_width, frame_height);
     } else {
         LOGE("Wrong stream index: %d", stream_index);
         return OptFail;
@@ -45,12 +47,14 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_setupSubtitleStreamFromPktRea
         JNIEnv * env,
         jobject j_subtitle,
         jlong native_subtitle,
-        jlong native_pkt_reader) {
+        jlong native_pkt_reader,
+        jint frame_width,
+        jint frame_height) {
     auto subtitle = reinterpret_cast<tMediaSubtitleContext *>(native_subtitle);
     auto pktReader = reinterpret_cast<tMediaSubtitlePktReaderContext *>(native_pkt_reader);
     auto stream = pktReader->subtitle_stream;
     if (stream != nullptr) {
-        return subtitle->setupNewSubtitleStream(stream);
+        return subtitle->setupNewSubtitleStream(stream, frame_width, frame_height);
     } else {
         return OptFail;
     }

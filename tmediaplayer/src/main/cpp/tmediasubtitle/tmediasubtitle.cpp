@@ -4,12 +4,14 @@
 #include "tmediasubtitle.h"
 
 
-tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream) {
+tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream, int32_t frame_width, int32_t frame_height) {
     releaseLastSubtitleStream();
     if (subtitle_pkt == nullptr) {
         subtitle_pkt = av_packet_alloc();
     }
     releaseLastSubtitleStream();
+    this->frame_width = frame_width;
+    this->frame_height = frame_height;
     if (stream->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
         LOGE("Wrong stream type: %d", stream->codecpar->codec_type);
         return OptFail;
@@ -34,7 +36,13 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream) 
     return OptSuccess;
 }
 
-tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtitle *subtitleFrame) const {
+/**
+ * FFmpeg ASS: 3,0,Default,,0,0,0,,Hello World.
+ * Standard ASS: Dialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,Hello World.
+ */
+
+
+tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtitle *subtitleFrame) {
     if (subtitle_stream == nullptr || subtitle_decoder_ctx == nullptr) {
         LOGE("Subtitle stream is null.");
         return DecodeFail;
@@ -60,12 +68,47 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtit
         return DecodeFail;
     }
     if (got_frame) {
-        if (!subtitle_pkt->data) {
-            LOGD("Decode subtitle success and skip next pkt.");
-            return DecodeSuccessAndSkipNextPkt;
-        } else {
-            return DecodeSuccess;
+        if (subtitleFrame->format != 0) { // text
+            // FixMe
+            if (ass_library == nullptr) {
+                ass_library = ass_library_init();
+                ass_set_message_cb(ass_library, [](int level, const char* fmt, va_list va, void* data) {
+                    char buf[1024];
+                    vsnprintf(buf, sizeof(buf), fmt, va);
+                    LOGD("[libass] %s", buf);
+                }, nullptr);
+                LOGD("Create new ass library.");
+            }
+            if (ass_renderer == nullptr) {
+                ass_renderer = ass_renderer_init(ass_library);
+                ass_set_frame_size(ass_renderer, frame_width, frame_height);
+                ass_set_fonts(ass_renderer, nullptr, nullptr, ASS_FONTPROVIDER_AUTODETECT, nullptr, 1);
+                LOGD("Create new ass renderer.");
+            }
+            ASS_Track *ass_track = ass_new_track(ass_library);
+            ass_process_data(ass_track, (const char *)subtitle_decoder_ctx->subtitle_header, subtitle_decoder_ctx->subtitle_header_size);
+
+            const char* testAss = "Dialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,Hello World";
+            for (int i = 0; i < subtitleFrame->num_rects; i ++) {
+                auto rect = subtitleFrame->rects[i];
+                ass_process_data(ass_track, testAss, strlen(testAss));
+                LOGD("Text subtitle: ass=%s, text=%s", rect->ass, rect->text);
+            }
+            LOGD("ASS event size: %d", ass_track->n_events);
+            auto img = ass_render_frame(ass_renderer, ass_track, 1000, nullptr);
+            if (img != nullptr) {
+                // TODO:
+                LOGD("ASS width=%d, height=%d", img->w, img->h);
+            } else {
+                LOGE("ASS image is null.");
+            }
+
+            ass_free_track(ass_track);
+        } else { // bitmap
+            // TODO: Handle bitmap
         }
+
+        return !subtitle_pkt->data ? DecodeSuccessAndSkipNextPkt : DecodeSuccess;
     } else {
         if (subtitle_pkt->data) {
             LOGE("Decode subtitle fail: %d", ret);
@@ -89,6 +132,14 @@ void tMediaSubtitleContext::releaseLastSubtitleStream() {
         subtitle_decoder_ctx = nullptr;
     }
     subtitle_stream = nullptr;
+    if (ass_renderer != nullptr) {
+        ass_renderer_done(ass_renderer);
+        ass_renderer = nullptr;
+    }
+    if (ass_library != nullptr) {
+        ass_library_done(ass_library);
+        ass_library = nullptr;
+    }
 }
 
 void tMediaSubtitleContext::release() {

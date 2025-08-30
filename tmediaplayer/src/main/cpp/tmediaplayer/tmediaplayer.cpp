@@ -69,15 +69,16 @@ static void releaseMetadata(Metadata *src) {
  * @return
  */
 static bool isSupportSubtitleStream(AVStream * s) {
-    auto codecId = s->codecpar->codec_id;
-    auto type = s->codecpar->codec_type;
-    return (type == AVMEDIA_TYPE_SUBTITLE &&
-           codecId != AV_CODEC_ID_DVD_SUBTITLE &&
-           codecId != AV_CODEC_ID_XSUB &&
-           codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE
-           // && codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE
-
-           );
+    return true;
+//    auto codecId = s->codecpar->codec_id;
+//    auto type = s->codecpar->codec_type;
+//    return (type == AVMEDIA_TYPE_SUBTITLE &&
+//           codecId != AV_CODEC_ID_DVD_SUBTITLE &&
+//           codecId != AV_CODEC_ID_XSUB &&
+//           codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE
+//           // && codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE
+//
+//           );
 }
 
 static int decode_interrupt_cb(void *ctx)
