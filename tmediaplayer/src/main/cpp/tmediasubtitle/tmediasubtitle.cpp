@@ -4,14 +4,14 @@
 #include "tmediasubtitle.h"
 
 
-tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream, int32_t frame_width, int32_t frame_height) {
+tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream, int32_t width, int32_t height) {
     releaseLastSubtitleStream();
     if (subtitle_pkt == nullptr) {
         subtitle_pkt = av_packet_alloc();
     }
     releaseLastSubtitleStream();
-    this->frame_width = frame_width;
-    this->frame_height = frame_height;
+    this->frame_width = width;
+    this->frame_height = height;
     if (stream->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
         LOGE("Wrong stream type: %d", stream->codecpar->codec_type);
         return OptFail;
@@ -106,8 +106,12 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtit
     }
     int got_frame = 0;
     int ret = avcodec_decode_subtitle2(subtitle_decoder_ctx, subtitleFrame, &got_frame, subtitle_pkt);
-    double ptsStart = (double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0;
-    double ptsEnd = (double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0 + ptsStart;
+    double ptsStart = 0;
+    double ptsEnd = 0;
+    if (subtitle_pkt->time_base.den != 0) {
+        ptsStart = (double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0;
+        ptsEnd = (double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0 + ptsStart;
+    }
     subtitleFrame->start_display_time = (int) ptsStart;
     subtitleFrame->end_display_time = (int) ptsEnd;
     if (ret < 0) {
@@ -140,7 +144,7 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtit
             if (subtitle_decoder_ctx->subtitle_header_size > 0) {
                 ass_process_data(ass_track, (const char *)subtitle_decoder_ctx->subtitle_header, subtitle_decoder_ctx->subtitle_header_size);
             } else {
-                char defaultHeader[strlen(defaultAssHeaderFormat + 16)];
+                char defaultHeader[strlen(defaultAssHeaderFormat) + 16];
                 sprintf(defaultHeader, defaultAssHeaderFormat, frame_width, frame_height);
                 ass_process_data(ass_track, defaultHeader, strlen(defaultHeader));
             }
@@ -150,9 +154,13 @@ tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt, AVSubtit
                 char buffer[256];
                 int size = 0;
                 if (rect->type == SUBTITLE_ASS) {
-                    size = ffAssToStandardAss(rect->ass, strlen(rect->ass), false, buffer, 256);
+                    if (rect->ass != nullptr) {
+                        size = ffAssToStandardAss(rect->ass, strlen(rect->ass), false, buffer, 256);
+                    }
                 } else {
-                    size = ffAssToStandardAss(rect->text, strlen(rect->text), true, buffer, 256);
+                    if (rect->text != nullptr) {
+                        size = ffAssToStandardAss(rect->text, strlen(rect->text), true, buffer, 256);
+                    }
                 }
                 ass_process_data(ass_track, buffer, size);
             }
