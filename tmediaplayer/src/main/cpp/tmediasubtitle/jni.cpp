@@ -191,47 +191,6 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleFrameRgbaBytesNati
 //    return result;
 //}
 
-// for bitmap subtitle
-//uint32_t* convert_rect_to_argb(AVSubtitleRect *rect) {
-//    if (!rect || rect->type != SUBTITLE_BITMAP || !rect->data[0] || !rect->data[1]) {
-//        return nullptr;
-//    }
-//
-//    int width = rect->w;
-//    int height = rect->h;
-//    uint8_t *pixel_indices = rect->data[0]; // 8-bit palette indices
-//    uint32_t *palette = (uint32_t*)rect->data[1]; // 32-bit RGBA palette
-//
-//    // Allocate memory for our final ARGB pixel buffer
-//    uint32_t* argb_pixels = new uint32_t[width * height];
-//
-//    for (int y = 0; y < height; y++) {
-//        for (int x = 0; x < width; x++) {
-//            // 1. Get the palette index for the current pixel.
-//            //    IMPORTANT: Use rect->linesize[0] (the stride), not width!
-//            uint8_t index = pixel_indices[y * rect->linesize[0] + x];
-//
-//            // 2. Look up the 32-bit color from the palette.
-//            //    FFmpeg's palette is RGBA.
-//            uint32_t rgba_color = palette[index];
-//
-//            // 3. Convert RGBA to ARGB for Android's Bitmap.Config.ARGB_8888.
-//            //    This involves byte shuffling.
-//            uint8_t r = (rgba_color >> 24) & 0xFF;
-//            uint8_t g = (rgba_color >> 16) & 0xFF;
-//            uint8_t b = (rgba_color >> 8) & 0xFF;
-//            uint8_t a = rgba_color & 0xFF;
-//
-//            uint32_t argb_color = (a << 24) | (r << 16) | (g << 8) | b;
-//
-//            // 4. Store the final ARGB color in our buffer.
-//            argb_pixels[y * width + x] = argb_color;
-//        }
-//    }
-//
-//    return argb_pixels;
-//}
-
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
         JNIEnv * env,

@@ -185,11 +185,15 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private external fun getSubtitleHeightNative(bufferNative: Long): Int
 
-    internal fun getSubtitleFrameRgbaBytesInternal(bufferNative: Long, buffers: ByteArray) = getSubtitleFrameRgbaBytesNative(bufferNative, buffers)
+    internal fun getSubtitleFrameRgbaBytesInternal(bufferNative: Long, buffers: ByteArray) {
+        getSubtitleFrameRgbaBytesNative(bufferNative, buffers)
+    }
 
     private external fun getSubtitleFrameRgbaBytesNative(bufferNative: Long, buffers: ByteArray)
 
-    internal fun releaseSubtitleBufferInternal(bufferNative: Long) = releaseSubtitleBufferNative(bufferNative)
+    internal fun releaseSubtitleBufferInternal(bufferNative: Long) {
+        releaseSubtitleBufferNative(bufferNative)
+    }
 
     private external fun releaseSubtitleBufferNative(bufferNative: Long)
 

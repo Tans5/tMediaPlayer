@@ -145,6 +145,8 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         buffer->rgbaBuffer = static_cast<uint8_t *>(malloc(contentSize));
         LOGD("Create new subtitle rgba buffer, contentSize=%d, width=%d, height=%d", buffer->bufferSize, buffer->width, buffer->height);
     }
+    memset(buffer->rgbaBuffer, 0, frame_width * frame_height * 4);
+    auto outputBitmap = buffer->rgbaBuffer;
 
     if (subtitle_frame->format != 0) { // text
         if (ass_library == nullptr) {
@@ -192,18 +194,98 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         }
         LOGD("ASS event size: %d", ass_track->n_events);
         auto img = ass_render_frame(ass_renderer, ass_track, 1000, nullptr);
-        if (img != nullptr) {
-            // TODO:
-            LOGD("ASS width=%d, height=%d, pos_x=%d, pos_y=%d", img->w, img->h, img->dst_x, img->dst_y);
-        } else {
-            LOGE("ASS image is null.");
+        while (img != nullptr) {
+            uint32_t color = img->color;
+            uint8_t r = (color >> 24) & 0xFF;
+            uint8_t g = (color >> 16) & 0xFF;
+            uint8_t b = (color >> 8) & 0xFF;
+            uint8_t global_alpha = 255 - (color & 255);
+            LOGD("ASS Rect width=%d, height=%d, pos_x=%d, pos_y=%d, r=%d, g=%d, b=%d, a=%d", img->w, img->h, img->dst_x, img->dst_y, r, g, b, global_alpha);
+
+            if (global_alpha > 0) {
+                for (int y = 0; y < img->h; y ++) {
+                    for (int x = 0; x < img->w; x ++) {
+                        uint8_t alpha = img->bitmap[y * img->stride + x];
+                        if (alpha == 0) {
+                            // skip
+                            continue;
+                        }
+                        uint8_t final_alpha = (global_alpha * alpha) / 255;
+                        if (final_alpha == 0) {
+                            // skip
+                            continue;
+                        }
+                        int target_x = img->dst_x + x;
+                        int target_y = img->dst_y + y;
+                        if (target_x < 0 || target_x >= frame_width || target_y < 0 || target_y >= frame_height) {
+                            continue;
+                        }
+                        uint8_t *pixel = &outputBitmap[(target_y * frame_width * 4) + (target_x * 4)];
+                        uint8_t bg_alpha = pixel[3];
+                        if (bg_alpha == 0) {
+                            pixel[0] = r;
+                            pixel[1] = g;
+                            pixel[2] = b;
+                            pixel[3] = final_alpha;
+                        } else {
+                            // mix
+                            uint8_t out_alpha = final_alpha + (bg_alpha * (255 - final_alpha) / 255);
+                            float blend = final_alpha / 255.0f;
+                            pixel[0] = (r * blend) + (pixel[0] * (1.0f - blend));
+                            pixel[1] = (g * blend) + (pixel[1] * (1.0f - blend));
+                            pixel[2] = (b * blend) + (pixel[2] * (1.0f - blend));
+                            pixel[3] = out_alpha;
+                        }
+                    }
+                }
+            }
+            img = img->next;
         }
         ass_flush_events(ass_track);
-        // TODO:
-        return OptFail;
+        return ass_track->n_events > 0 ? OptSuccess : OptFail;
     } else { // bitmap
-        // TODO: Handle bitmap
-        return OptFail;
+        LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
+        for (int i = 0; i < subtitle_frame->num_rects; i ++) {
+            auto rect = subtitle_frame->rects[i];
+            uint8_t *pixel_indices = rect->data[0];
+            uint32_t  *palette = (uint32_t *)rect->data[1];
+
+            LOGD("FF subtitle rect: width=%d, height=%d, x=%d, y=%d, indexlinesize=%d", rect->w, rect->h, rect->x, rect->y, rect->linesize[0]);
+
+            for (int y = 0; y < rect->h; y++) {
+                for (int x = 0; x < rect->w; x++) {
+                    uint8_t index = pixel_indices[y * rect->linesize[0] + x];
+                    int target_x = rect->x + x;
+                    int target_y = rect->y + y;
+                    uint32_t color = palette[index];
+                    uint8_t r = (color >> 24) & 0xFF;
+                    uint8_t g = (color >> 16) & 0xFF;
+                    uint8_t b = (color >> 8) & 0xFF;
+                    uint8_t a = color & 0xFF;
+
+                    if (target_x < 0 || target_x >= frame_width || target_y < 0 || target_y >= frame_height || a <= 0) {
+                        continue;
+                    }
+                    uint8_t *pixel = &outputBitmap[(target_y * frame_width * 4) + (target_x * 4)];
+                    uint8_t bg_alpha = pixel[3];
+                    if (bg_alpha == 0) {
+                        pixel[0] = r;
+                        pixel[1] = g;
+                        pixel[2] = b;
+                        pixel[3] = a;
+                    } else {
+                        // mix
+                        uint8_t out_alpha = a + (bg_alpha * (255 - a) / 255);
+                        float blend = a / 255.0f;
+                        pixel[0] = (r * blend) + (pixel[0] * (1.0f - blend));
+                        pixel[1] = (g * blend) + (pixel[1] * (1.0f - blend));
+                        pixel[2] = (b * blend) + (pixel[2] * (1.0f - blend));
+                        pixel[3] = out_alpha;
+                    }
+                }
+            }
+        }
+        return subtitle_frame->num_rects > 0 ? OptSuccess : OptFail;
     }
 }
 
@@ -246,5 +328,6 @@ void tMediaSubtitleContext::release() {
         av_free(subtitle_frame);
         subtitle_frame = nullptr;
     }
+    LOGD("tMediaSubtitle released.");
 }
 
