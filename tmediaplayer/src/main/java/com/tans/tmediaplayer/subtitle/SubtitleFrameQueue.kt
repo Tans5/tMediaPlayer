@@ -24,11 +24,21 @@ internal class SubtitleFrameQueue(
     }
 
     override fun enqueueReadable(b: SubtitleFrame) {
-        b.subtitles = subtitle.getSubtitleStringsInternal(b.nativeFrame).let { array ->
-            array.map { it.fixAssSubtitle() }
-        }
         b.startPts = subtitle.getSubtitleStartPtsInternal(b.nativeFrame)
         b.endPts = subtitle.getSubtitleEndPtsInternal(b.nativeFrame)
+        b.width = subtitle.getSubtitleWidthInternal(b.nativeFrame)
+        b.height = subtitle.getSubtitleHeightInternal(b.nativeFrame)
+        val contentSize = b.width * b.height * 4
+        val bytes = b.rgbaBytes.let {
+            if (it == null || it.size < contentSize) {
+                val new = ByteArray(contentSize)
+                b.rgbaBytes = new
+                new
+            } else {
+                it
+            }
+        }
+        subtitle.getSubtitleFrameRgbaBytesInternal(b.nativeFrame, bytes)
         super.enqueueReadable(b)
     }
 

@@ -73,22 +73,24 @@ internal class SubtitleRenderer(
                                     else -> {
                                         val f = frameQueue.dequeueReadable()
                                         if (f === frame) {
-                                            latestSubtitleShowingRange.set(frameShowRange)
-                                            val textView = player.getSubtitleView()
-                                            if (textView != null) {
-                                                val textBuilder = StringBuilder()
-                                                val subtitles = (frame.subtitles ?: emptyList()).withIndex().toList()
-                                                for ((i, s) in subtitles) {
-                                                    textBuilder.append(s)
-                                                    if (i != subtitles.lastIndex) {
-                                                        textBuilder.append('\n')
-                                                    }
-                                                }
-                                                val text = textBuilder.toString()
-                                                uiThreadHandler.post {
-                                                    textView.text = text
-                                                }
-                                            }
+                                            frameQueue.enqueueWritable(f)
+                                            // TODO: Render subtitle frame.
+//                                            latestSubtitleShowingRange.set(frameShowRange)
+//                                            val textView = player.getSubtitleView()
+//                                            if (textView != null) {
+//                                                val textBuilder = StringBuilder()
+//                                                val subtitles = (frame.subtitles ?: emptyList()).withIndex().toList()
+//                                                for ((i, s) in subtitles) {
+//                                                    textBuilder.append(s)
+//                                                    if (i != subtitles.lastIndex) {
+//                                                        textBuilder.append('\n')
+//                                                    }
+//                                                }
+//                                                val text = textBuilder.toString()
+//                                                uiThreadHandler.post {
+//                                                    textView.text = text
+//                                                }
+//                                            }
                                             tMediaPlayerLog.d(TAG) { "Show subtitle: $frame" }
                                         }
                                         if (f != null) {

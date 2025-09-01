@@ -3,10 +3,13 @@ package com.tans.tmediaplayer.subtitle
 internal class SubtitleFrame(val nativeFrame: Long) {
     var startPts: Long = 0L
     var endPts: Long = 0L
-    var subtitles: List<String>? = null
+    var width: Int = 0
+    var height: Int = 0
+    var rgbaBytes: ByteArray? = null
+
 
     override fun toString(): String {
-        return "[startPts=$startPts,endPts=$endPts,subtitles=${subtitles?.joinToString()},subtitleSize=${subtitles?.size}]"
+        return "[startPts=$startPts,endPts=$endPts]"
     }
 
     override fun hashCode(): Int {
@@ -20,6 +23,5 @@ internal class SubtitleFrame(val nativeFrame: Long) {
     fun reset() {
         startPts = 0L
         endPts = 0L
-        subtitles = null
     }
 }

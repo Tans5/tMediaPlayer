@@ -141,16 +141,27 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private external fun setupSubtitleStreamFromPktReaderNative(subtitleNative: Long, readerNative: Long, frameWidth: Int, frameHeight: Int): Int
 
-    internal fun decodeSubtitleInternal(pktNative: Long, bufferNative: Long): DecodeResult {
+    internal fun decodeSubtitleInternal(pktNative: Long): DecodeResult {
         val subtitleNative = subtitleNative.get()
         return if (subtitleNative != null) {
-            decodeSubtitleNative(subtitleNative = subtitleNative, pktNative = pktNative, bufferNative = bufferNative).toDecodeResult()
+            decodeSubtitleNative(subtitleNative = subtitleNative, pktNative = pktNative).toDecodeResult()
         } else {
             DecodeResult.Fail
         }
     }
 
-    private external fun decodeSubtitleNative(subtitleNative: Long, pktNative: Long, bufferNative: Long): Int
+    private external fun decodeSubtitleNative(subtitleNative: Long, pktNative: Long): Int
+
+    internal fun moveDecodedSubtitleFrameToBufferInternal(subtitleBufferNative: Long): OptResult {
+        val subtitleNative = subtitleNative.get()
+        return if (subtitleNative != null) {
+            moveDecodedSubtitleFrameToBufferNative(subtitleNative = subtitleNative, subtitleBufferNative = subtitleBufferNative).toOptResult()
+        } else {
+            OptResult.Fail
+        }
+    }
+
+    private external fun moveDecodedSubtitleFrameToBufferNative(subtitleNative: Long, subtitleBufferNative: Long): Int
 
     private external fun flushSubtitleDecoderNative(subtitleNative: Long)
 
@@ -166,9 +177,17 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
 
     private external fun getSubtitleEndPtsNative(bufferNative: Long): Long
 
-    internal fun getSubtitleStringsInternal(bufferNative: Long): Array<String> = getSubtitleStringsNative(bufferNative)
+    internal fun getSubtitleWidthInternal(bufferNative: Long): Int = getSubtitleWidthNative(bufferNative)
 
-    private external fun getSubtitleStringsNative(bufferNative: Long): Array<String>
+    private external fun getSubtitleWidthNative(bufferNative: Long): Int
+
+    internal fun getSubtitleHeightInternal(bufferNative: Long): Int = getSubtitleHeightNative(bufferNative)
+
+    private external fun getSubtitleHeightNative(bufferNative: Long): Int
+
+    internal fun getSubtitleFrameRgbaBytesInternal(bufferNative: Long, buffers: ByteArray) = getSubtitleFrameRgbaBytesNative(bufferNative, buffers)
+
+    private external fun getSubtitleFrameRgbaBytesNative(bufferNative: Long, buffers: ByteArray)
 
     internal fun releaseSubtitleBufferInternal(bufferNative: Long) = releaseSubtitleBufferNative(bufferNative)
 
