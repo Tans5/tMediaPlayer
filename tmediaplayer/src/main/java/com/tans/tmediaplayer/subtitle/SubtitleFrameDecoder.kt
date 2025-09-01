@@ -114,15 +114,21 @@ internal class SubtitleFrameDecoder(
                         DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal -> {
                             val subtitleStreamId = msg.obj
                             if (subtitleStreamId is Int) {
-                                skipNextPktRead = false
-                                frameQueue.flushReadableBuffer()
-                                packetQueue.flushReadableBuffer()
-                                val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
-                                if (result == OptResult.Success) {
-                                    tMediaPlayerLog.d(TAG) { "Setup internal subtitle stream success: $subtitleStreamId" }
-                                    requestDecode()
-                                } else {
-                                    tMediaPlayerLog.e(TAG) { "Setup internal subtitle stream fail: $subtitleStreamId" }
+                                synchronized(subtitle.player) {
+                                    if (subtitle.player.getMediaInfo()?.subtitleStreams?.find { it.streamId == subtitleStreamId } != null) {
+                                        skipNextPktRead = false
+                                        frameQueue.flushReadableBuffer()
+                                        packetQueue.flushReadableBuffer()
+                                        val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
+                                        if (result == OptResult.Success) {
+                                            tMediaPlayerLog.d(TAG) { "Setup internal subtitle stream success: $subtitleStreamId" }
+                                            requestDecode()
+                                        } else {
+                                            tMediaPlayerLog.e(TAG) { "Setup internal subtitle stream fail: $subtitleStreamId" }
+                                        }
+                                    } else {
+                                        tMediaPlayerLog.e(TAG) { "Setup internal subtitle stream fail: player changed." }
+                                    }
                                 }
                             }
                         }

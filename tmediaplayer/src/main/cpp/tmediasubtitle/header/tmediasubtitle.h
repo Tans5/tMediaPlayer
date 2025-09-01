@@ -20,7 +20,7 @@ typedef struct tMediaSubtitleBuffer {
 } tMediaSubtitleBuffer;
 
 typedef struct tMediaSubtitleContext {
-    AVStream *subtitle_stream = nullptr;
+    int stream_index = -1;
     AVCodecContext *subtitle_decoder_ctx = nullptr;
     AVPacket *subtitle_pkt = nullptr;
     AVSubtitle *subtitle_frame = nullptr;

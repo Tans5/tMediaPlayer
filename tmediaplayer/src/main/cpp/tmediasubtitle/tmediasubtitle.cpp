@@ -16,7 +16,7 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream, 
         LOGE("Wrong stream type: %d", stream->codecpar->codec_type);
         return OptFail;
     }
-    subtitle_stream = stream;
+    stream_index = stream->index;
     auto codec = avcodec_find_decoder(stream->codecpar->codec_id);
     if (codec == nullptr) {
         LOGE("Don't find subtitle codec.");
@@ -38,12 +38,12 @@ tMediaOptResult tMediaSubtitleContext::setupNewSubtitleStream(AVStream *stream, 
 }
 
 tMediaDecodeResult tMediaSubtitleContext::decodeSubtitle(AVPacket *pkt) const {
-    if (subtitle_stream == nullptr || subtitle_decoder_ctx == nullptr) {
+    if (stream_index == -1 || subtitle_decoder_ctx == nullptr) {
         LOGE("Subtitle stream is null.");
         return DecodeFail;
     }
     if (pkt != nullptr) {
-        if (pkt->stream_index != subtitle_stream->index) {
+        if (pkt->stream_index != stream_index) {
             LOGE("Wrong subtitle stream index");
             return DecodeFail;
         }
@@ -300,7 +300,7 @@ void tMediaSubtitleContext::releaseLastSubtitleStream() {
         avcodec_free_context(&subtitle_decoder_ctx);
         subtitle_decoder_ctx = nullptr;
     }
-    subtitle_stream = nullptr;
+    stream_index = -1;
 
     if (ass_track != nullptr) {
         ass_free_track(ass_track);
