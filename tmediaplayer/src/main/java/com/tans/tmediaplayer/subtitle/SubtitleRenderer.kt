@@ -40,7 +40,7 @@ internal class SubtitleRenderer(
                     RendererHandlerMsg.RequestRender.ordinal -> {
                         val state = getState()
                         if (state in canRenderStates) {
-                            val frame = frameQueue.peekReadable()
+                            val frame = frameQueue.dequeueReadable()
                             if (frame != null) {
                                 if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                     this@SubtitleRenderer.state.set(RendererState.Playing)
