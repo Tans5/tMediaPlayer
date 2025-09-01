@@ -19,6 +19,7 @@ internal class SubtitleFrameQueue(
     }
 
     override fun recycleBuffer(b: SubtitleFrame) {
+        b.rgbaBytes = null
         subtitle.releaseSubtitleBufferInternal(b.nativeFrame)
         frameSize.decrementAndGet()
         tMediaPlayerLog.d(TAG) { "Recycle subtitle frame, size=${frameSize.get()}" }

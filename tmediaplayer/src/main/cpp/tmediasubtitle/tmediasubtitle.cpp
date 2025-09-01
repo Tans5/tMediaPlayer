@@ -194,6 +194,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         }
         LOGD("ASS event size: %d", ass_track->n_events);
         auto img = ass_render_frame(ass_renderer, ass_track, 1000, nullptr);
+        int write_image = 0;
         while (img != nullptr) {
             uint32_t color = img->color;
             uint8_t r = (color >> 24) & 0xFF;
@@ -203,6 +204,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
             LOGD("ASS Rect width=%d, height=%d, pos_x=%d, pos_y=%d, r=%d, g=%d, b=%d, a=%d", img->w, img->h, img->dst_x, img->dst_y, r, g, b, global_alpha);
 
             if (global_alpha > 0) {
+                write_image ++;
                 for (int y = 0; y < img->h; y ++) {
                     for (int x = 0; x < img->w; x ++) {
                         uint8_t alpha = img->bitmap[y * img->stride + x];
@@ -242,7 +244,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
             img = img->next;
         }
         ass_flush_events(ass_track);
-        return ass_track->n_events > 0 ? OptSuccess : OptFail;
+        return write_image > 0 ? OptSuccess : OptFail;
     } else { // bitmap
         LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
         for (int i = 0; i < subtitle_frame->num_rects; i ++) {

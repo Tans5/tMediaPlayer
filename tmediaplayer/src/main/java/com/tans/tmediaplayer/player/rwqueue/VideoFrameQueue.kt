@@ -18,6 +18,13 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
     }
 
     override fun recycleBuffer(b: VideoFrame) {
+        b.apply {
+            yBuffer = null
+            uBuffer = null
+            vBuffer = null
+            uvBuffer = null
+            rgbaBuffer = null
+        }
         player.releaseVideoBufferInternal(b.nativeFrame)
         frameSize.decrementAndGet()
         tMediaPlayerLog.d(TAG) { "Recycle video frame, size=${frameSize.get()}" }

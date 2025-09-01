@@ -117,16 +117,18 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
     @Synchronized
     fun release() {
         synchronized(decoder) {
-            val native = subtitleNative.get()
-            if (native != null) {
-                subtitleNative.set(null)
-                decoder.release()
-                renderer.release()
-                packetQueue.release()
-                frameQueue.release()
-                releaseNative(native)
-                subtitleThread.quit()
-                subtitleThread.quitSafely()
+            synchronized(renderer) {
+                val native = subtitleNative.get()
+                if (native != null) {
+                    subtitleNative.set(null)
+                    decoder.release()
+                    renderer.release()
+                    packetQueue.release()
+                    frameQueue.release()
+                    releaseNative(native)
+                    subtitleThread.quit()
+                    subtitleThread.quitSafely()
+                }
             }
         }
     }
