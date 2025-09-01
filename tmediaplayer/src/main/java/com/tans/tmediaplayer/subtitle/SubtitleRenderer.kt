@@ -3,8 +3,6 @@ package com.tans.tmediaplayer.subtitle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
-import android.view.View
-import android.widget.TextView
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.renderer.RendererHandlerMsg
 import com.tans.tmediaplayer.player.renderer.RendererState
@@ -28,16 +26,12 @@ internal class SubtitleRenderer(
         RendererState.WaitingReadableFrameBuffer
     )
 
-    private val uiThreadHandler: Handler = Handler(Looper.getMainLooper())
-
     private val frameListener: ReadWriteQueueListener = object : ReadWriteQueueListener {
         override fun onNewWriteableFrame() {}
         override fun onNewReadableFrame() {
             readableFrameReady()
         }
     }
-
-    private val latestSubtitleShowingRange: AtomicReference<LongRange?> = AtomicReference(null)
 
     private val rendererHandler: Handler = object : Handler(looper) {
         override fun handleMessage(msg: Message) {
@@ -53,52 +47,8 @@ internal class SubtitleRenderer(
                                     this@SubtitleRenderer.state.set(RendererState.Playing)
                                 }
                                 val playerPts = player.getProgress()
-                                val frameShowRange = LongRange(frame.startPts, frame.endPts)
-                                when  {
-                                    playerPts > frameShowRange.last -> {
-                                        val f = frameQueue.dequeueReadable()
-                                        if (f === frame) {
-                                            frameQueue.enqueueWritable(f)
-                                            tMediaPlayerLog.e(TAG) { "Drop subtitle frame, playerPts=$playerPts, frame=${frame}" }
-                                        } else if (f != null) {
-                                            frameQueue.enqueueWritable(f)
-                                        }
-                                        requestRender()
-                                    }
-                                    playerPts < frameShowRange.first -> {
-                                        val needDelay = min( frameShowRange.first - playerPts, MAX_RENDER_DELAY_INTERVAL)
-                                        tMediaPlayerLog.d(TAG) { "Need delay ${needDelay}ms to show subtitle frame=$frame" }
-                                        requestRender(needDelay)
-                                    }
-                                    else -> {
-                                        val f = frameQueue.dequeueReadable()
-                                        if (f === frame) {
-                                            frameQueue.enqueueWritable(f)
-                                            // TODO: Render subtitle frame.
-//                                            latestSubtitleShowingRange.set(frameShowRange)
-//                                            val textView = player.getSubtitleView()
-//                                            if (textView != null) {
-//                                                val textBuilder = StringBuilder()
-//                                                val subtitles = (frame.subtitles ?: emptyList()).withIndex().toList()
-//                                                for ((i, s) in subtitles) {
-//                                                    textBuilder.append(s)
-//                                                    if (i != subtitles.lastIndex) {
-//                                                        textBuilder.append('\n')
-//                                                    }
-//                                                }
-//                                                val text = textBuilder.toString()
-//                                                uiThreadHandler.post {
-//                                                    textView.text = text
-//                                                }
-//                                            }
-                                            tMediaPlayerLog.d(TAG) { "Show subtitle: $frame" }
-                                        }
-                                        if (f != null) {
-                                            frameQueue.enqueueWritable(f)
-                                        }
-                                        requestRender()
-                                    }
-                                }
+                                // TODO: render subtitle.
+
 
                             } else {
                                 if (state == RendererState.Playing) {
@@ -148,40 +98,9 @@ internal class SubtitleRenderer(
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
                 frameQueue.removeListener(frameListener)
-                this.latestSubtitleShowingRange.set(null)
-                uiThreadHandler.post {
-                    val view = player.getSubtitleView()
-                    if (view != null && view.isVisible()) {
-                        view.hide()
-                    }
-                }
                 tMediaPlayerLog.d(TAG) { "Subtitle renderer released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
-            }
-        }
-    }
-
-    fun playerProgressUpdated(pts: Long) {
-        val fixedShowingRange = latestSubtitleShowingRange.get()?.let { LongRange(it.first - SHOW_TEXT_BUFFER, it.last + SHOW_TEXT_BUFFER) }
-        val textView = player.getSubtitleView()
-        if (textView != null) {
-            if ((fixedShowingRange == null || pts !in fixedShowingRange)) {
-                // Do hide.
-                if (textView.isVisible()) {
-                    uiThreadHandler.post {
-                        textView.hide()
-                        tMediaPlayerLog.d(TAG) { "Hide text view, pts=$pts, range=${latestSubtitleShowingRange.get()}" }
-                    }
-                }
-            } else {
-                // Do show
-                if (!textView.isVisible()) {
-                    uiThreadHandler.post {
-                        textView.show()
-                        tMediaPlayerLog.d(TAG) { "Show text view, pts=$pts, range=${latestSubtitleShowingRange.get()}" }
-                    }
-                }
             }
         }
     }
@@ -207,26 +126,5 @@ internal class SubtitleRenderer(
 
     companion object {
         private const val TAG = "SubtitleRenderer"
-
-        private fun TextView.isVisible(): Boolean {
-            return this.visibility == View.VISIBLE
-        }
-
-        private fun TextView.show() {
-            if (!isVisible()) {
-                this.visibility = View.VISIBLE
-            }
-        }
-
-        private fun TextView.hide() {
-            if (isVisible()) {
-                this.visibility = View.GONE
-            }
-        }
-
-        private const val MAX_RENDER_DELAY_INTERVAL = 5000L
-
-        private const val SHOW_TEXT_BUFFER = 50L
-
     }
 }

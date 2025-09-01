@@ -1,5 +1,6 @@
 package com.tans.tmediaplayer.subtitle
 
+import com.tans.tmediaplayer.player.model.SUBTITLE_MAX_FRAME_SIZE
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.rwqueue.BaseReadWriteQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -8,7 +9,7 @@ internal class SubtitleFrameQueue(
     private val subtitle: tMediaSubtitle
 ) : BaseReadWriteQueue<SubtitleFrame>() {
 
-    override val maxQueueSize: Int = 8
+    override val maxQueueSize: Int = SUBTITLE_MAX_FRAME_SIZE
 
     override fun allocBuffer(): SubtitleFrame {
         val nativeFrame = subtitle.allocSubtitleBufferInternal()

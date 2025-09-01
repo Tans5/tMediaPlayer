@@ -5,6 +5,7 @@ import androidx.annotation.Keep
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.model.DecodeResult
 import com.tans.tmediaplayer.player.model.OptResult
+import com.tans.tmediaplayer.player.model.SUBTITLE_MAX_PKT_SIZE
 import com.tans.tmediaplayer.player.model.toDecodeResult
 import com.tans.tmediaplayer.player.model.toOptResult
 import com.tans.tmediaplayer.player.rwqueue.PacketQueue
@@ -19,7 +20,7 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
     private val subtitleNative: AtomicReference<Long?> = AtomicReference(null)
 
     val packetQueue: PacketQueue by lazy {
-        PacketQueue(player)
+        PacketQueue(player, SUBTITLE_MAX_PKT_SIZE)
     }
 
     val frameQueue: SubtitleFrameQueue by lazy {
@@ -111,11 +112,6 @@ internal class tMediaSubtitle(val player: tMediaPlayer) {
     @Synchronized
     fun pause() {
         renderer.pause()
-    }
-
-    @Synchronized
-    fun playerProgressUpdated(pts: Long) {
-        renderer.playerProgressUpdated(pts)
     }
 
     @Synchronized

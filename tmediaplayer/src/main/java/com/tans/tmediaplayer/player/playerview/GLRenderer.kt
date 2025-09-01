@@ -689,7 +689,7 @@ internal class GLRenderer {
         }
     }
 
-    private inner class GLThread : Thread("tMediaGLThread") {
+    private inner class GLThread : Thread("tMP_GLThread") {
 
         init {
             priority = MAX_PRIORITY

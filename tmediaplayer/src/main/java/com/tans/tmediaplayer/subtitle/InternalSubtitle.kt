@@ -57,10 +57,6 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
         subtitle.pause()
     }
 
-    fun playerProgressUpdated(pts: Long) {
-        subtitle.playerProgressUpdated(pts)
-    }
-
     fun release() {
         subtitle.release()
         selectedSubtitleStream.set(null)

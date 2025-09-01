@@ -19,27 +19,6 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"/>
 
-    <TextView
-        android:id="@+id/subtitle_tv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:textColor="@color/white"
-        android:paddingStart="2dp"
-        android:paddingEnd="2dp"
-        android:paddingTop="1dp"
-        android:paddingBottom="1dp"
-        android:background="#55333333"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginBottom="10dp"
-        android:visibility="gone"
-        tools:text="2333333"
-        tools:visibility="visible"/>
-
     <ProgressBar
         android:id="@+id/seeking_loading_pb"
         android:layout_width="wrap_content"

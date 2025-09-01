@@ -107,7 +107,6 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
                 }
             }.first()
             mediaPlayer.attachPlayerView(viewBinding.playerView)
-            mediaPlayer.attachSubtitleView(viewBinding.subtitleTv)
             if (mediaPlayer.getState() is tMediaPlayerState.Prepared) {
                 // mediaPlayer.loadExternalSubtitleFile(File(filesDir, "test.ass").canonicalPath)
                 mediaPlayer.play()

@@ -81,14 +81,14 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                 if (position is Long) {
                                     val result = seekToNative(readerNative = readerNative, position = position).toOptResult()
                                     tMediaPlayerLog.d(TAG) { "Seek to $position result: $result" }
+                                    packetQueue.flushReadableBuffer()
                                     subtitle.decoder.requestFlushDecoder()
                                     requestReadPkt()
                                 }
                             }
                             HandlerMsg.RequestReadPkt.ordinal -> {
-                                val queueSize = packetQueue.readableQueueSize()
-                                if (queueSize >= MAX_PKT_SIZE) {
-                                    tMediaPlayerLog.d(TAG) { "Packet queue full, queueSize=$queueSize." }
+                                if (packetQueue.isCanWrite()) {
+                                    tMediaPlayerLog.d(TAG) { "Packet queue full, queueSize=${packetQueue.readableQueueSize()}." }
                                     this@ExternalSubtitle.state.set(ReaderState.WaitingWritableBuffer)
                                 } else {
                                     if (state == ReaderState.WaitingWritableBuffer) {
@@ -175,10 +175,6 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         subtitle.pause()
     }
 
-    fun playerProgressUpdated(pts: Long) {
-        subtitle.playerProgressUpdated(pts)
-    }
-
     fun release() {
         synchronized(this) {
             val readerNative = externalSubtitlePktReaderNative.get()
@@ -241,7 +237,5 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
         }
 
         private const val TAG = "ExternalSubtitle"
-
-        private const val MAX_PKT_SIZE = 8
     }
 }

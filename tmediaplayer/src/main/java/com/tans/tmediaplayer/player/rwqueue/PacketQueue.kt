@@ -6,11 +6,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 internal class PacketQueue(
-    val player: tMediaPlayer
-) : BaseReadWriteQueue<Packet>() {
-
+    val player: tMediaPlayer,
     override val maxQueueSize: Int = INFINITY_MAX_QUEUE_SIZE
-
+) : BaseReadWriteQueue<Packet>() {
     private val duration: AtomicLong by lazy {
         AtomicLong(0L)
     }

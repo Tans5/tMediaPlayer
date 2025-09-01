@@ -6,7 +6,6 @@ import android.os.SystemClock
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.TextureView
-import android.widget.TextView
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.decoder.AudioFrameDecoder
@@ -142,8 +141,6 @@ class tMediaPlayer(
             player = this
         )
     }
-
-    private val subtitleView: AtomicReference<TextView?> = AtomicReference(null)
 
     private val internalSubtitle: AtomicReference<InternalSubtitle?> = AtomicReference(null)
 
@@ -481,7 +478,6 @@ class tMediaPlayer(
                         internalSubtitle.set(null)
                         externalSubtitle.get()?.release()
                         externalSubtitle.set(null)
-                        subtitleView.set(null)
                         tMediaPlayerLog.d(TAG) { "Release player" }
 
                         // Hw Surface.
@@ -534,10 +530,6 @@ class tMediaPlayer(
         } else {
             glRenderer.detachRenderSurface()
         }
-    }
-
-    override fun attachSubtitleView(view: TextView?) {
-        subtitleView.set(view)
     }
 
     @Synchronized
@@ -843,8 +835,6 @@ class tMediaPlayer(
                         listener.get()?.onProgressUpdate(progress, info.duration)
                     }
                 }
-                internalSubtitle.get()?.playerProgressUpdated(progress)
-                externalSubtitle.get()?.playerProgressUpdated(progress)
             }
         } else {
             tMediaPlayerLog.e(TAG) { "Ignore progress update, because of state: $state" }
@@ -901,8 +891,6 @@ class tMediaPlayer(
             }
         }
     }
-
-    internal fun getSubtitleView(): TextView? = subtitleView.get()
 
     internal fun getInternalSubtitle(): InternalSubtitle? = internalSubtitle.get()
 
