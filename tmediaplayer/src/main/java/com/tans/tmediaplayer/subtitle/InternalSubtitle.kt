@@ -15,10 +15,11 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
         val lastStream = selectedSubtitleStream.get()
         if (lastStream != subtitleStream) {
             selectedSubtitleStream.set(subtitleStream)
-            if (streamId == null) {
-                subtitle.decoder.requestFlushDecoder()
-            } else {
+            if (streamId != null) {
                 subtitle.decoder.requestSetupInternalSubtitleStream(subtitleStream.streamId)
+            } else {
+                subtitle.packetQueue.flushReadableBuffer()
+                subtitle.frameQueue.flushReadableBuffer()
             }
         }
     }
@@ -27,11 +28,8 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
 
     fun resetSubtitle() {
         selectedSubtitleStream.set(null)
-        subtitle.decoder.requestFlushDecoder()
-    }
-
-    fun flushDecoder() {
-        subtitle.decoder.requestFlushDecoder()
+        subtitle.packetQueue.flushReadableBuffer()
+        subtitle.frameQueue.flushReadableBuffer()
     }
 
     fun enqueueSubtitlePacket() {
@@ -47,6 +45,11 @@ internal class InternalSubtitle(val player: tMediaPlayer) {
                 subtitle.packetQueue.enqueueWritable(pkt)
             }
         }
+    }
+
+    fun packetReaderDoSeekFinish() {
+        subtitle.packetQueue.flushReadableBuffer()
+        subtitle.frameQueue.flushReadableBuffer()
     }
 
     fun play() {

@@ -45,6 +45,8 @@ internal class SubtitleFrameDecoder(
 
     private val decoderHandler: Handler = object : Handler(looper) {
 
+        private var packetSerial: Int = 1
+
         private var skipNextPktRead: Boolean = false
 
         override fun handleMessage(msg: Message) {
@@ -63,6 +65,18 @@ internal class SubtitleFrameDecoder(
                                     }
                                     if (skipNextPktRead || pkt != null) {
                                         val frame = frameQueue.dequeueWriteableForce()
+                                        val serialChanged = if (pkt != null) {
+                                            val changed = pkt.serial != packetSerial
+                                            packetSerial = pkt.serial
+                                            changed
+                                        } else {
+                                            false
+                                        }
+                                        if (serialChanged) {
+                                            tMediaPlayerLog.d(TAG) { "Serial changed, flush subtitle decoder, serial: $packetSerial" }
+                                            subtitle.flushSubtitleDecoder()
+                                        }
+                                        frame.serial = packetSerial
                                         val decodeResult = subtitle.decodeSubtitleInternal(pkt?.nativePacket ?: 0L)
                                         skipNextPktRead = decodeResult == DecodeResult.SuccessAndSkipNextPkt
                                         when (decodeResult) {
@@ -70,7 +84,7 @@ internal class SubtitleFrameDecoder(
                                                 val moveResult = subtitle.moveDecodedSubtitleFrameToBufferInternal(frame.nativeFrame)
                                                 if (moveResult == OptResult.Success) {
                                                     frameQueue.enqueueReadable(frame)
-                                                    tMediaPlayerLog.d(TAG) { "Decode subtitle success: $frame" }
+                                                    tMediaPlayerLog.d(TAG) { "Move subtitle buffer success: $frame" }
                                                 } else {
                                                     frameQueue.enqueueWritable(frame)
                                                     tMediaPlayerLog.e(TAG) { "Move subtitle buffer fail: $frame" }
@@ -103,22 +117,15 @@ internal class SubtitleFrameDecoder(
                                 this@SubtitleFrameDecoder.state.set(DecoderState.WaitingReadablePacketBuffer)
                             }
                         }
-                        DecoderHandlerMsg.RequestFlushDecoder.ordinal -> {
-                            skipNextPktRead = false
-                            subtitle.flushSubtitleDecoder()
-                            frameQueue.flushReadableBuffer()
-                            packetQueue.flushReadableBuffer()
-                            tMediaPlayerLog.d(TAG) { "Flush decoder." }
-                            requestDecode()
-                        }
+
                         DecoderHandlerMsg.RequestSetupInternalSubtitleStream.ordinal -> {
                             val subtitleStreamId = msg.obj
                             if (subtitleStreamId is Int) {
                                 synchronized(subtitle.player) {
                                     if (subtitle.player.getMediaInfo()?.subtitleStreams?.find { it.streamId == subtitleStreamId } != null) {
                                         skipNextPktRead = false
-                                        frameQueue.flushReadableBuffer()
                                         packetQueue.flushReadableBuffer()
+                                        frameQueue.flushReadableBuffer()
                                         val result = subtitle.setupSubtitleStreamFromPlayer(subtitleStreamId)
                                         if (result == OptResult.Success) {
                                             tMediaPlayerLog.d(TAG) { "Setup internal subtitle stream success: $subtitleStreamId" }
@@ -136,8 +143,8 @@ internal class SubtitleFrameDecoder(
                             val readerNative = msg.obj
                             if (readerNative is Long) {
                                 skipNextPktRead = false
-                                frameQueue.flushReadableBuffer()
                                 packetQueue.flushReadableBuffer()
+                                frameQueue.flushReadableBuffer()
                                 val result = subtitle.setupSubtitleStreamFromPktReader(readerNative = readerNative)
                                 if (result == OptResult.Success) {
                                     tMediaPlayerLog.d(TAG) { "Setup external subtitle stream success." }
@@ -165,16 +172,6 @@ internal class SubtitleFrameDecoder(
             decoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestDecode.ordinal)
         } else {
             tMediaPlayerLog.e(TAG) { "Request decode fail, wrong state: $state" }
-        }
-    }
-
-    fun requestFlushDecoder() {
-        val state = getState()
-        if (state in activeStates) {
-            decoderHandler.removeMessages(DecoderHandlerMsg.RequestFlushDecoder.ordinal)
-            decoderHandler.sendEmptyMessage(DecoderHandlerMsg.RequestFlushDecoder.ordinal)
-        } else {
-            tMediaPlayerLog.e(TAG) { "Request flush decoder fail, wrong state: $state" }
         }
     }
 
@@ -234,7 +231,6 @@ internal class SubtitleFrameDecoder(
     companion object {
         private enum class DecoderHandlerMsg {
             RequestDecode,
-            RequestFlushDecoder,
             RequestSetupInternalSubtitleStream,
             RequestSetupExternalSubtitleStream
         }

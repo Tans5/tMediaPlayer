@@ -1,6 +1,7 @@
 package com.tans.tmediaplayer.subtitle
 
 internal class SubtitleFrame(val nativeFrame: Long) {
+    var serial: Int = 0
     var startPts: Long = 0L
     var endPts: Long = 0L
     var width: Int = 0
@@ -21,6 +22,7 @@ internal class SubtitleFrame(val nativeFrame: Long) {
     }
 
     fun reset() {
+        serial = 0
         startPts = 0L
         endPts = 0L
     }

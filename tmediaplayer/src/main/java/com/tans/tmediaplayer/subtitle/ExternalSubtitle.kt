@@ -82,7 +82,7 @@ internal class ExternalSubtitle(val player: tMediaPlayer) {
                                     val result = seekToNative(readerNative = readerNative, position = position).toOptResult()
                                     tMediaPlayerLog.d(TAG) { "Seek to $position result: $result" }
                                     packetQueue.flushReadableBuffer()
-                                    subtitle.decoder.requestFlushDecoder()
+                                    subtitle.frameQueue.flushReadableBuffer()
                                     requestReadPkt()
                                 }
                             }

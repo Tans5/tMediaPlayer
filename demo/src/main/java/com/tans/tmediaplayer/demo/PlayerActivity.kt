@@ -66,7 +66,7 @@ class PlayerActivity : BaseCoroutineStateActivity<PlayerActivity.Companion.State
     }
 
     override fun CoroutineScope.firstLaunchInitDataCoroutine() {
-        tMediaPlayerLog.logLevel = tMediaPlayerLog.LogLevel.Error
+        // tMediaPlayerLog.logLevel = tMediaPlayerLog.LogLevel.Error
         launch(Dispatchers.IO) {
 
             // val loadResult = mediaPlayer.prepare("rtmp://liteavapp.qcloud.com/live/liteavdemoplayerstreamid")

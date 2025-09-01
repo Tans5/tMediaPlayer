@@ -147,6 +147,7 @@ internal class PacketReader(
                                         // Flush audio and video pkt.
                                         audioPacketQueue.flushReadableBuffer()
                                         videoPacketQueue.flushReadableBuffer()
+                                        player.getInternalSubtitle()?.packetReaderDoSeekFinish()
                                         player.getExternalSubtitle()?.requestSeek(position)
                                         tMediaPlayerLog.d(TAG) { "Seek to $position success, cost $cost ms" }
                                         this@PacketReader.state.compareAndSet(ReaderState.Eof, ReaderState.Ready)
@@ -154,7 +155,6 @@ internal class PacketReader(
                                         tMediaPlayerLog.e(TAG) { "Seek to $position fail, cost $cost ms" }
                                     }
                                     player.seekResult(position, result)
-                                    player.getInternalSubtitle()?.flushDecoder()
                                     requestReadPkt()
                                 }
                             }

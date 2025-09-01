@@ -110,7 +110,7 @@ internal class VideoFrameDecoder(
 
             private var skipNextPktRead: Boolean = false
 
-            private var packetSerial: Int = -1
+            private var packetSerial: Int = 1
 
             // GL render task: move oes texture to texture buffer.
             fun glRenderTaskCallback(containGLContext: Boolean) {

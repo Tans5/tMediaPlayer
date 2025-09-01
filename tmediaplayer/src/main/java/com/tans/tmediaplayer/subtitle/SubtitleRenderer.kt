@@ -9,7 +9,6 @@ import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.min
 
 internal class SubtitleRenderer(
     private val player: tMediaPlayer,
@@ -46,10 +45,15 @@ internal class SubtitleRenderer(
                                 if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                     this@SubtitleRenderer.state.set(RendererState.Playing)
                                 }
+                                if (frame.serial != subtitle.packetQueue.getSerial()) {
+                                    tMediaPlayerLog.d(TAG) { "Skip render frame: $frame, serial changed." }
+                                    frameQueue.enqueueWritable(frame)
+                                    requestRender()
+                                    return@synchronized
+                                }
                                 val playerPts = player.getProgress()
                                 // TODO: render subtitle.
-
-
+                                frameQueue.enqueueWritable(frame)
                             } else {
                                 if (state == RendererState.Playing) {
                                     this@SubtitleRenderer.state.set(RendererState.WaitingReadableFrameBuffer)

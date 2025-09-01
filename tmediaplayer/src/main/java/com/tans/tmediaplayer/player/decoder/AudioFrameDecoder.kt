@@ -57,7 +57,7 @@ internal class AudioFrameDecoder(
 
             private var skipNextPktRead: Boolean = false
 
-            private var packetSerial: Int = -1
+            private var packetSerial: Int = 1
 
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
