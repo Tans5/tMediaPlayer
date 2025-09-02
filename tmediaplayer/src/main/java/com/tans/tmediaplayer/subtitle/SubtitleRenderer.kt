@@ -10,6 +10,7 @@ import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 
@@ -148,8 +149,11 @@ internal class SubtitleRenderer(
                         null
                     }
                     if (keyValue != null) {
-                        iterator.remove()
-                        frameQueue.enqueueWritable(keyValue.key)
+                        try {
+                            iterator.remove()
+                            frameQueue.enqueueWritable(keyValue.key)
+                        } catch (_: Throwable) {
+                        }
                     }
                 }
                 tMediaPlayerLog.d(TAG) { "Subtitle renderer released." }
