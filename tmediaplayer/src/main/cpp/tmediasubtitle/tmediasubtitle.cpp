@@ -124,25 +124,33 @@ const static char* defaultAssHeaderFormat =
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
 
+// 4s
+const static int64_t DEFAULT_SUBTITLE_DURATION = 4000;
+
 tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSubtitleBuffer *buffer) {
 
-    double ptsStart = 0;
-    double ptsEnd = 0;
-    // TODO: Fix ptsStart and ptsEnd
-    if (subtitle_frame->start_display_time > 0) {
-        ptsStart = subtitle_frame->start_display_time;
-    } else if (subtitle_pkt->time_base.den != 0) {
-        ptsStart = (double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0;
+    int64_t ptsInMillis = 0;
+    int64_t durationInMillis = 0;
+    if (subtitle_pkt->pts != AV_NOPTS_VALUE) {
+        ptsInMillis = (int64_t) ((double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0);
+        durationInMillis = (int64_t) ((double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0);
     }
-    if (subtitle_frame->end_display_time > 0) {
-        ptsEnd = subtitle_frame->end_display_time;
-    } else if(subtitle_pkt->time_base.den != 0) {
-        ptsEnd = (double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0 + ptsStart;
+    if (ptsInMillis == 0 && subtitle_frame->pts != AV_NOPTS_VALUE) {
+        ptsInMillis = (int64_t) ((double) subtitle_frame->pts * av_q2d(subtitle_pkt->time_base) * 1000.0);
     }
-    LOGD("Subtitle pts=%lld, startDisplay=%lld, endDisplay=%lld", subtitle_frame->pts, subtitle_frame->start_display_time, subtitle_frame->end_display_time);
-    LOGD("Pkt pts=%lld, duration=%lld", subtitle_pkt->pts, subtitle_pkt->duration);
-    buffer->start_pts = (int64_t) ptsStart;
-    buffer->end_pts = (int64_t) ptsEnd;
+    if (subtitle_frame->pts != AV_NOPTS_VALUE && subtitle_frame->start_display_time >= 0 && subtitle_frame->end_display_time >= 0) {
+        ptsInMillis = (int64_t) ((double) subtitle_frame->pts * av_q2d(subtitle_pkt->time_base) * 1000.0);
+        ptsInMillis += subtitle_frame->start_display_time;
+        durationInMillis = subtitle_frame->end_display_time - subtitle_frame->start_display_time;
+    }
+    if (durationInMillis <= 0) {
+        durationInMillis = DEFAULT_SUBTITLE_DURATION;
+        LOGD("Use default subtitle duration.");
+    }
+    LOGD("Subtitle: pts=%lld, duration=%lld", ptsInMillis, durationInMillis);
+
+    buffer->start_pts = ptsInMillis;
+    buffer->end_pts = ptsInMillis + durationInMillis;
     buffer->width = frame_width;
     buffer->height = frame_height;
     int contentSize = buffer->width * buffer->height * 4;
@@ -158,13 +166,9 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
     auto outputBitmap = buffer->rgbaBuffer;
 
     if (subtitle_frame->format != 0) { // text
+        // region Move text subtitle
         if (ass_library == nullptr) {
             ass_library = ass_library_init();
-//                ass_set_message_cb(ass_library, [](int level, const char* fmt, va_list va, void* data) {
-//                    char buf[1024];
-//                    vsnprintf(buf, sizeof(buf), fmt, va);
-//                    LOGD("[libass] %s", buf);
-//                }, nullptr);
             LOGD("Create new ass library.");
         }
         if (ass_renderer == nullptr) {
@@ -210,7 +214,6 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
             uint8_t g = (color >> 16) & 0xFF;
             uint8_t b = (color >> 8) & 0xFF;
             uint8_t global_alpha = 255 - (color & 255);
-            LOGD("ASS Rect width=%d, height=%d, pos_x=%d, pos_y=%d, r=%d, g=%d, b=%d, a=%d", img->w, img->h, img->dst_x, img->dst_y, r, g, b, global_alpha);
 
             if (global_alpha > 0) {
                 write_image ++;
@@ -254,14 +257,14 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         }
         ass_flush_events(ass_track);
         return write_image > 0 ? OptSuccess : OptFail;
+        // endregion
     } else { // bitmap
+        // region Move bitmap subtitle
         LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
         for (int i = 0; i < subtitle_frame->num_rects; i ++) {
             auto rect = subtitle_frame->rects[i];
             uint8_t *pixel_indices = rect->data[0];
             uint32_t  *palette = (uint32_t *)rect->data[1];
-
-            LOGD("FF subtitle rect: width=%d, height=%d, x=%d, y=%d, indexlinesize=%d", rect->w, rect->h, rect->x, rect->y, rect->linesize[0]);
 
             for (int y = 0; y < rect->h; y++) {
                 for (int x = 0; x < rect->w; x++) {
@@ -296,6 +299,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
                 }
             }
         }
+        // endregion
         return subtitle_frame->num_rects > 0 ? OptSuccess : OptFail;
     }
 }
