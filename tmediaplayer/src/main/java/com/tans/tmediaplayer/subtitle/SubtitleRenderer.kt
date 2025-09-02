@@ -148,6 +148,7 @@ internal class SubtitleRenderer(
                         null
                     }
                     if (keyValue != null) {
+                        iterator.remove()
                         frameQueue.enqueueWritable(keyValue.key)
                     }
                 }
