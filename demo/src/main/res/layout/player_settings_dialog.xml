@@ -152,6 +152,48 @@
                     android:max="100"
                     android:progress="0"/>
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/white"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Subtitle Settings:"
+                    android:layout_marginTop="12dp"
+                    android:textColor="@color/white"/>
+
+                <TextView
+                    android:id="@+id/subtitle_x_offset_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Subtitle X Offset: 50"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/white"/>
+
+                <androidx.appcompat.widget.AppCompatSeekBar
+                    android:id="@+id/subtitle_x_offset_sb"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="50"/>
+
+                <TextView
+                    android:id="@+id/subtitle_y_offset_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Subtitle Y Offset: 50"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/white"/>
+
+                <androidx.appcompat.widget.AppCompatSeekBar
+                    android:id="@+id/subtitle_y_offset_sb"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="50"/>
+
             </LinearLayout>
 
         </LinearLayout>

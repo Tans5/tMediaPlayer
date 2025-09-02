@@ -10,6 +10,7 @@ import android.opengl.Matrix
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.TextureView
+import androidx.annotation.FloatRange
 import com.tans.tmediaplayer.R
 import com.tans.tmediaplayer.player.model.ImageRawType
 import com.tans.tmediaplayer.player.playerview.filter.FilterImageTexture
@@ -43,7 +44,7 @@ internal class GLRenderer {
             }
 
             override fun onSurfaceDestroyed() {
-                tMediaPlayerLog.d(TAG) { "Andorid surface destroyed." }
+                tMediaPlayerLog.d(TAG) { "Android surface destroyed." }
                 glThread.requestDetachSurface()
             }
         }
@@ -142,6 +143,28 @@ internal class GLRenderer {
             }
         }
     }
+
+    fun setSubtitleXOffset(
+        @FloatRange(from = 0.0, to = 1.0)
+        offset: Float
+    ) {
+        if (!isReleased) {
+            realRenderer.subtitleXOffset.set(offset.coerceIn(0.0f, 1.0f))
+        }
+    }
+
+    fun getSubtitleXOffset(): Float = realRenderer.subtitleXOffset.get()
+
+    fun setSubtitleYOffset(
+        @FloatRange(from = 0.0, to = 1.0)
+        offset: Float
+    ) {
+        if (!isReleased) {
+            realRenderer.subtitleYOffset.set(offset.coerceIn(0.0f, 1.0f))
+        }
+    }
+
+    fun getSubtitleYOffset(): Float = realRenderer.subtitleYOffset.get()
 
     // region OptRenderView
     @Synchronized
@@ -302,6 +325,10 @@ internal class GLRenderer {
         val subtitleRenderData: SubtitleRenderData = SubtitleRenderData()
 
         val isWritingSubtitleRenderData = AtomicBoolean(false)
+
+        val subtitleXOffset = AtomicReference(0.5f)
+
+        val subtitleYOffset = AtomicReference(0.5f)
         //endregion
 
         private var sizeCache: Pair<Int, Int>? = null
@@ -331,13 +358,17 @@ internal class GLRenderer {
                 val textureLoc = GLES30.glGetUniformLocation(program, "Texture")
                 val subtitleTextureLoc = GLES30.glGetUniformLocation(program, "subtitleTexture")
                 val enableSubtitleLoc = GLES30.glGetUniformLocation(program, "enableSubtitle")
+                val subtitleXOffsetLoc = GLES30.glGetUniformLocation(program, "subtitleXOffset")
+                val subtitleYOffsetLoc = GLES30.glGetUniformLocation(program, "subtitleYOffset")
                 glRendererData = GLRendererData(
                     program = program,
                     VAO = VAO,
                     VBO = VBO,
                     textureLoc = textureLoc,
                     subtitleTextureLoc = subtitleTextureLoc,
-                    enableSubtitleLoc = enableSubtitleLoc
+                    enableSubtitleLoc = enableSubtitleLoc,
+                    subtitleXOffsetLoc = subtitleXOffsetLoc,
+                    subtitleYOffsetLoc = subtitleYOffsetLoc
                 )
             }
             filter.get()?.dispatchGlSurfaceCreated(context)
@@ -565,6 +596,8 @@ internal class GLRenderer {
                 GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, subtitleTextureId)
                 GLES30.glUniform1i(rendererData.subtitleTextureLoc, 1)
                 GLES30.glUniform1i(rendererData.enableSubtitleLoc, 1)
+                GLES30.glUniform1f(rendererData.subtitleXOffsetLoc, subtitleXOffset.get())
+                GLES30.glUniform1f(rendererData.subtitleYOffsetLoc, subtitleYOffset.get())
             } else {
                 GLES30.glUniform1i(rendererData.enableSubtitleLoc, 0)
             }
@@ -1313,7 +1346,9 @@ internal class GLRenderer {
             val VBO: Int,
             val textureLoc: Int,
             val subtitleTextureLoc: Int,
-            val enableSubtitleLoc: Int
+            val enableSubtitleLoc: Int,
+            val subtitleXOffsetLoc: Int,
+            val subtitleYOffsetLoc: Int
         )
 
         private data class OESGLRenderData(

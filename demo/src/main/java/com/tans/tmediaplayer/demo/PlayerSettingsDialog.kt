@@ -98,8 +98,8 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 val requestWidth = (progress.toFloat() / 100.0f * (AsciiArtImageFilter.MAX_CHAR_LINE_WIDTH - AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH).toFloat() + AsciiArtImageFilter.MIN_CHAR_LINE_WIDTH.toFloat() + 0.5f).toInt()
                 if (fromUser) {
                     asciiArtFilter.setCharLineWidth(requestWidth)
+                    requestRender()
                 }
-                requestRender()
                 viewBinding.charWidthTv.text = "Char Width: $requestWidth"
             }
         })
@@ -113,11 +113,52 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 if (fromUser) {
                     val requestRate = progress.toFloat() / 100.0f
                     asciiArtFilter.colorFillRate(requestRate)
+                    requestRender()
                 }
-                requestRender()
                 viewBinding.imageColorFillRateTv.text = "Image Color Fill Rate: $progress"
             }
         })
         viewBinding.imageColorFillRateSb.progress = (asciiArtFilter.getColorFillRate() * 100.0f + 0.5f).toInt()
+
+        viewBinding.subtitleXOffsetSb.progress = (player.getSubtitleXOffset() * 100.0f).toInt()
+        viewBinding.subtitleXOffsetSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) { }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) { }
+
+            override fun onProgressChanged(
+                seekBar: SeekBar?,
+                progress: Int,
+                fromUser: Boolean
+            ) {
+                if (fromUser) {
+                    player.setSubtitleXOffset(progress.toFloat() / 100.0f)
+                    requestRender()
+                }
+                viewBinding.subtitleXOffsetTv.text = "Subtitle X Offset: $progress"
+            }
+        })
+
+
+        viewBinding.subtitleYOffsetSb.progress = (player.getSubtitleYOffset() * 100.0f).toInt()
+        viewBinding.subtitleYOffsetSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) { }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) { }
+
+            override fun onProgressChanged(
+                seekBar: SeekBar?,
+                progress: Int,
+                fromUser: Boolean
+            ) {
+                if (fromUser) {
+                    player.setSubtitleYOffset(progress.toFloat() / 100.0f)
+                    requestRender()
+                }
+                viewBinding.subtitleYOffsetTv.text = "Subtitle Y Offset: $progress"
+            }
+        })
     }
 }

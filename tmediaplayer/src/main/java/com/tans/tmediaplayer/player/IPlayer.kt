@@ -2,6 +2,7 @@ package com.tans.tmediaplayer.player
 
 import android.view.SurfaceView
 import android.view.TextureView
+import androidx.annotation.FloatRange
 import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.SubtitleStreamInfo
@@ -49,6 +50,14 @@ internal interface IPlayer {
     fun setFilter(filter: ImageFilter?)
 
     fun getFilter(): ImageFilter?
+
+    fun setSubtitleXOffset(@FloatRange(0.0, 1.0) offset: Float)
+
+    fun getSubtitleXOffset(): Float
+
+    fun setSubtitleYOffset(@FloatRange(0.0, 1.0) offset: Float)
+
+    fun getSubtitleYOffset(): Float
 
     fun refreshVideoFrame()
 }

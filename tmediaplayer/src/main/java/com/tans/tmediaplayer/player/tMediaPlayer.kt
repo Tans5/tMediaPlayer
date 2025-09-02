@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.TextureView
+import androidx.annotation.FloatRange
 import androidx.annotation.Keep
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.decoder.AudioFrameDecoder
@@ -629,6 +630,18 @@ class tMediaPlayer(
     }
 
     override fun getFilter(): ImageFilter? = glRenderer.getFilter()
+
+    override fun setSubtitleXOffset(@FloatRange(0.0, 1.0) offset: Float) {
+        glRenderer.setSubtitleXOffset(offset)
+    }
+
+    override fun getSubtitleXOffset(): Float = glRenderer.getSubtitleXOffset()
+
+    override fun setSubtitleYOffset(@FloatRange(0.0, 1.0) offset: Float) {
+        glRenderer.setSubtitleYOffset(offset)
+    }
+
+    override fun getSubtitleYOffset(): Float = glRenderer.getSubtitleYOffset()
 
     override fun refreshVideoFrame() {
         glRenderer.refreshFrame()
