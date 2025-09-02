@@ -274,7 +274,6 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         // endregion
     } else { // bitmap
         // region Move bitmap subtitle
-        LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
         int32_t bufferWidth = frame_width;
         int32_t bufferHeight = frame_height;
 
