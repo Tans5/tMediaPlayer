@@ -562,7 +562,7 @@ internal class GLRenderer {
             GLES30.glUniform1i(rendererData.textureLoc, 0)
             if (subtitleTextureId != null) {
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
-                GLES30.glBindTexture(rendererData.subtitleTextureLoc, subtitleTextureId)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, subtitleTextureId)
                 GLES30.glUniform1i(rendererData.subtitleTextureLoc, 1)
                 GLES30.glUniform1i(rendererData.enableSubtitleLoc, 1)
             } else {

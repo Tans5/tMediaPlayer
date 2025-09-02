@@ -128,10 +128,19 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
 
     double ptsStart = 0;
     double ptsEnd = 0;
-    if (subtitle_pkt->time_base.den != 0) {
+    // TODO: Fix ptsStart and ptsEnd
+    if (subtitle_frame->start_display_time > 0) {
+        ptsStart = subtitle_frame->start_display_time;
+    } else if (subtitle_pkt->time_base.den != 0) {
         ptsStart = (double) subtitle_pkt->pts * av_q2d(subtitle_pkt->time_base) * 1000.0;
+    }
+    if (subtitle_frame->end_display_time > 0) {
+        ptsEnd = subtitle_frame->end_display_time;
+    } else if(subtitle_pkt->time_base.den != 0) {
         ptsEnd = (double) subtitle_pkt->duration * av_q2d(subtitle_pkt->time_base) * 1000.0 + ptsStart;
     }
+    LOGD("Subtitle pts=%lld, startDisplay=%lld, endDisplay=%lld", subtitle_frame->pts, subtitle_frame->start_display_time, subtitle_frame->end_display_time);
+    LOGD("Pkt pts=%lld, duration=%lld", subtitle_pkt->pts, subtitle_pkt->duration);
     buffer->start_pts = (int64_t) ptsStart;
     buffer->end_pts = (int64_t) ptsEnd;
     buffer->width = frame_width;
