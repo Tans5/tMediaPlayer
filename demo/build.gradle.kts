@@ -73,6 +73,9 @@ android {
     kotlin {
         jvmToolchain(11)
     }
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {

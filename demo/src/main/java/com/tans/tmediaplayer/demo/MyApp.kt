@@ -9,7 +9,7 @@ import com.tans.tapm.monitors.ForegroundScreenPowerCostMonitor
 import com.tans.tapm.monitors.HttpRequestMonitor
 import com.tans.tapm.monitors.MainThreadLagMonitor
 import com.tans.tapm.monitors.MemoryUsageMonitor
-import com.tans.tmediaplayer.BuildConfig
+import com.tans.tmediaplayer.demo.BuildConfig
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tuiutils.systembar.AutoApplySystemBarAnnotation
 
