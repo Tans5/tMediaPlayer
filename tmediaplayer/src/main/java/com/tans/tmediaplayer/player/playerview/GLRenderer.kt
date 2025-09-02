@@ -1083,7 +1083,7 @@ internal class GLRenderer {
                                 (this as Object).notifyAll()
                                 break
                             } else {
-                                tMediaPlayerLog.d(TAG) { "Gl thread no task to do." }
+                                // tMediaPlayerLog.d(TAG) { "Gl thread no task to do." }
                                 (this as Object).wait()
                             }
                         } else {

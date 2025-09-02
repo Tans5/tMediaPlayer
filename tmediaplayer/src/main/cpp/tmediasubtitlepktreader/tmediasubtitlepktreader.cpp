@@ -3,19 +3,6 @@
 //
 #include "tmediasubtitlepktreader.h"
 
-static bool isSupportSubtitleStream(AVStream * s) {
-    return true;
-//    auto codecId = s->codecpar->codec_id;
-//    auto type = s->codecpar->codec_type;
-//    return (type == AVMEDIA_TYPE_SUBTITLE &&
-//            codecId != AV_CODEC_ID_DVD_SUBTITLE &&
-//            codecId != AV_CODEC_ID_XSUB &&
-//            codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE
-//            // && codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE
-//
-//    );
-}
-
 tMediaOptResult tMediaSubtitlePktReaderContext::prepare(const char *subtitle_file) {
     if (subtitle_stream != nullptr) {
         subtitle_stream = nullptr;
@@ -36,7 +23,7 @@ tMediaOptResult tMediaSubtitlePktReaderContext::prepare(const char *subtitle_fil
 
     for (int i = 0; i < format_ctx->nb_streams; i ++) {
         auto s = format_ctx->streams[i];
-        if (isSupportSubtitleStream(s)) {
+        if (s->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
             subtitle_stream = s;
             break;
         }

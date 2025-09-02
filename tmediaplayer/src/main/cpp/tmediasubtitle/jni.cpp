@@ -153,44 +153,6 @@ Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleFrameRgbaBytesNati
     env->DeleteLocalRef(j_bytes);
 }
 
-//
-//extern "C" JNIEXPORT jobjectArray JNICALL
-//Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_getSubtitleStringsNative(
-//        JNIEnv * env,
-//        jobject j_subtitle,
-//        jlong native_buffer) {
-//    auto buffer = reinterpret_cast<tMediaSubtitleBuffer *>(native_buffer);
-//    auto subtitleFrame = buffer->subtitle_frame;
-//    auto lineSize = subtitleFrame->num_rects;
-//    auto subtitleRects = subtitleFrame->rects;
-//
-//    auto stringClazz_ref = reinterpret_cast<jclass> (env->NewLocalRef(env->FindClass("java/lang/String")));
-//    auto result = env->NewObjectArray((int) lineSize, stringClazz_ref, nullptr);
-//    auto jarray_ref = reinterpret_cast<jobjectArray>(env->NewLocalRef(result));
-//    env->DeleteLocalRef(stringClazz_ref);
-//    for (int i = 0; i < lineSize; i ++) {
-//        auto rect = subtitleRects[i];
-//        const char * line = "";
-//        switch (rect->type) {
-//            case SUBTITLE_TEXT:
-//                line = rect->text;
-//                break;
-//            case SUBTITLE_ASS:
-//                line = rect->ass;
-//                break;
-//            default:
-//                LOGE("Don't support subtitle format: %d", rect->type);
-//                break;
-//        }
-//        LOGD("ReadSubtitle: x=%d, y=%d, w=%d, h=%d, lineSize=%d", rect->x, rect->y, rect->w, rect->h, rect->linesize[0]);
-//        auto j_string_ref = reinterpret_cast<jstring>(env->NewLocalRef(env->NewStringUTF(line)));
-//        env->SetObjectArrayElement(jarray_ref, i, j_string_ref);
-//        env->DeleteLocalRef(j_string_ref);
-//    }
-//    env->DeleteLocalRef(jarray_ref);
-//    return result;
-//}
-
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_subtitle_tMediaSubtitle_releaseSubtitleBufferNative(
         JNIEnv * env,

@@ -63,24 +63,6 @@ static void releaseMetadata(Metadata *src) {
     src->metadata = nullptr;
 }
 
-/**
- * Do not support bitmap subtitle.
- * @param s
- * @return
- */
-static bool isSupportSubtitleStream(AVStream * s) {
-    return true;
-//    auto codecId = s->codecpar->codec_id;
-//    auto type = s->codecpar->codec_type;
-//    return (type == AVMEDIA_TYPE_SUBTITLE &&
-//           codecId != AV_CODEC_ID_DVD_SUBTITLE &&
-//           codecId != AV_CODEC_ID_XSUB &&
-//           codecId != AV_CODEC_ID_HDMV_PGS_SUBTITLE
-//           // && codecId != AV_CODEC_ID_HDMV_TEXT_SUBTITLE
-//
-//           );
-}
-
 static int decode_interrupt_cb(void *ctx)
 {
     auto *player_ctx = static_cast<tMediaPlayerContext *>(ctx);
@@ -513,9 +495,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
                 break;
 
             case AVMEDIA_TYPE_SUBTITLE:
-                if (isSupportSubtitleStream(s)) {
-                    subtitleStreamCountLocal ++;
-                }
+                subtitleStreamCountLocal ++;
                 break;
             default:
                 break;
@@ -539,17 +519,12 @@ tMediaOptResult tMediaPlayerContext::prepare(
             auto codec_type = s->codecpar->codec_type;
             if (codec_type == AVMEDIA_TYPE_SUBTITLE) {
                 // Do not support bitmap subtitle.
-                if (isSupportSubtitleStream(s)) {
-                    LOGD("SubtitleStream: %d", s->index);
-                    auto* ts = new SubtitleStream;
-                    subtitleStreams[subtitleIndex] = ts;
-                    ts->stream = s;
-                    readMetadata(s->metadata, &ts->streamMetadata);
-                    subtitleIndex ++;
-                } else {
-                    auto codecId = s->codecpar->codec_id;
-                    LOGE("Do not support subtitle stream: streamIndex=%d, codecId=%d", s->index, codecId);
-                }
+                LOGD("SubtitleStream: %d", s->index);
+                auto* ts = new SubtitleStream;
+                subtitleStreams[subtitleIndex] = ts;
+                ts->stream = s;
+                readMetadata(s->metadata, &ts->streamMetadata);
+                subtitleIndex ++;
             }
         }
     }

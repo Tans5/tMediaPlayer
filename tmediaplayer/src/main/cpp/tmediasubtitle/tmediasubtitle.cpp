@@ -145,9 +145,9 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
     }
     if (durationInMillis <= 0) {
         durationInMillis = DEFAULT_SUBTITLE_DURATION;
-        LOGD("Use default subtitle duration.");
+        //LOGD("Use default subtitle duration.");
     }
-    LOGD("Subtitle: pts=%lld, duration=%lld", ptsInMillis, durationInMillis);
+    // LOGD("Subtitle: pts=%lld, duration=%lld", ptsInMillis, durationInMillis);
 
     buffer->start_pts = ptsInMillis;
     buffer->end_pts = ptsInMillis + durationInMillis;
@@ -205,7 +205,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
             }
             ass_process_data(ass_track, buffer, size);
         }
-        LOGD("ASS event size: %d", ass_track->n_events);
+        // LOGD("ASS event size: %d", ass_track->n_events);
         auto img = ass_render_frame(ass_renderer, ass_track, 1000, nullptr);
         int write_image = 0;
         while (img != nullptr) {
@@ -260,7 +260,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         // endregion
     } else { // bitmap
         // region Move bitmap subtitle
-        LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
+        // LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
         for (int i = 0; i < subtitle_frame->num_rects; i ++) {
             auto rect = subtitle_frame->rects[i];
             uint8_t *pixel_indices = rect->data[0];
