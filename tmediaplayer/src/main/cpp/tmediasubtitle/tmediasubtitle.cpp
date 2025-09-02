@@ -272,10 +272,10 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
                     int target_x = rect->x + x;
                     int target_y = rect->y + y;
                     uint32_t color = palette[index];
-                    uint8_t r = (color >> 24) & 0xFF;
-                    uint8_t g = (color >> 16) & 0xFF;
-                    uint8_t b = (color >> 8) & 0xFF;
-                    uint8_t a = color & 0xFF;
+                    uint8_t a = (color >> 24) & 0xFF;
+                    uint8_t r = (color >> 16) & 0xFF;
+                    uint8_t g = (color >> 8) & 0xFF;
+                    uint8_t b = color & 0xFF;
 
                     if (target_x < 0 || target_x >= frame_width || target_y < 0 || target_y >= frame_height || a <= 0) {
                         continue;
