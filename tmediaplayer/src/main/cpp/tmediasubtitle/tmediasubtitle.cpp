@@ -151,19 +151,6 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
 
     buffer->start_pts = ptsInMillis;
     buffer->end_pts = ptsInMillis + durationInMillis;
-    buffer->width = frame_width;
-    buffer->height = frame_height;
-    int contentSize = buffer->width * buffer->height * 4;
-    if (contentSize > buffer->bufferSize) {
-        if (buffer->rgbaBuffer != nullptr) {
-            free(buffer->rgbaBuffer);
-        }
-        buffer->bufferSize = contentSize;
-        buffer->rgbaBuffer = static_cast<uint8_t *>(malloc(contentSize));
-        LOGD("Create new subtitle rgba buffer, contentSize=%d, width=%d, height=%d", buffer->bufferSize, buffer->width, buffer->height);
-    }
-    memset(buffer->rgbaBuffer, 0, frame_width * frame_height * 4);
-    auto outputBitmap = buffer->rgbaBuffer;
 
     if (subtitle_frame->format != 0) { // text
         // region Move text subtitle
@@ -207,9 +194,38 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         }
         // LOGD("ASS event size: %d", ass_track->n_events);
         auto img = ass_render_frame(ass_renderer, ass_track, 1000, nullptr);
+        int32_t bufferWidth = frame_width;
+        int32_t bufferHeight = frame_height;
+        auto imgCur = img;
+
+        while (imgCur != nullptr) {
+            if ((imgCur->dst_x + imgCur->w) > bufferWidth) {
+                bufferWidth = imgCur->dst_x + imgCur->w;
+            }
+            if ((imgCur->dst_y + imgCur->h) > bufferHeight) {
+                bufferHeight = imgCur->dst_y + imgCur->h;
+            }
+            imgCur = imgCur->next;
+        }
+
+        buffer->width = bufferWidth;
+        buffer->height = bufferHeight;
+        int contentSize = buffer->width * buffer->height * 4;
+        if (contentSize > buffer->bufferSize) {
+            if (buffer->rgbaBuffer != nullptr) {
+                free(buffer->rgbaBuffer);
+            }
+            buffer->bufferSize = contentSize;
+            buffer->rgbaBuffer = static_cast<uint8_t *>(malloc(contentSize));
+            LOGD("Create new subtitle rgba buffer, bufferSize=%d, width=%d, height=%d", buffer->bufferSize, buffer->width, buffer->height);
+        }
+        memset(buffer->rgbaBuffer, 0, contentSize);
+        auto outputBitmap = buffer->rgbaBuffer;
+
+        imgCur = img;
         int write_image = 0;
-        while (img != nullptr) {
-            uint32_t color = img->color;
+        while (imgCur != nullptr) {
+            uint32_t color = imgCur->color;
             uint8_t r = (color >> 24) & 0xFF;
             uint8_t g = (color >> 16) & 0xFF;
             uint8_t b = (color >> 8) & 0xFF;
@@ -217,9 +233,9 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
 
             if (global_alpha > 0) {
                 write_image ++;
-                for (int y = 0; y < img->h; y ++) {
-                    for (int x = 0; x < img->w; x ++) {
-                        uint8_t alpha = img->bitmap[y * img->stride + x];
+                for (int y = 0; y < imgCur->h; y ++) {
+                    for (int x = 0; x < imgCur->w; x ++) {
+                        uint8_t alpha = imgCur->bitmap[y * imgCur->stride + x];
                         if (alpha == 0) {
                             // skip
                             continue;
@@ -229,12 +245,10 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
                             // skip
                             continue;
                         }
-                        int target_x = img->dst_x + x;
-                        int target_y = img->dst_y + y;
-                        if (target_x < 0 || target_x >= frame_width || target_y < 0 || target_y >= frame_height) {
-                            continue;
-                        }
-                        uint8_t *pixel = &outputBitmap[(target_y * frame_width * 4) + (target_x * 4)];
+                        int target_x = imgCur->dst_x + x;
+                        int target_y = imgCur->dst_y + y;
+
+                        uint8_t *pixel = &outputBitmap[(target_y * bufferWidth * 4) + (target_x * 4)];
                         uint8_t bg_alpha = pixel[3];
                         if (bg_alpha == 0) {
                             pixel[0] = r;
@@ -253,7 +267,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
                     }
                 }
             }
-            img = img->next;
+            imgCur = imgCur->next;
         }
         ass_flush_events(ass_track);
         return write_image > 0 ? OptSuccess : OptFail;
@@ -261,6 +275,33 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
     } else { // bitmap
         // region Move bitmap subtitle
         LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
+        int32_t bufferWidth = frame_width;
+        int32_t bufferHeight = frame_height;
+
+        for (int i = 0; i < subtitle_frame->num_rects; i ++) {
+            auto rect = subtitle_frame->rects[i];
+            if ((rect->x + rect->w) > bufferWidth) {
+                bufferWidth = rect->x + rect->w;
+            }
+            if ((rect->y + rect->h) > bufferHeight) {
+                bufferHeight = rect->y + rect->h;
+            }
+        }
+
+        buffer->width = bufferWidth;
+        buffer->height = bufferHeight;
+        int contentSize = buffer->width * buffer->height * 4;
+        if (contentSize > buffer->bufferSize) {
+            if (buffer->rgbaBuffer != nullptr) {
+                free(buffer->rgbaBuffer);
+            }
+            buffer->bufferSize = contentSize;
+            buffer->rgbaBuffer = static_cast<uint8_t *>(malloc(contentSize));
+            LOGD("Create new subtitle rgba buffer, bufferSize=%d, width=%d, height=%d", buffer->bufferSize, buffer->width, buffer->height);
+        }
+        memset(buffer->rgbaBuffer, 0, contentSize);
+        auto outputBitmap = buffer->rgbaBuffer;
+
         for (int i = 0; i < subtitle_frame->num_rects; i ++) {
             auto rect = subtitle_frame->rects[i];
             uint8_t *pixel_indices = rect->data[0];
@@ -276,11 +317,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
                     uint8_t r = (color >> 16) & 0xFF;
                     uint8_t g = (color >> 8) & 0xFF;
                     uint8_t b = color & 0xFF;
-
-                    if (target_x < 0 || target_x >= frame_width || target_y < 0 || target_y >= frame_height || a <= 0) {
-                        continue;
-                    }
-                    uint8_t *pixel = &outputBitmap[(target_y * frame_width * 4) + (target_x * 4)];
+                    uint8_t *pixel = &outputBitmap[(target_y * bufferWidth * 4) + (target_x * 4)];
                     uint8_t bg_alpha = pixel[3];
                     if (bg_alpha == 0) {
                         pixel[0] = r;
