@@ -260,7 +260,7 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
         // endregion
     } else { // bitmap
         // region Move bitmap subtitle
-        // LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
+        LOGD("FF subtitle rect size: %d", subtitle_frame->num_rects);
         for (int i = 0; i < subtitle_frame->num_rects; i ++) {
             auto rect = subtitle_frame->rects[i];
             uint8_t *pixel_indices = rect->data[0];

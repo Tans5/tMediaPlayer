@@ -10,9 +10,8 @@ import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.max
+import kotlin.math.min
 
 internal class SubtitleRenderer(
     private val player: tMediaPlayer,
@@ -74,7 +73,7 @@ internal class SubtitleRenderer(
                                     return@synchronized
                                 }
                                 if (playerPts < frame.startPts) { // need to delay to render
-                                    val delay = max(frame.startPts - playerPts, 300)
+                                    val delay = min(frame.startPts - playerPts, 3000)
                                     tMediaPlayerLog.d(TAG) { "Need to delay ${delay}ms to render $frame, playerPts=$playerPts" }
                                     requestRender(delay)
                                     return@synchronized
