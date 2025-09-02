@@ -120,7 +120,6 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
         })
         viewBinding.imageColorFillRateSb.progress = (asciiArtFilter.getColorFillRate() * 100.0f + 0.5f).toInt()
 
-        viewBinding.subtitleXOffsetSb.progress = (player.getSubtitleXOffset() * 100.0f).toInt()
         viewBinding.subtitleXOffsetSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) { }
@@ -139,9 +138,9 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 viewBinding.subtitleXOffsetTv.text = "Subtitle X Offset: $progress"
             }
         })
+        viewBinding.subtitleXOffsetSb.progress = (player.getSubtitleXOffset() * 100.0f).toInt()
 
 
-        viewBinding.subtitleYOffsetSb.progress = (player.getSubtitleYOffset() * 100.0f).toInt()
         viewBinding.subtitleYOffsetSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) { }
@@ -160,5 +159,6 @@ class PlayerSettingsDialog : BaseCoroutineStateDialogFragment<Unit> {
                 viewBinding.subtitleYOffsetTv.text = "Subtitle Y Offset: $progress"
             }
         })
+        viewBinding.subtitleYOffsetSb.progress = (player.getSubtitleYOffset() * 100.0f).toInt()
     }
 }
