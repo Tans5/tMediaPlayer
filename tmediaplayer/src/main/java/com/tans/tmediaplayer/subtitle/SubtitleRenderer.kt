@@ -3,12 +3,14 @@ package com.tans.tmediaplayer.subtitle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
+import com.tans.tmediaplayer.player.playerview.GLRenderer
 import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tmediaplayer.player.renderer.RendererHandlerMsg
 import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
 
 internal class SubtitleRenderer(
     private val player: tMediaPlayer,
@@ -32,6 +34,12 @@ internal class SubtitleRenderer(
         }
     }
 
+    private val frameOutOfDateListener = object : GLRenderer.Companion.SubtitleFrameOutOfDataListener {
+        override fun onFrameOutOfDate(subtitleFrame: SubtitleFrame) {
+            frameQueue.enqueueWritable(subtitleFrame)
+        }
+    }
+
     private val rendererHandler: Handler = object : Handler(looper) {
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
@@ -40,20 +48,42 @@ internal class SubtitleRenderer(
                     RendererHandlerMsg.RequestRender.ordinal -> {
                         val state = getState()
                         if (state in canRenderStates) {
-                            val frame = frameQueue.dequeueReadable()
+                            val frame = frameQueue.peekReadable()
                             if (frame != null) {
                                 if (state == RendererState.WaitingReadableFrameBuffer || state == RendererState.Eof) {
                                     this@SubtitleRenderer.state.set(RendererState.Playing)
                                 }
-                                if (frame.serial != subtitle.packetQueue.getSerial()) {
-                                    tMediaPlayerLog.d(TAG) { "Skip render frame: $frame, serial changed." }
-                                    frameQueue.enqueueWritable(frame)
+                                val playerPts = player.getProgress()
+                                if (frame.serial != subtitle.packetQueue.getSerial() || frame.endPts < playerPts) { // frame out of date.
+                                    tMediaPlayerLog.e(TAG) { "Skip render frame: $frame, packetQueueSerial=${subtitle.packetQueue.getSerial()}, playerPts=$playerPts" }
+                                    val f = frameQueue.dequeueReadable()
+                                    if (f == frame) {
+                                        frameQueue.enqueueWritable(frame)
+                                    } else {
+                                        if (f != null) {
+                                            frameQueue.enqueueWritable(f)
+                                        }
+                                    }
                                     requestRender()
                                     return@synchronized
                                 }
-                                val playerPts = player.getProgress()
-                                // TODO: render subtitle.
-                                frameQueue.enqueueWritable(frame)
+                                if (playerPts < frame.startPts) { // need to delay to render
+                                    val delay = max(frame.startPts - playerPts, 300)
+                                    tMediaPlayerLog.d(TAG) { "Need to delay ${delay}ms to render $frame, playerPts=$playerPts" }
+                                    requestRender(delay)
+                                    return@synchronized
+                                }
+                                val f = frameQueue.dequeueReadable()
+                                if (f != frame) {
+                                    tMediaPlayerLog.e(TAG) { "Wrong frame $frame" }
+                                    if (f != null) {
+                                        frameQueue.enqueueWritable(f)
+                                    }
+                                    requestRender()
+                                    return@synchronized
+                                }
+                                player.getGLRenderer().requestRenderSubtitleFrame(frame)
+                                requestRender()
                             } else {
                                 if (state == RendererState.Playing) {
                                     this@SubtitleRenderer.state.set(RendererState.WaitingReadableFrameBuffer)
@@ -69,6 +99,7 @@ internal class SubtitleRenderer(
 
     init {
         frameQueue.addListener(frameListener)
+        player.getGLRenderer().addSubtitleOutOfDateListener(frameOutOfDateListener)
     }
 
     fun play() {
@@ -102,6 +133,7 @@ internal class SubtitleRenderer(
             if (state != RendererState.NotInit && state != RendererState.Released) {
                 this.state.set(RendererState.Released)
                 frameQueue.removeListener(frameListener)
+                player.getGLRenderer().removeSubtitleOutOfDateListener(frameOutOfDateListener)
                 tMediaPlayerLog.d(TAG) { "Subtitle renderer released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }

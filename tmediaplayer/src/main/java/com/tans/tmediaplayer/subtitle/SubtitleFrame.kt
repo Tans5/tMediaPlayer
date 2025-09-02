@@ -10,7 +10,7 @@ internal class SubtitleFrame(val nativeFrame: Long) {
 
 
     override fun toString(): String {
-        return "[startPts=$startPts,endPts=$endPts]"
+        return "[startPts=$startPts,endPts=$endPts,width=$width,height=$height,seria=$serial]"
     }
 
     override fun hashCode(): Int {

@@ -19,6 +19,7 @@ import com.tans.tmediaplayer.player.playerview.texconverter.RgbaImageTextureConv
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420pImageTextureConverter
 import com.tans.tmediaplayer.player.playerview.texconverter.Yuv420spImageTextureConverter
 import com.tans.tmediaplayer.player.rwqueue.VideoFrame
+import com.tans.tmediaplayer.subtitle.SubtitleFrame
 import com.tans.tmediaplayer.tMediaPlayerLog
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
@@ -63,6 +64,10 @@ internal class GLRenderer {
     }
 
     private val renderListeners: LinkedBlockingDeque<RenderListener> by lazy {
+        LinkedBlockingDeque()
+    }
+
+    private val subtitleOutOfDateListeners: LinkedBlockingDeque<SubtitleFrameOutOfDataListener> by lazy {
         LinkedBlockingDeque()
     }
 
@@ -113,6 +118,27 @@ internal class GLRenderer {
             } else {
                 tMediaPlayerLog.e(TAG) { "Drop video frame: ${frame.pts}, under rendering or gl surface not ready." }
                 dispatchFrameRenderState(frame, false)
+            }
+        }
+    }
+
+    fun requestRenderSubtitleFrame(subtitleFrame: SubtitleFrame) {
+        realRenderer.apply {
+            if (!isReleased) {
+                if (isWritingSubtitleRenderData.compareAndSet(false, true)) {
+                    val last = subtitleRenderData.refSubtitleFrame
+                    if (last != null) {
+                        dispatchSubtitleOutOfDate(last)
+                    }
+                    subtitleRenderData.refSubtitleFrame = subtitleFrame
+                    isWritingSubtitleRenderData.set(false)
+                } else {
+                    tMediaPlayerLog.e(TAG) { "Drop subtitle frame: $subtitleFrame, is writing subtitle frame data." }
+                    dispatchSubtitleOutOfDate(subtitleFrame)
+                }
+            } else {
+                tMediaPlayerLog.e(TAG) { "Drop subtitle frame: $subtitleFrame, renderer released." }
+                dispatchSubtitleOutOfDate(subtitleFrame)
             }
         }
     }
@@ -169,6 +195,7 @@ internal class GLRenderer {
             glContextListeners.clear()
             realRenderer.tryRecycleUnhandledRequestImageData()
             renderListeners.clear()
+            subtitleOutOfDateListeners.clear()
         }
     }
 
@@ -225,9 +252,27 @@ internal class GLRenderer {
         renderListeners.remove(l)
     }
 
+    fun addSubtitleOutOfDateListener(l: SubtitleFrameOutOfDataListener) {
+        if (!isReleased) {
+            if (!subtitleOutOfDateListeners.contains(l)) {
+                subtitleOutOfDateListeners.add(l)
+            }
+        }
+    }
+
+    fun removeSubtitleOutOfDateListener(l: SubtitleFrameOutOfDataListener) {
+        subtitleOutOfDateListeners.remove(l)
+    }
+
     private fun dispatchFrameRenderState(frame: VideoFrame, isRendered: Boolean) {
         for (l in renderListeners) {
             l.onFrameRenderStateUpdate(frame, isRendered)
+        }
+    }
+
+    private fun dispatchSubtitleOutOfDate(subtitleFrame: SubtitleFrame) {
+        for (l in subtitleOutOfDateListeners) {
+            l.onFrameOutOfDate(subtitleFrame)
         }
     }
 
@@ -243,6 +288,8 @@ internal class GLRenderer {
 
         private val textureConverters: MutableMap<ImageRawType, ImageTextureConverter> = hashMapOf()
 
+        private var subtitleTextureConverter: RgbaImageTextureConverter? = null
+
         // region RenderImageData
         val requestRenderData = RequestRenderData()
 
@@ -250,6 +297,12 @@ internal class GLRenderer {
 
         val isWritingRequestRenderData = AtomicBoolean(false)
         // endregion
+
+        // region Subtitle
+        val subtitleRenderData: SubtitleRenderData = SubtitleRenderData()
+
+        val isWritingSubtitleRenderData = AtomicBoolean(false)
+        //endregion
 
         private var sizeCache: Pair<Int, Int>? = null
 
@@ -275,10 +328,16 @@ internal class GLRenderer {
                 GLES30.glEnableVertexAttribArray(0)
                 GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 5 * 4, 3 * 4)
                 GLES30.glEnableVertexAttribArray(1)
+                val textureLoc = GLES30.glGetUniformLocation(program, "Texture")
+                val subtitleTextureLoc = GLES30.glGetUniformLocation(program, "subtitleTexture")
+                val enableSubtitleLoc = GLES30.glGetUniformLocation(program, "enableSubtitle")
                 glRendererData = GLRendererData(
                     program = program,
                     VAO = VAO,
-                    VBO = VBO
+                    VBO = VBO,
+                    textureLoc = textureLoc,
+                    subtitleTextureLoc = subtitleTextureLoc,
+                    enableSubtitleLoc = enableSubtitleLoc
                 )
             }
             filter.get()?.dispatchGlSurfaceCreated(context)
@@ -365,6 +424,32 @@ internal class GLRenderer {
                 imageDataType = lastRenderedData.imageDataType
                 // tMediaPlayerLog.d(TAG) { "Draw last frame" }
             }
+
+            val subtitleRgbaBytes: ByteArray?
+            val subtitleWidth: Int
+            val subtitleHeight: Int
+            if (isWritingSubtitleRenderData.compareAndSet(false, true)) {
+                val subtitleFrame = subtitleRenderData.refSubtitleFrame
+                if (subtitleFrame == null || pts !in (subtitleFrame.startPts - 50) until (subtitleFrame.endPts + 50)) {
+                    subtitleRgbaBytes = null
+                    subtitleWidth = 0
+                    subtitleHeight = 0
+                    if (subtitleFrame != null) {
+                        subtitleRenderData.refSubtitleFrame = null
+                        dispatchSubtitleOutOfDate(subtitleFrame)
+                    }
+                } else {
+                    subtitleRgbaBytes = subtitleFrame.rgbaBytes
+                    subtitleWidth = subtitleFrame.width
+                    subtitleHeight = subtitleFrame.height
+                }
+                isWritingSubtitleRenderData.set(false)
+            } else {
+                subtitleRgbaBytes = null
+                subtitleWidth = 0
+                subtitleHeight = 0
+            }
+
             // tMediaPlayerLog.d(TAG) { "Start render pts=$pts, textureId=$textureId" }
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
             val texConverter = when (imageDataType!!) {
@@ -444,10 +529,46 @@ internal class GLRenderer {
                 }
             }
 
+            var subtitleTextureId: Int? = null
+            if (subtitleRgbaBytes != null) {
+                val converter = subtitleTextureConverter.let {
+                    if (it == null) {
+                        val new = RgbaImageTextureConverter()
+                        subtitleTextureConverter = new
+                        new.dispatchGlSurfaceCreated(context)
+                        new
+                    } else {
+                        it
+                    }
+                }
+                subtitleTextureId = converter.drawFrame(
+                    context = context,
+                    surfaceWidth = subtitleWidth,
+                    surfaceHeight = subtitleHeight,
+                    imageWidth = subtitleWidth,
+                    imageHeight = subtitleHeight,
+                    rgbaBytes = subtitleRgbaBytes,
+                    yBytes = null,
+                    uBytes = null,
+                    vBytes = null,
+                    uvBytes = null,
+                    imageDataType = ImageRawType.Rgba
+                )
+            }
+
             GLES30.glUseProgram(rendererData.program)
             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, filterOutput.texture)
-            GLES30.glUniform1i(GLES30.glGetUniformLocation(rendererData.program, "Texture"), 0)
+            GLES30.glUniform1i(rendererData.textureLoc, 0)
+            if (subtitleTextureId != null) {
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
+                GLES30.glBindTexture(rendererData.subtitleTextureLoc, subtitleTextureId)
+                GLES30.glUniform1i(rendererData.subtitleTextureLoc, 1)
+                GLES30.glUniform1i(rendererData.enableSubtitleLoc, 1)
+            } else {
+                GLES30.glUniform1i(rendererData.enableSubtitleLoc, 0)
+            }
+
             val imageRatio = filterOutput.width.toFloat() / filterOutput.height.toFloat()
             val renderRatio = screenSize.first.toFloat() / screenSize.second.toFloat()
             val scaleType = this.scaleType.get()
@@ -670,6 +791,8 @@ internal class GLRenderer {
                 texConverter.dispatchGlSurfaceDestroying()
             }
             textureConverters.clear()
+            subtitleTextureConverter?.dispatchGlSurfaceDestroying()
+            subtitleTextureConverter = null
             filter.get()?.dispatchGlSurfaceDestroying()
             tryRecycleUnhandledRequestImageData()
             for (l in glContextListeners) {
@@ -685,6 +808,9 @@ internal class GLRenderer {
                 if (frame != null) {
                     dispatchFrameRenderState(frame, false)
                 }
+            }
+            if (isWritingSubtitleRenderData.compareAndSet(false, true)) {
+
             }
         }
     }
@@ -1081,6 +1207,10 @@ internal class GLRenderer {
             fun containsRenderData(): Boolean = imageDataType != null
         }
 
+        private class SubtitleRenderData {
+            var refSubtitleFrame: SubtitleFrame? = null
+        }
+
         private class Point {
             var x: Float = 0.0f
             var y: Float = 0.0f
@@ -1176,6 +1306,9 @@ internal class GLRenderer {
             val program: Int,
             val VAO: Int,
             val VBO: Int,
+            val textureLoc: Int,
+            val subtitleTextureLoc: Int,
+            val enableSubtitleLoc: Int
         )
 
         private data class OESGLRenderData(
@@ -1236,6 +1369,11 @@ internal class GLRenderer {
 
         interface RenderListener {
             fun onFrameRenderStateUpdate(frame: VideoFrame, isRendered: Boolean)
+        }
+
+        interface SubtitleFrameOutOfDataListener {
+
+            fun onFrameOutOfDate(subtitleFrame: SubtitleFrame)
         }
 
         private const val TAG = "GLRenderer"
