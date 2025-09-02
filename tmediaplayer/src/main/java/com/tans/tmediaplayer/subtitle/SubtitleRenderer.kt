@@ -9,6 +9,7 @@ import com.tans.tmediaplayer.player.renderer.RendererHandlerMsg
 import com.tans.tmediaplayer.player.renderer.RendererState
 import com.tans.tmediaplayer.player.rwqueue.ReadWriteQueueListener
 import com.tans.tmediaplayer.player.tMediaPlayer
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 
@@ -34,9 +35,13 @@ internal class SubtitleRenderer(
         }
     }
 
+    private val waitingRendererFrames: ConcurrentHashMap<SubtitleFrame, Unit> = ConcurrentHashMap()
+
     private val frameOutOfDateListener = object : GLRenderer.Companion.SubtitleFrameOutOfDataListener {
         override fun onFrameOutOfDate(subtitleFrame: SubtitleFrame) {
-            frameQueue.enqueueWritable(subtitleFrame)
+            if (waitingRendererFrames.remove(subtitleFrame) != null) {
+                frameQueue.enqueueWritable(subtitleFrame)
+            }
         }
     }
 
@@ -82,6 +87,7 @@ internal class SubtitleRenderer(
                                     requestRender()
                                     return@synchronized
                                 }
+                                waitingRendererFrames[frame] = Unit
                                 player.getGLRenderer().requestRenderSubtitleFrame(frame)
                                 requestRender()
                             } else {
@@ -134,6 +140,17 @@ internal class SubtitleRenderer(
                 this.state.set(RendererState.Released)
                 frameQueue.removeListener(frameListener)
                 player.getGLRenderer().removeSubtitleOutOfDateListener(frameOutOfDateListener)
+                val iterator = waitingRendererFrames.iterator()
+                while (iterator.hasNext()) {
+                    val keyValue = try {
+                        iterator.next()
+                    } catch (_: Throwable) {
+                        null
+                    }
+                    if (keyValue != null) {
+                        frameQueue.enqueueWritable(keyValue.key)
+                    }
+                }
                 tMediaPlayerLog.d(TAG) { "Subtitle renderer released." }
             } else {
                 tMediaPlayerLog.e(TAG) { "Release error, because of state: $state" }
