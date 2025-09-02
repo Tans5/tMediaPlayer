@@ -11,6 +11,6 @@ void main() {
         FragColor = texture(Texture, TexCoord);
     } else {
         vec4 subtitleColor = texture(subtitleTexture, TexCoord);
-        FragColor = mix(texture(Texture, TexCoord), subtitleColor, subtitleColor.a);
+        FragColor = mix(texture(Texture, TexCoord), vec4(subtitleColor.rgb, 1.0), subtitleColor.a);
     }
 }

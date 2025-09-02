@@ -810,7 +810,12 @@ internal class GLRenderer {
                 }
             }
             if (isWritingSubtitleRenderData.compareAndSet(false, true)) {
-
+                val frame = subtitleRenderData.refSubtitleFrame
+                subtitleRenderData.refSubtitleFrame = null
+                isWritingSubtitleRenderData.set(false)
+                if (frame != null) {
+                    dispatchSubtitleOutOfDate(frame)
+                }
             }
         }
     }

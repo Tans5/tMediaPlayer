@@ -2,13 +2,11 @@ package com.tans.tmediaplayer.player
 
 import android.view.SurfaceView
 import android.view.TextureView
-import android.widget.TextView
 import com.tans.tmediaplayer.player.model.MediaInfo
 import com.tans.tmediaplayer.player.model.OptResult
 import com.tans.tmediaplayer.player.model.SubtitleStreamInfo
 import com.tans.tmediaplayer.player.playerview.ScaleType
 import com.tans.tmediaplayer.player.playerview.filter.ImageFilter
-
 
 internal interface IPlayer {
 

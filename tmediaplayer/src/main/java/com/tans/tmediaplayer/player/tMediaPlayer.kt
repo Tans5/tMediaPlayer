@@ -146,7 +146,7 @@ class tMediaPlayer(
 
     private val externalSubtitle: AtomicReference<ExternalSubtitle?> = AtomicReference(null)
 
-    private val hwSurfaces: Pair<Surface, SurfaceTexture>? by lazy {
+    private val hwSurfaceProxy = lazy {
         if (enableVideoHardwareDecoder && enableHwSurface && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val surfaceTexture = SurfaceTexture(false)
             val surface = Surface(surfaceTexture)
@@ -156,9 +156,12 @@ class tMediaPlayer(
         }
     }
 
-    private val glRenderer: GLRenderer by lazy {
+    private val hwSurfaces: Pair<Surface, SurfaceTexture>? by hwSurfaceProxy
+
+    private val glRendererProxy = lazy {
         GLRenderer()
     }
+    private val glRenderer: GLRenderer by glRendererProxy
 
     // region public methods
     @Synchronized
@@ -457,6 +460,17 @@ class tMediaPlayer(
                         }
                         listener.set(null)
 
+                        // Hw Surface.
+                        if (hwSurfaceProxy.isInitialized()) {
+                            hwSurfaces?.first?.release()
+                            hwSurfaces?.second?.release()
+                        }
+
+                        // GLRenderer
+                        if (glRendererProxy.isInitialized()) {
+                            glRenderer.release()
+                        }
+
                         // Packet reader
                         packetReader.release()
                         // Decoders
@@ -479,13 +493,6 @@ class tMediaPlayer(
                         externalSubtitle.get()?.release()
                         externalSubtitle.set(null)
                         tMediaPlayerLog.d(TAG) { "Release player" }
-
-                        // Hw Surface.
-                        hwSurfaces?.first?.release()
-                        hwSurfaces?.second?.release()
-
-                        // GLRenderer
-                        glRenderer.release()
 
                         return OptResult.Success
                     } else {
