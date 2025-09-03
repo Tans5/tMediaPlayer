@@ -18,7 +18,6 @@ import com.tans.tmediaplayer.player.model.AudioSampleRate
 import com.tans.tmediaplayer.player.tMediaPlayer
 import com.tans.tmediaplayer.player.tMediaPlayerListener
 import com.tans.tmediaplayer.player.tMediaPlayerState
-import com.tans.tmediaplayer.tMediaPlayerLog
 import com.tans.tuiutils.activity.BaseCoroutineStateActivity
 import com.tans.tuiutils.systembar.annotation.FullScreenStyle
 import com.tans.tuiutils.view.clicks

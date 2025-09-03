@@ -194,7 +194,7 @@ internal class AudioRenderer(
                                 player.externalClock.syncToClock(player.audioClock)
                                 enqueueWritableFrame(frame)
                             } else {
-                                tMediaPlayerLog.e(TAG) { "No waiting audio buffer, audioTrackBufferCount=$audioTrackBufferCount, waitingBufferCount=$waitingBufferCount" }
+                                tMediaPlayerLog.d(TAG) { "No waiting audio buffer, audioTrackBufferCount=$audioTrackBufferCount, waitingBufferCount=$waitingBufferCount" }
                             }
                         }
                     }

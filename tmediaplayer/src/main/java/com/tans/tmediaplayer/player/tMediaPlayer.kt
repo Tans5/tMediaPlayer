@@ -862,14 +862,18 @@ class tMediaPlayer(
     }
 
     internal fun renderedVideoFrame() {
-        if (getSyncType() != AudioMaster || audioRenderer.getState() == RendererState.Eof) {
+        if (getSyncType() != AudioMaster) {
+            dispatchProgress(videoClock.getClock())
+        } else if (audioRenderer.getState() == RendererState.Eof && videoClock.getClock() > audioClock.getClock()) {
             dispatchProgress(videoClock.getClock())
         }
         checkPlayEnd()
     }
 
     internal fun renderedAudioFrame() {
-        if (getSyncType() != VideoMaster || videoRenderer.getState() == RendererState.Eof) {
+        if (getSyncType() != VideoMaster) {
+            dispatchProgress(audioClock.getClock())
+        } else if (videoRenderer.getState() == RendererState.Eof && audioClock.getClock() > videoClock.getClock()) {
             dispatchProgress(audioClock.getClock())
         }
         checkPlayEnd()
