@@ -270,6 +270,9 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
             imgCur = imgCur->next;
         }
         ass_flush_events(ass_track);
+        if (write_image == 0) {
+            LOGE("ASS subtitle move fail, image is 0.");
+        }
         return write_image > 0 ? OptSuccess : OptFail;
         // endregion
     } else { // bitmap
@@ -334,6 +337,9 @@ tMediaOptResult tMediaSubtitleContext::moveDecodedSubtitleFrameToBuffer(tMediaSu
                     }
                 }
             }
+        }
+        if (subtitle_frame->num_rects <= 0) {
+            LOGE("Bitmap subtitle move fail, rect is 0.");
         }
         // endregion
         return subtitle_frame->num_rects > 0 ? OptSuccess : OptFail;
