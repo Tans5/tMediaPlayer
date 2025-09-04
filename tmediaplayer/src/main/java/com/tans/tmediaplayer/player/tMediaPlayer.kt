@@ -1170,8 +1170,8 @@ class tMediaPlayer(
     companion object {
         private const val TAG = "tMediaPlayer"
 
-        // 100 ms
-        private const val MIN_PROGRESS_NOTIFY_INTERNAL = 100L
+        // 300 ms
+        private const val MIN_PROGRESS_NOTIFY_INTERNAL = 300L
 
         init {
             System.loadLibrary("tmediaplayer")
