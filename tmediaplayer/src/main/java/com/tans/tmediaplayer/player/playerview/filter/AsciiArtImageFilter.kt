@@ -333,10 +333,12 @@ class AsciiArtImageFilter : ImageFilter() {
             output.width = input.width
             output.height = input.height
             output.texture = renderData.charTexture
+            output.rotation = input.rotation
         } else {
             output.width = input.width
             output.height = input.height
             output.texture = input.texture
+            output.rotation = input.rotation
         }
     }
 

@@ -360,6 +360,9 @@ internal class GLRenderer {
                 val enableSubtitleLoc = GLES30.glGetUniformLocation(program, "enableSubtitle")
                 val subtitleXOffsetLoc = GLES30.glGetUniformLocation(program, "subtitleXOffset")
                 val subtitleYOffsetLoc = GLES30.glGetUniformLocation(program, "subtitleYOffset")
+                val viewLoc = GLES30.glGetUniformLocation(program, "view")
+                val modelLoc = GLES30.glGetUniformLocation(program, "model")
+                val transformLoc = GLES30.glGetUniformLocation(program, "transform")
                 glRendererData = GLRendererData(
                     program = program,
                     VAO = VAO,
@@ -368,7 +371,10 @@ internal class GLRenderer {
                     subtitleTextureLoc = subtitleTextureLoc,
                     enableSubtitleLoc = enableSubtitleLoc,
                     subtitleXOffsetLoc = subtitleXOffsetLoc,
-                    subtitleYOffsetLoc = subtitleYOffsetLoc
+                    subtitleYOffsetLoc = subtitleYOffsetLoc,
+                    viewLoc = viewLoc,
+                    modelLoc = modelLoc,
+                    transformLoc = transformLoc
                 )
             }
             filter.get()?.dispatchGlSurfaceCreated(context)
@@ -422,6 +428,8 @@ internal class GLRenderer {
 
             val imageWidth: Int
             val imageHeight: Int
+            val imageRotation: Int
+            val imageRatio: Float
             val rgbaBytes: ByteArray?
             val yBytes: ByteArray?
             val uBytes: ByteArray?
@@ -434,6 +442,8 @@ internal class GLRenderer {
             if (frame != null) {
                 imageWidth = frame.width
                 imageHeight = frame.height
+                imageRotation = frame.displayRotation
+                imageRatio = frame.displayRatio
                 rgbaBytes = frame.rgbaBuffer
                 yBytes = frame.yBuffer
                 uBytes = frame.uBuffer
@@ -445,6 +455,8 @@ internal class GLRenderer {
             } else {
                 imageWidth = lastRenderedData.imageWidth!!
                 imageHeight = lastRenderedData.imageHeight!!
+                imageRotation = lastRenderedData.imageRotation!!
+                imageRatio = lastRenderedData.imageRatio!!
                 rgbaBytes = lastRenderedData.rgbaBytes
                 yBytes = lastRenderedData.yBytes
                 uBytes = lastRenderedData.uBytes
@@ -542,6 +554,7 @@ internal class GLRenderer {
             filterInput.width = imageWidth
             filterInput.height = imageHeight
             filterInput.texture = convertTextureId
+            filterInput.rotation = imageRotation
 
             filter.get().let {
                 if (it != null) {
@@ -557,6 +570,7 @@ internal class GLRenderer {
                     filterOutput.width = filterInput.width
                     filterOutput.height = filterInput.height
                     filterOutput.texture = filterInput.texture
+                    filterOutput.rotation = filterInput.rotation
                 }
             }
 
@@ -602,15 +616,47 @@ internal class GLRenderer {
                 GLES30.glUniform1i(rendererData.enableSubtitleLoc, 0)
             }
 
-            val imageRatio = filterOutput.width.toFloat() / filterOutput.height.toFloat()
             val renderRatio = screenSize.first.toFloat() / screenSize.second.toFloat()
             val scaleType = this.scaleType.get()
 
-            var textureTlX = 0.0f
-            var textureTlY = 0.0f
+            var textureTlX: Float
+            var textureTlY: Float
 
-            var textureRbX = 1.0f
-            var textureRbY = 1.0f
+            var textureRbX: Float
+            var textureRbY: Float
+            var fixedImageRatio: Float
+
+            when (filterOutput.rotation) {
+                90 -> {
+                    fixedImageRatio = 1.0f / imageRatio
+                    textureTlX = 0.0f
+                    textureTlY = 1.0f
+                    textureRbX = 1.0f
+                    textureRbY = 0.0f
+                }
+                180 -> {
+                    fixedImageRatio = imageRatio
+                    textureTlX = 1.0f
+                    textureTlY = 1.0f
+                    textureRbX = 0.0f
+                    textureRbY = 0.0f
+                }
+                270 -> {
+                    fixedImageRatio = 1.0f / imageRatio
+                    textureTlX = 1.0f
+                    textureTlY = 0.0f
+                    textureRbX = 0.0f
+                    textureRbY = 1.0f
+                }
+                else -> {
+                    fixedImageRatio = imageRatio
+                    textureTlX = 0.0f
+                    textureTlY = 0.0f
+                    textureRbX = 1.0f
+                    textureRbY = 1.0f
+                }
+            }
+
 
             when (scaleType) {
                 ScaleType.CenterFit -> {
@@ -618,16 +664,16 @@ internal class GLRenderer {
                 }
                 ScaleType.CenterCrop -> {
                     val inputTopLeftPoint = pointBuffer1
-                    inputTopLeftPoint.x = 0.0f
-                    inputTopLeftPoint.y = 0.0f
+                    inputTopLeftPoint.x = textureTlX
+                    inputTopLeftPoint.y = textureTlY
                     val inputBottomRightPoint = pointBuffer2
-                    inputBottomRightPoint.x = 1.0f
-                    inputBottomRightPoint.y = 1.0f
+                    inputBottomRightPoint.x = textureRbX
+                    inputBottomRightPoint.y = textureRbY
 
                     val outputTopLeftPoint = pointBuffer3
                     val outputBottomRightPoint = pointBuffer4
                     centerCropTextureRect(
-                        targetRatio = renderRatio / imageRatio,
+                        targetRatio = renderRatio / fixedImageRatio,
                         inputTopLeftPoint = inputTopLeftPoint,
                         inputBottomRightPoint = inputBottomRightPoint,
                         outputTopLeftPoint = outputTopLeftPoint,
@@ -640,13 +686,14 @@ internal class GLRenderer {
                 }
             }
 
-            var positionTlX = 0.0f
-            var positionTlY = 0.0f
-            var positionRbX = 0.0f
-            var positionRbY = 0.0f
+            var positionTlX: Float
+            var positionTlY: Float
+            var positionRbX: Float
+            var positionRbY: Float
 
             when (scaleType) {
                 ScaleType.CenterFit -> {
+                    // 放大/缩小 vertex x 坐标，令其长宽比例等于渲染 Surface，后续渲染时再通过 view 矩阵还原
                     val inputTopLeftPoint = pointBuffer1
                     inputTopLeftPoint.x = -1.0f * renderRatio
                     inputTopLeftPoint.y = 1.0f
@@ -656,13 +703,15 @@ internal class GLRenderer {
 
                     val outputTopLeftPoint = pointBuffer3
                     val outputBottomRightPoint = pointBuffer4
+                    // 裁剪 vertex 使其长宽比例等于图片比例
                     centerCropPositionRect(
-                        targetRatio = imageRatio,
+                        targetRatio = fixedImageRatio,
                         inputTopLeftPoint = inputTopLeftPoint,
                         inputBottomRightPoint = inputBottomRightPoint,
                         outputTopLeftPoint = outputTopLeftPoint,
                         outputBottomRightPoint = outputBottomRightPoint
                     )
+                    // 得到的 vertex 的长宽比例等于图片的比例
                     positionTlX = outputTopLeftPoint.x
                     positionTlY = outputTopLeftPoint.y
                     positionRbX = outputBottomRightPoint.x
@@ -670,6 +719,7 @@ internal class GLRenderer {
                 }
 
                 ScaleType.CenterCrop -> {
+                    // 放大/缩小 vertex x 坐标，令其长宽比例等于渲染 Surface，后续渲染时再通过 view 矩阵还原
                     positionTlX = -1.0f * renderRatio
                     positionTlY = 1.0f
                     positionRbX = 1.0f * renderRatio
@@ -704,18 +754,19 @@ internal class GLRenderer {
             // view
             val viewMatrix = matrixBuffer
             resetMatrix(viewMatrix)
+            // 还原上面被 放大/缩小 后的 x 轴的坐标
             Matrix.scaleM(viewMatrix, 0, 1 / renderRatio, 1.0f, 1.0f)
-            GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "view"), 1, false, viewMatrix, 0)
+            GLES30.glUniformMatrix4fv(rendererData.viewLoc, 1, false, viewMatrix, 0)
 
             // model
             val modelMatrix = matrixBuffer
             resetMatrix(modelMatrix)
-            GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "model"), 1, false, modelMatrix, 0)
+            GLES30.glUniformMatrix4fv(rendererData.modelLoc, 1, false, modelMatrix, 0)
 
             // transform
             val transformMatrix = matrixBuffer
             resetMatrix(transformMatrix)
-            GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(rendererData.program, "transform"), 1, false, transformMatrix, 0)
+            GLES30.glUniformMatrix4fv(rendererData.transformLoc, 1, false, transformMatrix, 0)
 
             GLES30.glBindVertexArray(rendererData.VAO)
             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, rendererData.VBO)
@@ -726,6 +777,8 @@ internal class GLRenderer {
             }
             lastRenderedData.imageWidth = imageWidth
             lastRenderedData.imageHeight = imageHeight
+            lastRenderedData.imageRotation = imageRotation
+            lastRenderedData.imageRatio = imageRatio
             lastRenderedData.rgbaBytes = rgbaBytes
             lastRenderedData.yBytes = yBytes
             lastRenderedData.uBytes = uBytes
@@ -1233,6 +1286,8 @@ internal class GLRenderer {
         private class LastRenderedData {
             var imageWidth: Int? = null
             var imageHeight: Int? = null
+            var imageRotation: Int? = null
+            var imageRatio: Float? = null
             var rgbaBytes: ByteArray? = null
             var yBytes: ByteArray? = null
             var uBytes: ByteArray? = null
@@ -1254,6 +1309,7 @@ internal class GLRenderer {
             var y: Float = 0.0f
         }
 
+        // TODO:
         private fun centerCropTextureRect(
             targetRatio: Float,
             inputTopLeftPoint: Point,
@@ -1299,7 +1355,7 @@ internal class GLRenderer {
         }
 
         private fun centerCropPositionRect(
-            targetRatio: Float,
+            targetRatio: Float, // 目标被裁后的比例
             inputTopLeftPoint: Point,
             inputBottomRightPoint: Point,
             outputTopLeftPoint: Point,
@@ -1309,6 +1365,7 @@ internal class GLRenderer {
             val oldRectHeight = inputTopLeftPoint.y - inputBottomRightPoint.y
             val oldRectRatio = oldRectWidth / oldRectHeight
             when  {
+                // 当前的长宽比例大于目标值，需要裁掉左右部分
                 oldRectRatio - targetRatio > 0.00001 -> {
                     // 裁剪 x
                     val d = (oldRectWidth - oldRectHeight * targetRatio) / 2.0f
@@ -1320,6 +1377,7 @@ internal class GLRenderer {
                     outputBottomRightPoint.y = inputBottomRightPoint.y
                 }
 
+                // 当前的长宽比例小于目标值，需要裁掉上下部分
                 targetRatio - oldRectRatio > 0.00001 -> {
                     // 裁剪 y
                     val d = (oldRectHeight - oldRectWidth / targetRatio) / 2.0f
@@ -1331,6 +1389,7 @@ internal class GLRenderer {
                     outputBottomRightPoint.y = newBottomRightY
                 }
 
+                // 不用裁
                 else -> {
                     outputTopLeftPoint.x = inputTopLeftPoint.x
                     outputTopLeftPoint.y = inputTopLeftPoint.y
@@ -1348,7 +1407,10 @@ internal class GLRenderer {
             val subtitleTextureLoc: Int,
             val enableSubtitleLoc: Int,
             val subtitleXOffsetLoc: Int,
-            val subtitleYOffsetLoc: Int
+            val subtitleYOffsetLoc: Int,
+            val viewLoc: Int,
+            val modelLoc: Int,
+            val transformLoc: Int,
         )
 
         private data class OESGLRenderData(

@@ -44,6 +44,7 @@ abstract class ImageFilter {
             output.width = input.width
             output.height = input.height
             output.texture = input.texture
+            output.rotation = input.rotation
         }
     }
 
