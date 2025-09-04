@@ -446,7 +446,8 @@ internal class GLRenderer {
                 imageWidth = frame.width
                 imageHeight = frame.height
                 imageRotation = frame.displayRotation
-                imageRatio = frame.displayRatio
+                //FixME
+                imageRatio = imageWidth.toFloat() / imageHeight.toFloat()
                 rgbaBytes = frame.rgbaBuffer
                 yBytes = frame.yBuffer
                 uBytes = frame.uBuffer
@@ -731,7 +732,8 @@ internal class GLRenderer {
                 ScaleType.CenterCrop -> {
                     centerCropTexturePoint(
                         targetRatio = renderRatio / fixedImageRatio,
-                        textureRenderPoints = textureRenderPoints
+                        textureRenderPoints = textureRenderPoints,
+                        rotation = filterOutput.rotation
                     )
                 }
             }
@@ -1352,46 +1354,65 @@ internal class GLRenderer {
         /**
          * textureRenderPoints
          * 裁剪纹理坐标到目标比例
+         *
          */
         private fun centerCropTexturePoint(
             targetRatio: Float,
-            textureRenderPoints: Array<Point>
+            textureRenderPoints: Array<Point>,
+            rotation: Int
         ) {
-            val oldRectWidth = abs(textureRenderPoints[0].x - textureRenderPoints[1].x)
-            val oldRectHeight = abs(textureRenderPoints[1].y - textureRenderPoints[2].y)
+            val oldRectWidth = if (rotation == 0 || rotation == 180) {
+                abs(textureRenderPoints[0].x - textureRenderPoints[1].x)
+            } else {
+                abs(textureRenderPoints[0].y - textureRenderPoints[1].y)
+            }
+            val oldRectHeight = if (rotation == 0 || rotation == 180) {
+                abs(textureRenderPoints[1].y - textureRenderPoints[2].y)
+            } else {
+                abs(textureRenderPoints[1].x - textureRenderPoints[2].x)
+            }
+            fun cutX(from: Point, to: Point, toCut: Float) {
+                if (from.x < to.x) {
+                    from.x += toCut
+                    to.x -= toCut
+                } else {
+                    from.x -= toCut
+                    to.x += toCut
+                }
+            }
+            fun cutY(from: Point, to: Point, toCut: Float) {
+                if (from.y < to.y) {
+                    from.y += toCut
+                    to.y -= toCut
+                } else {
+                    from.y -= toCut
+                    to.y += toCut
+                }
+            }
             val oldRectRatio = oldRectWidth / oldRectHeight
             when  {
                 oldRectRatio - targetRatio > 0.00001 -> {
-                    fun cutX(from: Point, to: Point, toCut: Float) {
-                        if (from.x < to.x) {
-                            from.x += toCut
-                            to.x -= toCut
-                        } else {
-                            from.x -= toCut
-                            to.x += toCut
-                        }
-                    }
-
                     // 裁剪 x
                     val d = (oldRectWidth - oldRectHeight * targetRatio) / 2.0f
-                    cutX(textureRenderPoints[0], textureRenderPoints[1], d)
-                    cutX(textureRenderPoints[2], textureRenderPoints[3], d)
+                    if (rotation == 0 || rotation == 180) {
+                        cutX(textureRenderPoints[0], textureRenderPoints[1], d)
+                        cutX(textureRenderPoints[2], textureRenderPoints[3], d)
+                    } else {
+                        cutY(textureRenderPoints[0], textureRenderPoints[1], d)
+                        cutY(textureRenderPoints[2], textureRenderPoints[3], d)
+                    }
                 }
 
                 targetRatio - oldRectRatio > 0.00001 -> {
-                    fun cutY(from: Point, to: Point, toCut: Float) {
-                        if (from.y < to.y) {
-                            from.y += toCut
-                            to.y -= toCut
-                        } else {
-                            from.y -= toCut
-                            to.y += toCut
-                        }
-                    }
                     // 裁剪 y
                     val d = (oldRectHeight - oldRectWidth / targetRatio) / 2.0f
-                    cutY(textureRenderPoints[1], textureRenderPoints[2], d)
-                    cutY(textureRenderPoints[3], textureRenderPoints[0], d)
+                    if (rotation == 0 || rotation == 180) {
+                        cutY(textureRenderPoints[1], textureRenderPoints[2], d)
+                        cutY(textureRenderPoints[3], textureRenderPoints[0], d)
+                    } else {
+                        cutX(textureRenderPoints[1], textureRenderPoints[2], d)
+                        cutX(textureRenderPoints[3], textureRenderPoints[0], d)
+                    }
                 }
 
                 else -> {
