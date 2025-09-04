@@ -1099,6 +1099,14 @@ class tMediaPlayer(
 
     private external fun getVideoFrameTypeNative(nativeBuffer: Long): Int
 
+    internal fun getVideoFrameDisplayRotationInternal(nativeBuffer: Long): Int = getVideoFrameDisplayRotationNative(nativeBuffer)
+
+    private external fun getVideoFrameDisplayRotationNative(nativeBuffer: Long): Int
+
+    internal fun getVideoFrameDisplayRatioInternal(nativeBuffer: Long): Float = getVideoFrameDisplayRatioNative(nativeBuffer)
+
+    private external fun getVideoFrameDisplayRatioNative(nativeBuffer: Long): Float
+
     internal fun getVideoFrameRgbaBytesNativeInternal(nativeBuffer: Long, bytes: ByteArray) = getVideoFrameRgbaBytesNative(nativeBuffer, bytes)
 
     private external fun getVideoFrameRgbaBytesNative(nativeBuffer: Long, bytes: ByteArray)

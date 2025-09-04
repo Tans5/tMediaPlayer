@@ -618,6 +618,24 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameTypeNative(
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameDisplayRotationNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    return buffer->displayRotation;
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameDisplayRatioNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong buffer_l) {
+    auto buffer = reinterpret_cast<tMediaVideoBuffer *>(buffer_l);
+    return buffer->displayRatio;
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_getVideoFrameRgbaSizeNative(
         JNIEnv * env,
         jobject j_player,

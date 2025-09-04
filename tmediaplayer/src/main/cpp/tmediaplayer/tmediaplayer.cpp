@@ -542,6 +542,25 @@ tMediaOptResult tMediaPlayerContext::prepare(
             this->video_fps = av_q2d(frameRate);
         }
         this->video_codec_id = params->codec_id;
+        if (params->nb_coded_side_data > 0) {
+            void *displayMatrix = nullptr;
+            for (int i = 0; i < params->nb_coded_side_data; i ++) {
+                auto sideData = params->coded_side_data[i];
+                if (sideData.type == AV_PKT_DATA_DISPLAYMATRIX) {
+                    displayMatrix = sideData.data;
+                    break;
+                }
+            }
+            if (displayMatrix != nullptr) {
+                auto rotation = ((int32_t) av_display_rotation_get((int32_t *)displayMatrix) + 360) % 360;
+                displayRotation = rotation;
+                LOGD("Video stream display rotation: %d", rotation);
+            }
+        }
+        if (params->sample_aspect_ratio.num > 0 && params->sample_aspect_ratio.den > 0) {
+            displayRatio = (float_t) params->sample_aspect_ratio.num / (float_t)params->sample_aspect_ratio.den;
+            LOGD("Video stream display ratio: %f", displayRatio);
+        }
         videoMetaData = new Metadata;
         readMetadata(video_stream->metadata, videoMetaData);
 
@@ -714,6 +733,34 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         int w = video_frame->width;
         int h = video_frame->height;
         auto format = video_frame->format;
+
+        int32_t frameDisplayRotation = 0;
+        float_t frameDisplayRatio = 0.0f;
+        if (video_frame->nb_side_data > 0) {
+            void *displayMatrix = nullptr;
+            for (int i = 0; i < video_frame->nb_side_data; i ++) {
+                auto sideData = video_frame->side_data[i];
+                if (sideData->type == AV_FRAME_DATA_DISPLAYMATRIX) {
+                    displayMatrix = sideData->data;
+                    break;
+                }
+            }
+            if (displayMatrix != nullptr) {
+                frameDisplayRotation = ((int32_t) av_display_rotation_get((int32_t *)displayMatrix) + 360) % 360;
+            }
+        }
+        if (frameDisplayRotation == 0 && displayRotation != 0) {
+            frameDisplayRotation = displayRotation;
+        }
+        if (video_frame->sample_aspect_ratio.num > 0 && video_frame->sample_aspect_ratio.den > 0) {
+            frameDisplayRatio = (float_t) video_frame->sample_aspect_ratio.num / (float_t) video_frame->sample_aspect_ratio.den;
+        }
+        if (frameDisplayRatio == 0.0f && displayRatio != 0.0f) {
+            frameDisplayRatio = displayRatio;
+        }
+        if (frameDisplayRatio == 0.0f) {
+            frameDisplayRatio = (float_t) w / (float_t) h;
+        }
 //    auto colorRange = frame->color_range;
 //    auto colorPrimaries = frame->color_primaries;
 //    auto colorSpace = frame->colorspace;
@@ -938,6 +985,8 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         } else {
             videoBuffer->duration = 0L;
         }
+        videoBuffer->displayRotation = frameDisplayRotation;
+        videoBuffer->displayRatio = frameDisplayRatio;
         if (w != video_width || h != video_height) {
             video_width = w;
             video_height = h;

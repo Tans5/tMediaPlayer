@@ -17,6 +17,7 @@ extern "C" {
 #include "libavutil/imgutils.h"
 #include "libswresample/swresample.h"
 #include "libavcodec/mediacodec.h"
+#include "libavutil/display.h"
 }
 
 #define LOG_TAG "tMediaPlayerNative"
@@ -55,6 +56,8 @@ typedef struct tMediaVideoBuffer {
     uint8_t  *uvBuffer = nullptr;
     int64_t pts = 0L;
     int64_t duration = 0L;
+    int32_t displayRotation = 0;
+    float_t displayRatio = 0.0f;
 } tMediaVideoBuffer;
 
 typedef struct tMediaAudioBuffer {
@@ -157,6 +160,8 @@ typedef struct tMediaPlayerContext {
     int64_t video_duration = 0;
     AVCodecID video_codec_id = AV_CODEC_ID_NONE;
     bool videoIsAttachPic = false;
+    int32_t displayRotation = 0;
+    float_t displayRatio = 0.0f;
     Metadata *videoMetaData = nullptr;
     // Video decoder
     VideoDecoder *videoDecoder = nullptr;

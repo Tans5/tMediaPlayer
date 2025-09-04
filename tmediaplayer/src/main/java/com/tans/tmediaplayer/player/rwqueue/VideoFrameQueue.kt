@@ -40,6 +40,8 @@ internal class VideoFrameQueue(private val player: tMediaPlayer) : BaseReadWrite
             b.imageType = player.getVideoFrameTypeNativeInternal(b.nativeFrame)
             b.width = player.getVideoWidthNativeInternal(b.nativeFrame)
             b.height = player.getVideoHeightNativeInternal(b.nativeFrame)
+            b.displayRotation = player.getVideoFrameDisplayRotationInternal(b.nativeFrame)
+            b.displayRatio = player.getVideoFrameDisplayRatioInternal(b.nativeFrame)
             when (b.imageType) {
                 ImageRawType.Yuv420p -> {
                     // Y

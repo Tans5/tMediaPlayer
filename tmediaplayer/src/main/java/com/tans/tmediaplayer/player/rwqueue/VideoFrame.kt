@@ -9,6 +9,8 @@ internal class VideoFrame(val nativeFrame: Long) {
     var imageType: ImageRawType = ImageRawType.Unknown
     var width: Int = 0
     var height: Int = 0
+    var displayRotation: Int = 0
+    var displayRatio: Float = 0.0f
     var yBuffer: ByteArray? = null
     var uBuffer: ByteArray? = null
     var vBuffer: ByteArray? = null
