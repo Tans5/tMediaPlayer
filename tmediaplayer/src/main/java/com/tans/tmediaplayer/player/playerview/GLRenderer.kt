@@ -25,6 +25,7 @@ import com.tans.tmediaplayer.tMediaPlayerLog
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 
 internal class GLRenderer {
 
@@ -396,13 +397,15 @@ internal class GLRenderer {
 
         private val filterInput =  FilterImageTexture()
         private val filterOutput = FilterImageTexture()
-        private val pointBuffer1 = Point()
-        private val pointBuffer2 = Point()
-        private val pointBuffer3 = Point()
-        private val pointBuffer4 = Point()
+        // 顶点着色器矩阵坐标，first: 左上，second: 右下
+        private val vertexRect = Pair<Point, Point>(Point(), Point())
         private val vertexArray = FloatArray(20)
         private val vertexBuffer = vertexArray.toGlBuffer().asFloatBuffer()
         private val matrixBuffer = newGlFloatMatrix()
+        // 纹理渲染坐标顺序, 左上->右上->右下->左下
+        private val textureRenderPoints = Array<Point>(4) {
+            Point()
+        }
         fun drawFrame() {
             val rendererData = this.glRendererData
             val screenSize = sizeCache
@@ -619,41 +622,104 @@ internal class GLRenderer {
             val renderRatio = screenSize.first.toFloat() / screenSize.second.toFloat()
             val scaleType = this.scaleType.get()
 
-            var textureTlX: Float
-            var textureTlY: Float
-
-            var textureRbX: Float
-            var textureRbY: Float
             var fixedImageRatio: Float
 
             when (filterOutput.rotation) {
+                /**
+                 * (1, 0) -> (1, 1)
+                 *             V
+                 * (0, 0) <- (0, 1)
+                 */
                 90 -> {
                     fixedImageRatio = 1.0f / imageRatio
-                    textureTlX = 0.0f
-                    textureTlY = 1.0f
-                    textureRbX = 1.0f
-                    textureRbY = 0.0f
+                    textureRenderPoints[0].apply {
+                        x = 1.0f
+                        y = 0.0f
+                    }
+                    textureRenderPoints[1].apply {
+                        x = 1.0f
+                        y = 1.0f
+                    }
+                    textureRenderPoints[2].apply {
+                        x = 0.0f
+                        y = 1.0f
+                    }
+                    textureRenderPoints[3].apply {
+                        x = 0.0f
+                        y = 0.0f
+                    }
                 }
+                /**
+                 * (1, 1) -> (0, 1)
+                 *             V
+                 * (1, 0) <- (0, 0)
+                 */
                 180 -> {
                     fixedImageRatio = imageRatio
-                    textureTlX = 1.0f
-                    textureTlY = 1.0f
-                    textureRbX = 0.0f
-                    textureRbY = 0.0f
+                    textureRenderPoints[0].apply {
+                        x = 1.0f
+                        y = 1.0f
+                    }
+                    textureRenderPoints[1].apply {
+                        x = 0.0f
+                        y = 1.0f
+                    }
+                    textureRenderPoints[2].apply {
+                        x = 0.0f
+                        y = 0.0f
+                    }
+                    textureRenderPoints[3].apply {
+                        x = 1.0f
+                        y = 0.0f
+                    }
                 }
+                /**
+                 * (0, 1) -> (0, 0)
+                 *             V
+                 * (1, 1) <- (1, 0)
+                 */
                 270 -> {
                     fixedImageRatio = 1.0f / imageRatio
-                    textureTlX = 1.0f
-                    textureTlY = 0.0f
-                    textureRbX = 0.0f
-                    textureRbY = 1.0f
+                    textureRenderPoints[0].apply {
+                        x = 0.0f
+                        y = 1.0f
+                    }
+                    textureRenderPoints[1].apply {
+                        x = 0.0f
+                        y = 0.0f
+                    }
+                    textureRenderPoints[2].apply {
+                        x = 1.0f
+                        y = 0.0f
+                    }
+                    textureRenderPoints[3].apply {
+                        x = 1.0f
+                        y = 1.0f
+                    }
                 }
+                /**
+                 * (0, 0) -> (1, 0)
+                 *             V
+                 * (0, 1) <- (1, 1)
+                 */
                 else -> {
                     fixedImageRatio = imageRatio
-                    textureTlX = 0.0f
-                    textureTlY = 0.0f
-                    textureRbX = 1.0f
-                    textureRbY = 1.0f
+                    textureRenderPoints[0].apply {
+                        x = 0.0f
+                        y = 0.0f
+                    }
+                    textureRenderPoints[1].apply {
+                        x = 1.0f
+                        y = 0.0f
+                    }
+                    textureRenderPoints[2].apply {
+                        x = 1.0f
+                        y = 1.0f
+                    }
+                    textureRenderPoints[3].apply {
+                        x = 0.0f
+                        y = 1.0f
+                    }
                 }
             }
 
@@ -663,75 +729,50 @@ internal class GLRenderer {
                     // Do nothing.
                 }
                 ScaleType.CenterCrop -> {
-                    val inputTopLeftPoint = pointBuffer1
-                    inputTopLeftPoint.x = textureTlX
-                    inputTopLeftPoint.y = textureTlY
-                    val inputBottomRightPoint = pointBuffer2
-                    inputBottomRightPoint.x = textureRbX
-                    inputBottomRightPoint.y = textureRbY
-
-                    val outputTopLeftPoint = pointBuffer3
-                    val outputBottomRightPoint = pointBuffer4
-                    centerCropTextureRect(
+                    centerCropTexturePoint(
                         targetRatio = renderRatio / fixedImageRatio,
-                        inputTopLeftPoint = inputTopLeftPoint,
-                        inputBottomRightPoint = inputBottomRightPoint,
-                        outputTopLeftPoint = outputTopLeftPoint,
-                        outputBottomRightPoint = outputBottomRightPoint
+                        textureRenderPoints = textureRenderPoints
                     )
-                    textureTlX = outputTopLeftPoint.x
-                    textureTlY = outputTopLeftPoint.y
-                    textureRbX = outputBottomRightPoint.x
-                    textureRbY = outputBottomRightPoint.y
                 }
             }
 
-            var positionTlX: Float
-            var positionTlY: Float
+            var positionLtX: Float
+            var positionLtY: Float
             var positionRbX: Float
             var positionRbY: Float
 
             when (scaleType) {
                 ScaleType.CenterFit -> {
                     // 放大/缩小 vertex x 坐标，令其长宽比例等于渲染 Surface，后续渲染时再通过 view 矩阵还原
-                    val inputTopLeftPoint = pointBuffer1
-                    inputTopLeftPoint.x = -1.0f * renderRatio
-                    inputTopLeftPoint.y = 1.0f
-                    val inputBottomRightPoint = pointBuffer2
-                    inputBottomRightPoint.x = 1.0f * renderRatio
-                    inputBottomRightPoint.y = -1.0f
-
-                    val outputTopLeftPoint = pointBuffer3
-                    val outputBottomRightPoint = pointBuffer4
+                    val lt = vertexRect.first
+                    lt.x = -1.0f * renderRatio
+                    lt.y = 1.0f
+                    val rb = vertexRect.second
+                    rb.x = 1.0f * renderRatio
+                    rb.y = -1.0f
                     // 裁剪 vertex 使其长宽比例等于图片比例
-                    centerCropPositionRect(
-                        targetRatio = fixedImageRatio,
-                        inputTopLeftPoint = inputTopLeftPoint,
-                        inputBottomRightPoint = inputBottomRightPoint,
-                        outputTopLeftPoint = outputTopLeftPoint,
-                        outputBottomRightPoint = outputBottomRightPoint
-                    )
+                    centerCropVertexRect(fixedImageRatio, vertexRect)
                     // 得到的 vertex 的长宽比例等于图片的比例
-                    positionTlX = outputTopLeftPoint.x
-                    positionTlY = outputTopLeftPoint.y
-                    positionRbX = outputBottomRightPoint.x
-                    positionRbY = outputBottomRightPoint.y
+                    positionLtX = lt.x
+                    positionLtY = lt.y
+                    positionRbX = rb.x
+                    positionRbY = rb.y
                 }
 
                 ScaleType.CenterCrop -> {
                     // 放大/缩小 vertex x 坐标，令其长宽比例等于渲染 Surface，后续渲染时再通过 view 矩阵还原
-                    positionTlX = -1.0f * renderRatio
-                    positionTlY = 1.0f
+                    positionLtX = -1.0f * renderRatio
+                    positionLtY = 1.0f
                     positionRbX = 1.0f * renderRatio
                     positionRbY = -1.0f
                 }
             }
 
             val vertex = vertexArray
-            vertex[0] = positionTlX; vertex[1] = positionTlY; vertex[2] = 0.0f;         vertex[3] = textureTlX; vertex[4] = textureTlY // 左上
-            vertex[5] = positionRbX; vertex[6] = positionTlY; vertex[7] = 0.0f;         vertex[8] = textureRbX; vertex[9] = textureTlY // 右上
-            vertex[10] = positionRbX; vertex[11] = positionRbY; vertex[12] = 0.0f;      vertex[13] = textureRbX; vertex[14] = textureRbY // 右下
-            vertex[15] = positionTlX; vertex[16] = positionRbY; vertex[17] = 0.0f;      vertex[18] = textureTlX; vertex[19] = textureRbY // 左下
+            vertex[0] = positionLtX; vertex[1] = positionLtY; vertex[2] = 0.0f;         vertex[3] = textureRenderPoints[0].x; vertex[4] = textureRenderPoints[0].y // 左上
+            vertex[5] = positionRbX; vertex[6] = positionLtY; vertex[7] = 0.0f;         vertex[8] = textureRenderPoints[1].x; vertex[9] = textureRenderPoints[1].y // 右上
+            vertex[10] = positionRbX; vertex[11] = positionRbY; vertex[12] = 0.0f;      vertex[13] = textureRenderPoints[2].x; vertex[14] = textureRenderPoints[2].y // 右下
+            vertex[15] = positionLtX; vertex[16] = positionRbY; vertex[17] = 0.0f;      vertex[18] = textureRenderPoints[3].x; vertex[19] = textureRenderPoints[3].y // 左下
             val vertexBuffer = vertexBuffer
             vertexBuffer.position(0)
             vertexBuffer.put(vertex)
@@ -806,7 +847,6 @@ internal class GLRenderer {
                         }
                         val VAO = glGenVertexArrays()
                         val VBO = glGenBuffers()
-                        // TODO：传统的 GL texture 的原点是左下角，MediaCodec 的输出流的原点是左上角，没有有搞太懂.
                         val vertices = floatArrayOf(
                             // 顶点(position 0)   // 纹理坐标(position 1)
                             -1.0f, 1.0f,        0.0f, 0.0f,    // 左上角
@@ -1309,92 +1349,92 @@ internal class GLRenderer {
             var y: Float = 0.0f
         }
 
-        // TODO:
-        private fun centerCropTextureRect(
+        /**
+         * textureRenderPoints
+         * 裁剪纹理坐标到目标比例
+         */
+        private fun centerCropTexturePoint(
             targetRatio: Float,
-            inputTopLeftPoint: Point,
-            inputBottomRightPoint: Point,
-            outputTopLeftPoint: Point,
-            outputBottomRightPoint: Point
+            textureRenderPoints: Array<Point>
         ) {
-            val oldRectWidth = inputBottomRightPoint.x - inputTopLeftPoint.x
-            val oldRectHeight = inputBottomRightPoint.y - inputTopLeftPoint.y
+            val oldRectWidth = abs(textureRenderPoints[0].x - textureRenderPoints[1].x)
+            val oldRectHeight = abs(textureRenderPoints[1].y - textureRenderPoints[2].y)
             val oldRectRatio = oldRectWidth / oldRectHeight
             when  {
                 oldRectRatio - targetRatio > 0.00001 -> {
+                    fun cutX(from: Point, to: Point, toCut: Float) {
+                        if (from.x < to.x) {
+                            from.x += toCut
+                            to.x -= toCut
+                        } else {
+                            from.x -= toCut
+                            to.x += toCut
+                        }
+                    }
+
                     // 裁剪 x
                     val d = (oldRectWidth - oldRectHeight * targetRatio) / 2.0f
-                    val newTopLeftX = inputTopLeftPoint.x + d
-                    val newBottomRightX = inputBottomRightPoint.x - d
-
-                    outputTopLeftPoint.x = newTopLeftX
-                    outputTopLeftPoint.y = inputTopLeftPoint.y
-
-                    outputBottomRightPoint.x = newBottomRightX
-                    outputBottomRightPoint.y = inputBottomRightPoint.y
+                    cutX(textureRenderPoints[0], textureRenderPoints[1], d)
+                    cutX(textureRenderPoints[2], textureRenderPoints[3], d)
                 }
 
                 targetRatio - oldRectRatio > 0.00001 -> {
+                    fun cutY(from: Point, to: Point, toCut: Float) {
+                        if (from.y < to.y) {
+                            from.y += toCut
+                            to.y -= toCut
+                        } else {
+                            from.y -= toCut
+                            to.y += toCut
+                        }
+                    }
                     // 裁剪 y
                     val d = (oldRectHeight - oldRectWidth / targetRatio) / 2.0f
-                    val newTopLeftY = inputTopLeftPoint.y + d
-                    val newBottomRightY = inputBottomRightPoint.y - d
-                    outputTopLeftPoint.x = inputTopLeftPoint.x
-                    outputTopLeftPoint.y = newTopLeftY
-                    outputBottomRightPoint.x = inputBottomRightPoint.x
-                    outputBottomRightPoint.y = newBottomRightY
+                    cutY(textureRenderPoints[1], textureRenderPoints[2], d)
+                    cutY(textureRenderPoints[3], textureRenderPoints[0], d)
                 }
 
                 else -> {
-                    outputTopLeftPoint.x = inputTopLeftPoint.x
-                    outputTopLeftPoint.y = inputTopLeftPoint.y
-                    outputBottomRightPoint.x = inputBottomRightPoint.x
-                    outputBottomRightPoint.y = inputBottomRightPoint.y
+
                 }
             }
         }
 
-        private fun centerCropPositionRect(
+        /**
+         * 裁剪顶点坐标到目标比例
+         */
+        private fun centerCropVertexRect(
             targetRatio: Float, // 目标被裁后的比例
-            inputTopLeftPoint: Point,
-            inputBottomRightPoint: Point,
-            outputTopLeftPoint: Point,
-            outputBottomRightPoint: Point
+            rect: Pair<Point, Point>
         ) {
-            val oldRectWidth = inputBottomRightPoint.x - inputTopLeftPoint.x
-            val oldRectHeight = inputTopLeftPoint.y - inputBottomRightPoint.y
+            val lt = rect.first
+            val rb = rect.second
+            val oldRectWidth = rb.x - lt.x
+            val oldRectHeight = lt.y - rb.y
             val oldRectRatio = oldRectWidth / oldRectHeight
             when  {
                 // 当前的长宽比例大于目标值，需要裁掉左右部分
                 oldRectRatio - targetRatio > 0.00001 -> {
                     // 裁剪 x
                     val d = (oldRectWidth - oldRectHeight * targetRatio) / 2.0f
-                    val newTopLeftX = inputTopLeftPoint.x + d
-                    val newBottomRightX = inputBottomRightPoint.x - d
-                    outputTopLeftPoint.x = newTopLeftX
-                    outputTopLeftPoint.y = inputTopLeftPoint.y
-                    outputBottomRightPoint.x = newBottomRightX
-                    outputBottomRightPoint.y = inputBottomRightPoint.y
+                    val newTopLeftX = lt.x + d
+                    val newBottomRightX = rb.x - d
+                    lt.x = newTopLeftX
+                    rb.x = newBottomRightX
                 }
 
                 // 当前的长宽比例小于目标值，需要裁掉上下部分
                 targetRatio - oldRectRatio > 0.00001 -> {
                     // 裁剪 y
                     val d = (oldRectHeight - oldRectWidth / targetRatio) / 2.0f
-                    val newTopLeftY = inputTopLeftPoint.y - d
-                    val newBottomRightY = inputBottomRightPoint.y + d
-                    outputTopLeftPoint.x = inputTopLeftPoint.x
-                    outputTopLeftPoint.y = newTopLeftY
-                    outputBottomRightPoint.x = inputBottomRightPoint.x
-                    outputBottomRightPoint.y = newBottomRightY
+                    val newTopLeftY = lt.y - d
+                    val newBottomRightY = rb.y + d
+                    lt.y = newTopLeftY
+                    rb.y = newBottomRightY
                 }
 
                 // 不用裁
                 else -> {
-                    outputTopLeftPoint.x = inputTopLeftPoint.x
-                    outputTopLeftPoint.y = inputTopLeftPoint.y
-                    outputBottomRightPoint.x = inputBottomRightPoint.x
-                    outputBottomRightPoint.y = inputBottomRightPoint.y
                 }
             }
         }
