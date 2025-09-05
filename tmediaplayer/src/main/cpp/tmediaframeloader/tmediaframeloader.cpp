@@ -89,7 +89,7 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
         }
     }
     if (params->sample_aspect_ratio.num > 0 && params->sample_aspect_ratio.den > 0) {
-        videoDisplayRatio = (float_t) params->sample_aspect_ratio.num / (float_t)params->sample_aspect_ratio.den;
+        videoDisplayRatio = ((float_t) video_width / (float_t) video_height) *((float_t) params->sample_aspect_ratio.num / (float_t) params->sample_aspect_ratio.den);
     }
     return OptSuccess;
 }
@@ -197,7 +197,16 @@ tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
     if (frameDisplayRotation == 0 && videoDisplayRotation != 0) {
         frameDisplayRotation = videoDisplayRotation;
     }
-    frameDisplayRatio = videoDisplayRatio;
+
+    if (frame->sample_aspect_ratio.num > 0 && frame->sample_aspect_ratio.den > 0) {
+        frameDisplayRatio = ((float_t) w / (float_t) h) * (float_t) frame->sample_aspect_ratio.num / (float_t) frame->sample_aspect_ratio.den;
+    }
+    if (frameDisplayRatio == 0.0f && videoDisplayRatio != 0.0f) {
+        frameDisplayRatio = videoDisplayRatio;
+    }
+    if (frameDisplayRatio == 0.0f) {
+        frameDisplayRatio = (float_t) w / (float_t) h;
+    }
     videoBuffer->displayRotation = frameDisplayRotation;
     videoBuffer->displayRatio = frameDisplayRatio;
 

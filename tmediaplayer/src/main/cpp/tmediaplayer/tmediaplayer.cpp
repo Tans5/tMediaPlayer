@@ -558,7 +558,7 @@ tMediaOptResult tMediaPlayerContext::prepare(
             }
         }
         if (params->sample_aspect_ratio.num > 0 && params->sample_aspect_ratio.den > 0) {
-            videoDisplayRatio = (float_t) params->sample_aspect_ratio.num / (float_t)params->sample_aspect_ratio.den;
+            videoDisplayRatio = ((float_t) video_width / (float_t) video_height) *((float_t) params->sample_aspect_ratio.num / (float_t) params->sample_aspect_ratio.den);
             LOGD("Video stream display ratio: %f", videoDisplayRatio);
         }
         videoMetaData = new Metadata;
@@ -752,14 +752,13 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
         if (frameDisplayRotation == 0 && videoDisplayRotation != 0) {
             frameDisplayRotation = videoDisplayRotation;
         }
-        // TODO: I don't known why video frame ratio is wrong.
-//        if (video_frame->sample_aspect_ratio.num > 0 && video_frame->sample_aspect_ratio.den > 0) {
-//            frameDisplayRatio = (float_t) video_frame->sample_aspect_ratio.num / (float_t) video_frame->sample_aspect_ratio.den;
-//        }
-//        if (frameDisplayRatio == 0.0f && displayRatio != 0.0f) {
-//            frameDisplayRatio = displayRatio;
-//        }
-        frameDisplayRatio = videoDisplayRatio;
+
+        if (video_frame->sample_aspect_ratio.num > 0 && video_frame->sample_aspect_ratio.den > 0) {
+            frameDisplayRatio = ((float_t) w / (float_t) h) * (float_t) video_frame->sample_aspect_ratio.num / (float_t) video_frame->sample_aspect_ratio.den;
+        }
+        if (frameDisplayRatio == 0.0f && videoDisplayRatio != 0.0f) {
+            frameDisplayRatio = videoDisplayRatio;
+        }
         if (frameDisplayRatio == 0.0f) {
             frameDisplayRatio = (float_t) w / (float_t) h;
         }
