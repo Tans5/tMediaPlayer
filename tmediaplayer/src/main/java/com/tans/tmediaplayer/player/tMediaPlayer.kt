@@ -792,6 +792,8 @@ class tMediaPlayer(
                 videoPixelFormat = VideoPixelFormat.entries.find { it.formatId == pixelFormatId } ?: VideoPixelFormat.NONE,
                 isAttachment = videoStreamIsAttachmentNative(nativePlayer),
                 videoDecoderName = videoDecoderNameNative(nativePlayer),
+                videoDisplayRotation = videoDisplayRotationNative(nativePlayer),
+                videoDisplayRatio = videoDisplayRatioNative(nativePlayer),
                 videoStreamMetadata = convertMetadataToMap(videoStreamMetadataNative(nativePlayer))
             ).apply {
                 tMediaPlayerLog.d(TAG) { "Find video stream: $this" }
@@ -1024,6 +1026,10 @@ class tMediaPlayer(
     private external fun videoCodecIdNative(nativePlayer: Long): Int
 
     private external fun videoDecoderNameNative(nativePlayer: Long): String
+
+    private external fun videoDisplayRotationNative(nativePlayer: Long): Int
+
+    private external fun videoDisplayRatioNative(nativePlayer: Long): Float
 
     private external fun videoStreamMetadataNative(nativePlayer: Long): Array<String>
     // endregion

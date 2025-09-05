@@ -553,13 +553,13 @@ tMediaOptResult tMediaPlayerContext::prepare(
             }
             if (displayMatrix != nullptr) {
                 auto rotation = ((int32_t) av_display_rotation_get((int32_t *)displayMatrix) + 360) % 360;
-                displayRotation = rotation;
+                videoDisplayRotation = rotation;
                 LOGD("Video stream display rotation: %d", rotation);
             }
         }
         if (params->sample_aspect_ratio.num > 0 && params->sample_aspect_ratio.den > 0) {
-            displayRatio = (float_t) params->sample_aspect_ratio.num / (float_t)params->sample_aspect_ratio.den;
-            LOGD("Video stream display ratio: %f", displayRatio);
+            videoDisplayRatio = (float_t) params->sample_aspect_ratio.num / (float_t)params->sample_aspect_ratio.den;
+            LOGD("Video stream display ratio: %f", videoDisplayRatio);
         }
         videoMetaData = new Metadata;
         readMetadata(video_stream->metadata, videoMetaData);
@@ -749,21 +749,23 @@ tMediaOptResult tMediaPlayerContext::moveDecodedVideoFrameToBuffer(tMediaVideoBu
                 frameDisplayRotation = ((int32_t) av_display_rotation_get((int32_t *)displayMatrix) + 360) % 360;
             }
         }
-        if (frameDisplayRotation == 0 && displayRotation != 0) {
-            frameDisplayRotation = displayRotation;
+        if (frameDisplayRotation == 0 && videoDisplayRotation != 0) {
+            frameDisplayRotation = videoDisplayRotation;
         }
-        if (video_frame->sample_aspect_ratio.num > 0 && video_frame->sample_aspect_ratio.den > 0) {
-            frameDisplayRatio = (float_t) video_frame->sample_aspect_ratio.num / (float_t) video_frame->sample_aspect_ratio.den;
-        }
-        if (frameDisplayRatio == 0.0f && displayRatio != 0.0f) {
-            frameDisplayRatio = displayRatio;
-        }
+        // TODO: I don't known why video frame ratio is wrong.
+//        if (video_frame->sample_aspect_ratio.num > 0 && video_frame->sample_aspect_ratio.den > 0) {
+//            frameDisplayRatio = (float_t) video_frame->sample_aspect_ratio.num / (float_t) video_frame->sample_aspect_ratio.den;
+//        }
+//        if (frameDisplayRatio == 0.0f && displayRatio != 0.0f) {
+//            frameDisplayRatio = displayRatio;
+//        }
+        frameDisplayRatio = videoDisplayRatio;
         if (frameDisplayRatio == 0.0f) {
             frameDisplayRatio = (float_t) w / (float_t) h;
         }
-//    auto colorRange = frame->color_range;
-//    auto colorPrimaries = frame->color_primaries;
-//    auto colorSpace = frame->colorspace;
+//        auto colorRange = video_frame->color_range;
+//        auto colorPrimaries = video_frame->color_primaries;
+//        auto colorSpace = video_frame->colorspace;
         if (format == AV_PIX_FMT_YUV420P) {
             if (w % YUV_ALIGN_SIZE == 0) {
                 videoBuffer->width = w;

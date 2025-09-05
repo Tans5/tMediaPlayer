@@ -358,6 +358,28 @@ Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDecoderNameNative(
     return decoderName;
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDisplayRotationNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    return player->videoDisplayRotation;
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_com_tans_tmediaplayer_player_tMediaPlayer_videoDisplayRatioNative(
+        JNIEnv * env,
+        jobject j_player,
+        jlong native_player) {
+    auto *player = reinterpret_cast<tMediaPlayerContext *>(native_player);
+    auto r = player->videoDisplayRatio;
+    if (r == 0.0f && player->video_width > 0 && player->video_height > 0) {
+        r = (float_t) player->video_width / (float_t) player->video_height;
+    }
+    return r;
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_tans_tmediaplayer_player_tMediaPlayer_videoStreamMetadataNative(
         JNIEnv * env,

@@ -81,6 +81,8 @@ class MediaInfoDialog : BaseCoroutineStateDialogFragment<Unit> {
                     result.add("Bitrate: ${it.videoBitrate / 1024} kbps")
                     result.add("PixelDepth: ${it.videoPixelBitDepth} bits")
                     result.add("PixelFormat: ${it.videoPixelFormat.name}")
+                    result.add("DisplayRotation: ${it.videoDisplayRotation}")
+                    result.add("DisplayRatio: ${String.format(Locale.US, "%.3f", it.videoDisplayRatio)}")
                     if (it.videoStreamMetadata.isNotEmpty()) {
                         result.add("")
                         result.add("Metadata: ")

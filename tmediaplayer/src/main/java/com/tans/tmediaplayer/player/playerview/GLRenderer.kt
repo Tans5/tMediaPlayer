@@ -446,8 +446,7 @@ internal class GLRenderer {
                 imageWidth = frame.width
                 imageHeight = frame.height
                 imageRotation = frame.displayRotation
-                //FixME
-                imageRatio = imageWidth.toFloat() / imageHeight.toFloat()
+                imageRatio = frame.displayRatio
                 rgbaBytes = frame.rgbaBuffer
                 yBytes = frame.yBuffer
                 uBytes = frame.uBuffer
