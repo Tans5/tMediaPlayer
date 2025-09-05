@@ -40,12 +40,26 @@ object tMediaFrameLoader {
                     return null
                 }
                 val byteSize = getVideoFrameRgbaSizeNative(nativeLoader)
+                val rotation = getVideoDisplayRotationNative(nativeLoader)
                 val bytes = ByteArray(byteSize)
                 getVideoFrameRgbaBytesNative(nativeLoader, bytes)
                 val width = videoWidthNative(nativeLoader)
                 val height = videoHeightNative(nativeLoader)
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bytes))
+                val fixedWidth: Int
+                val fixedHeight: Int
+                when (rotation) {
+                    90, 270 -> {
+                        fixedWidth = height
+                        fixedHeight = width
+                    }
+                    else -> {
+                        fixedWidth = width
+                        fixedHeight = height
+                    }
+                }
+                val rotatedBytes = rotateBitmapRGBA(bytes, width, height, rotation)
+                val bitmap = Bitmap.createBitmap(fixedWidth, fixedHeight, Bitmap.Config.ARGB_8888)
+                bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(rotatedBytes))
                 return bitmap
             } finally {
                 releaseNative(nativeLoader)
@@ -56,6 +70,76 @@ object tMediaFrameLoader {
         } else {
             return null
         }
+    }
+
+    fun rotateBitmapRGBA(data: ByteArray, width: Int, height: Int, rotation: Int): ByteArray {
+        val pixelSize = 4 // RGBA 每个像素占 4 字节
+        val totalPixels = width * height
+
+        // 验证输入数据
+        require(data.size >= totalPixels * pixelSize) { "Invalid data size" }
+
+        return when (rotation) {
+            90 -> rotate90(data, width, height, pixelSize)
+            180 -> rotate180(data, width, height, pixelSize)
+            270 -> rotate270(data, width, height, pixelSize)
+            else -> data
+        }
+    }
+
+    private fun rotate270(data: ByteArray, width: Int, height: Int, pixelSize: Int): ByteArray {
+        val newWidth = height
+        val newHeight = width
+        val output = ByteArray(newWidth * newHeight * pixelSize)
+
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val srcIndex = (y * width + x) * pixelSize
+                val dstIndex = (x * newWidth + (height - 1 - y)) * pixelSize
+
+                // 复制 RGBA 像素
+                for (i in 0 until pixelSize) {
+                    output[dstIndex + i] = data[srcIndex + i]
+                }
+            }
+        }
+
+        return output
+    }
+
+    private fun rotate180(data: ByteArray, width: Int, height: Int, pixelSize: Int): ByteArray {
+        val output = ByteArray(data.size)
+        val totalPixels = width * height
+
+        for (i in 0 until totalPixels) {
+            val srcIndex = i * pixelSize
+            val dstIndex = (totalPixels - 1 - i) * pixelSize
+
+            for (j in 0 until pixelSize) {
+                output[dstIndex + j] = data[srcIndex + j]
+            }
+        }
+
+        return output
+    }
+
+    private fun rotate90(data: ByteArray, width: Int, height: Int, pixelSize: Int): ByteArray {
+        val newWidth = height
+        val newHeight = width
+        val output = ByteArray(newWidth * newHeight * pixelSize)
+
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val srcIndex = (y * width + x) * pixelSize
+                val dstIndex = ((width - 1 - x) * newWidth + y) * pixelSize
+
+                for (i in 0 until pixelSize) {
+                    output[dstIndex + i] = data[srcIndex + i]
+                }
+            }
+        }
+
+        return output
     }
 
     private external fun createFrameLoaderNative(): Long
@@ -73,6 +157,10 @@ object tMediaFrameLoader {
     private external fun getVideoFrameRgbaSizeNative(nativeFrameLoader: Long): Int
 
     private external fun getVideoFrameRgbaBytesNative(nativeFrameLoader: Long, byteArray: ByteArray)
+
+    private external fun getVideoDisplayRotationNative(nativeFrameLoader: Long): Int
+
+    private external fun getVideoDisplayRatioNative(nativeFrameLoader: Long): Float
 
     private external fun releaseNative(nativeFrameLoader: Long)
 

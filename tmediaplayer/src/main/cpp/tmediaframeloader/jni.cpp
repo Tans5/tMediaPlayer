@@ -98,6 +98,28 @@ Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoFrameRgbaBytesN
                             reinterpret_cast<const jbyte *>(loader->videoBuffer->rgbaBuffer));
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoDisplayRotationNative(
+        JNIEnv * env,
+        jobject j_loader,
+        jlong native_loader) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    return loader->videoDisplayRotation;
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_getVideoDisplayRatioNative(
+        JNIEnv * env,
+        jobject j_loader,
+        jlong native_loader) {
+    auto *loader = reinterpret_cast<tMediaFrameLoaderContext *>(native_loader);
+    auto r = loader->videoDisplayRatio;
+    if (r == 0.0f && loader->video_width > 0 && loader->video_height > 0) {
+        r = (float_t) loader->video_width / (float_t) loader->video_height;
+    }
+    return r;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tans_tmediaplayer_frameloader_tMediaFrameLoader_releaseNative(
         JNIEnv * env,

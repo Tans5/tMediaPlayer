@@ -74,6 +74,23 @@ tMediaOptResult tMediaFrameLoaderContext::prepare(const char *media_file_p) {
     if (format_ctx->duration != AV_NOPTS_VALUE) {
         this->duration = (int32_t) (((double) format_ctx->duration) * av_q2d(AV_TIME_BASE_Q) * 1000.0);
     }
+    if (params->nb_coded_side_data > 0) {
+        void *displayMatrix = nullptr;
+        for (int i = 0; i < params->nb_coded_side_data; i ++) {
+            auto sideData = params->coded_side_data[i];
+            if (sideData.type == AV_PKT_DATA_DISPLAYMATRIX) {
+                displayMatrix = sideData.data;
+                break;
+            }
+        }
+        if (displayMatrix != nullptr) {
+            auto rotation = ((int32_t) av_display_rotation_get((int32_t *)displayMatrix) + 360) % 360;
+            videoDisplayRotation = rotation;
+        }
+    }
+    if (params->sample_aspect_ratio.num > 0 && params->sample_aspect_ratio.den > 0) {
+        videoDisplayRatio = (float_t) params->sample_aspect_ratio.num / (float_t)params->sample_aspect_ratio.den;
+    }
     return OptSuccess;
 }
 
@@ -161,6 +178,28 @@ tMediaOptResult tMediaFrameLoaderContext::decodeForGetFrame() {
 tMediaOptResult tMediaFrameLoaderContext::parseDecodeVideoFrameToBuffer() {
     int w = frame->width;
     int h = frame->height;
+
+    int32_t frameDisplayRotation = 0;
+    float_t frameDisplayRatio = 0.0f;
+    if (frame->nb_side_data > 0) {
+        void *displayMatrix = nullptr;
+        for (int i = 0; i < frame->nb_side_data; i ++) {
+            auto sideData = frame->side_data[i];
+            if (sideData->type == AV_FRAME_DATA_DISPLAYMATRIX) {
+                displayMatrix = sideData->data;
+                break;
+            }
+        }
+        if (displayMatrix != nullptr) {
+            frameDisplayRotation = ((int32_t) av_display_rotation_get((int32_t *)displayMatrix) + 360) % 360;
+        }
+    }
+    if (frameDisplayRotation == 0 && videoDisplayRotation != 0) {
+        frameDisplayRotation = videoDisplayRotation;
+    }
+    frameDisplayRatio = videoDisplayRatio;
+    videoBuffer->displayRotation = frameDisplayRotation;
+    videoBuffer->displayRatio = frameDisplayRatio;
 
     if (w != video_width ||
         h != video_height ||

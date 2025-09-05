@@ -36,6 +36,8 @@ typedef struct tMediaFrameLoaderContext {
     SwsContext * sws_ctx = nullptr;
     int32_t video_width = 0;
     int32_t video_height = 0;
+    int32_t videoDisplayRotation = 0;
+    float_t videoDisplayRatio = 0.0f;
     AVCodecContext *video_decoder_ctx = nullptr;
     tMediaVideoBuffer *videoBuffer = nullptr;
 
