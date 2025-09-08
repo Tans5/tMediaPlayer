@@ -18,7 +18,7 @@ class MyApp : Application() {
     override fun attachBaseContext(base: Context?) {
         super.attachBaseContext(base)
         tApmAutoInit.addBuilderInterceptor { builder ->
-            if (!BuildConfig.DEBUG) {
+            if (BuildConfig.DEBUG) {
                 builder
                     // CpuUsage
                     .addMonitor(CpuUsageMonitor())
