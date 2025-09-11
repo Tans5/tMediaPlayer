@@ -1,7 +1,7 @@
 
 ## Summary
 
-Android media player library base on FFmpeg 7.1. Support single image frame load, subtitle render, video hw decode and ascii art image filter.
+Android media player library base on FFmpeg 8.0. Support single image frame load, subtitle render, video hw decode and ascii art image filter.
 
 
 ## Screenshots
@@ -23,7 +23,7 @@ In your app-level `build.gradle`:
 ```groovy
 dependencies {
     // Core library  
-    implementation("io.github.tans5:tmediaplayer:1.6.0")
+    implementation("io.github.tans5:tmediaplayer:1.6.2")
 } 
 ```
 
